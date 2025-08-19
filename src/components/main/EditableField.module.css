@@ -1,0 +1,10 @@
+.editIcon {
+    cursor: pointer;
+    color: #e37021;
+    transition: all .2s ease-in-out;
+}
+
+.editIcon:hover {
+    color: #0061aa;
+
+}
