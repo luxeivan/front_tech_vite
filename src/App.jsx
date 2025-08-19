@@ -7,12 +7,15 @@ import AuthForm from './components/AuthForm'
 import TableTN from './components/main/TableTN,'
 
 function App() {
-  const { authing, isAuth, exit, getJwt,fieldsSetting,getFieldsSetting } = useAuth(store => store)
-  useEffect(()=>{
+  const { authing, isAuth, exit, getJwt, fieldsSetting, getFieldsSetting } = useAuth(store => store)
+  useEffect(() => {
     getJwt()
     getFieldsSetting()
-  },[])
-  
+  }, [])
+  useEffect(() => {
+    getFieldsSetting()
+  }, [isAuth])
+
 
   return (
     <>
