@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { create } from 'zustand'
-import conf from '../conf'
+
+const urlBackend = import.meta.env.VITE_URL_BACKEND
 
 const useData = create((set) => ({
     tns: false,
@@ -11,7 +12,7 @@ const useData = create((set) => ({
     getTns: async (page, pageSize) => {
         try {
             set({ isLoadingTns: true })
-            const res = await axios.get(`${conf.urlBackend}/api/teh-narusheniyas?pagination[page]=${page}&pagination[pageSize]=${pageSize}`, {
+            const res = await axios.get(`${urlBackend}/api/teh-narusheniyas?pagination[page]=${page}&pagination[pageSize]=${pageSize}`, {
                 headers: {
                     Authorization: `Bearer ${localStorage.getItem("jwt")}`
                 }
@@ -29,7 +30,7 @@ const useData = create((set) => ({
     getTn: async (documentId) => {
         try {
             set({ isLoadingTn: true })
-            const res = await axios.get(`${conf.urlBackend}/api/teh-narusheniyas/${documentId}`, {
+            const res = await axios.get(`${urlBackend}/api/teh-narusheniyas/${documentId}`, {
                 headers: {
                     Authorization: `Bearer ${localStorage.getItem("jwt")}`
                 }
@@ -47,7 +48,7 @@ const useData = create((set) => ({
     updateTn: async (documentId, data) => {
         try {
             set({ isUpdatingTn: true })
-            const res = await axios.put(`${conf.urlBackend}/api/teh-narusheniyas/${documentId}`,
+            const res = await axios.put(`${urlBackend}/api/teh-narusheniyas/${documentId}`,
                 {
                     data: {
                         data

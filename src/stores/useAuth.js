@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { create } from 'zustand'
-import conf from '../conf'
+const urlBackend = import.meta.env.VITE_URL_BACKEND
 
 const useAuth = create((set) => ({
     isAuth: false,
@@ -20,7 +20,7 @@ const useAuth = create((set) => ({
     },
     authing: async (identifier, password) => {
         try {
-            const res = await axios.post(`${conf.urlBackend}/api/auth/local`, {
+            const res = await axios.post(`${urlBackend}/api/auth/local`, {
                 identifier,
                 password,
             })
@@ -37,7 +37,9 @@ const useAuth = create((set) => ({
     },
     getFieldsSetting: async () => {
         try {
-            const res = await axios.get(`${conf.urlBackend}/api/nastrojki-polejs?pagination[pageSize]=100`, {
+            console.log(`${urlBackend}/api/nastrojki-polejs?pagination[pageSize]=100`);
+            
+            const res = await axios.get(`${urlBackend}/api/nastrojki-polejs?pagination[pageSize]=100`, {
                 headers: {
                     Authorization: `Bearer ${localStorage.getItem("jwt")}`
                 }

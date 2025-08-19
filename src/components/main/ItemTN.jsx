@@ -8,8 +8,8 @@ import EditableField from './EditableField'
 
 export default function ItemTN({ documentId }) {
     const { tn, getTn, isLoadingTn, updateTn, isUpdatingTn } = useData(store => store)
-    const [openModalEdit, setOpenModalEdit] = useState(false)
-    const [data, setData] = useState(false)
+    // const [openModalEdit, setOpenModalEdit] = useState(false)
+    // const [data, setData] = useState(false)
     const { fieldsSetting } = useAuth(store => store)
     useEffect(() => {
         getTn(documentId)
@@ -49,17 +49,19 @@ export default function ItemTN({ documentId }) {
                                 },
                             ]}
                         />
-                        <Descriptions
-                            column={1}
-                            items={fieldsSetting.map(item => {
-                                return {
-                                    key: '1',
-                                    label: item.label,
-                                    children: <EditableField editable={item.editable} name={item.nameModus} value={tn?.data?.data[item.nameModus]} handlerUpdateTn={handlerUpdateTn} />,
-                                }
-                            })}
+                        {fieldsSetting && fieldsSetting.length > 0 &&
+                            <Descriptions
+                                column={1}
+                                items={fieldsSetting.map(item => {
+                                    return {
+                                        key: '1',
+                                        label: item.label,
+                                        children: <EditableField editable={item.editable} name={item.nameModus} value={tn?.data?.data[item.nameModus]} handlerUpdateTn={handlerUpdateTn} />,
+                                    }
+                                })}
 
-                        />
+                            />
+                        }
                     </Flex>
                 </>
             }
