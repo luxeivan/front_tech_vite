@@ -4,7 +4,7 @@ import Container from './components/Container'
 import useAuth from './stores/useAuth'
 import Header from './components/Header'
 import AuthForm from './components/AuthForm'
-import TableTN from './components/main/TableTN,'
+import TableTN from './components/main/TableTN'
 
 function App() {
   const { authing, isAuth, exit, getJwt, fieldsSetting, getFieldsSetting } = useAuth(store => store)
