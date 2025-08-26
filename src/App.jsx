@@ -1,34 +1,46 @@
-import { Button, Typography } from 'antd'
-import { useEffect, useState } from 'react'
-import Container from './components/Container'
-import useAuth from './stores/useAuth'
-import Header from './components/Header'
-import AuthForm from './components/AuthForm'
-import TableTN from './components/main/TableTN'
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { Button, Typography } from "antd";
+import { useEffect, useState } from "react";
+import Container from "./components/Container";
+import useAuth from "./stores/useAuth";
+import Header from "./components/Header";
+import AuthForm from "./components/AuthForm";
+import TableTN from "./components/main/TableTN";
+import Dashboard from "./components/dashboard/Dashboard";
 
 function App() {
-  const { authing, isAuth, exit, getJwt, fieldsSetting, getFieldsSetting } = useAuth(store => store)
+  const { authing, isAuth, exit, getJwt, fieldsSetting, getFieldsSetting } =
+    useAuth((store) => store);
   useEffect(() => {
-    getJwt()
-    getFieldsSetting()
-  }, [])
+    getJwt();
+    getFieldsSetting();
+  }, []);
   useEffect(() => {
-    getFieldsSetting()
-  }, [isAuth])
+    getFieldsSetting();
+  }, [isAuth]);
 
+  const authOk = isAuth || !!localStorage.getItem('jwt');
 
   return (
-    <>
+    <BrowserRouter>
       <Header />
       <Container>
-        {!isAuth && <AuthForm />}
+        <Routes>
+          {/* Главная: форма логина или таблица ТН */}
+          <Route path="/" element={authOk ? <TableTN /> : <AuthForm />} />
 
-        {isAuth &&
-          <TableTN />
-        }
+          {/* Дашборд: защищённая страница */}
+          <Route
+            path="/dashboard"
+            element={authOk ? <Dashboard /> : <Navigate to="/" replace />}
+          />
+
+          {/* Фоллбек */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </Container>
-    </>
-  )
+    </BrowserRouter>
+  );
 }
 
-export default App
+export default App;
