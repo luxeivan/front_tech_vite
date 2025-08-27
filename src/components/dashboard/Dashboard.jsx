@@ -7,12 +7,13 @@ export default function Dashboard() {
 
   return (
     <div style={{ textAlign: "center" }}>
-      <Typography.Title level={2} style={{ textTransform: "uppercase", color: "blue" }}>
+      <Typography.Title
+        level={2}
+        style={{ textTransform: "uppercase", color: "blue" }}
+      >
         ТЕХНОЛОГИЧЕСКИЕ НАРУШЕНИЯ В ЭЛЕКТРИЧЕСКИХ СЕТЯХ АО «МОСОБЛЭНЕРГО»
       </Typography.Title>
-      <Typography.Paragraph>
-        По состоянию на {now}
-      </Typography.Paragraph>
+      <Typography.Paragraph>По состоянию на {now}</Typography.Paragraph>
     </div>
   );
 }
