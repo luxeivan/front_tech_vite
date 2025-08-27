@@ -15,6 +15,7 @@ import { ReloadOutlined } from "@ant-design/icons";
 import ItemTN from "./ItemTN";
 import useAuth from "../../stores/useAuth";
 import TableTNActionsBar from "./TableTNActionsBar";
+import TNModal from "./TNModal";
 
 function WelcomeHeader() {
   const { user, getJwt, getUserMe } = useAuth((s) => s);
@@ -160,11 +161,11 @@ export default function TableTN() {
       dataIndex: "createDateTime",
       key: "createDateTime",
     },
-    {
-      title: "ЕДДС",
-      dataIndex: "sendedEdds",
-      key: "sendedEdds",
-    },
+    // {
+    //   title: "ЕДДС",
+    //   dataIndex: "sendedEdds",
+    //   key: "sendedEdds",
+    // },
   ];
 
   const paginationChange = (page, pageSize) => {
@@ -253,17 +254,13 @@ export default function TableTN() {
       </div>
 
       {/* МОДАЛКА С ТН */}
-      <Modal
-        title={"Технологическое нарушение"}
+      <TNModal
         open={isOpenModalTN}
-        destroyOnHidden={true}
-        onCancel={() => {
+        onClose={() => {
           setIsOpenModalTN(false);
         }}
-        footer={false}
-      >
-        <ItemTN documentId={isOpenModalTN} />
-      </Modal>
+        documentId={isOpenModalTN}
+      />
     </>
   );
 }
