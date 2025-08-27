@@ -119,10 +119,16 @@ export default function TNModal({ open, onClose, documentId }) {
                       name={item.nameModus}
                       value={tn?.data?.data?.[item.nameModus]}
                       handlerUpdateTn={(name, value) => {
+                        // const newData = { ...(tn?.data?.data || {}) };
+                        // newData[name] = value;
+                        // updateTn(tn?.data?.documentId, { data: newData });
+                        // getTn(documentId);
+
                         const newData = { ...(tn?.data?.data || {}) };
                         newData[name] = value;
-                        updateTn(tn?.data?.documentId, { data: newData });
-                        getTn(documentId);
+                        updateTn(tn?.data?.documentId, newData).then(() => {
+                          getTn(documentId);
+                        });
                       }}
                     />
                   ),
@@ -133,9 +139,7 @@ export default function TNModal({ open, onClose, documentId }) {
             <Divider style={{ margin: "8px 0" }} />
 
             <div>
-              <Typography.Text type="secondary">
-                Отправка
-              </Typography.Text>
+              <Typography.Text type="secondary">Отправка</Typography.Text>
 
               <Flex gap={16} align="center" style={{ marginTop: 8 }}>
                 <Checkbox
