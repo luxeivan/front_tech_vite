@@ -20,18 +20,25 @@ export default function SendBlock({ tn, documentId, refresh }) {
     if (d?.sendedMosEnergoSbit) setMesSelected(false);
   }, [tn?.data?.sendedEdds, tn?.data?.sendedMosEnergoSbit, tn?.data]);
 
-  const payload = useMemo(() => {
+  const eddsPayload = useMemo(() => {
     const obj = tn?.data;
     if (!obj) return null;
-    const population =
-      obj?.data?.POPULATION_COUNT ?? obj?.data?.population_count ?? null;
-    return {
-      Объект: obj.energoObject || null,
-      "Дата/время возникновения": obj.createDateTime
-        ? dayjs(obj.createDateTime).format("YYYY-MM-DD HH:mm")
-        : null,
-      "Количество отключенных потребителей": population,
-    };
+    const raw = obj?.data || {};
+
+    const valueCountPeople = raw?.POPULATION_COUNT ?? raw?.population_count ?? null;
+    const valueTimeCreateRaw = obj?.recoveryPlanDateTime || raw?.CREATE_DATETIME || obj?.createDateTime || null;
+
+    const timeCreate = valueTimeCreateRaw
+      ? dayjs(valueTimeCreateRaw).isValid()
+        ? dayjs(valueTimeCreateRaw).toISOString()
+        : valueTimeCreateRaw
+      : null;
+
+    const out = {};
+    if (timeCreate) out["time_create"] = timeCreate;
+    if (valueCountPeople != null) out["count_people"] = Number(valueCountPeople);
+
+    return out;
   }, [tn?.data]);
 
   const patchFlags = async (flags) => {
@@ -48,6 +55,7 @@ export default function SendBlock({ tn, documentId, refresh }) {
     const jwt = localStorage.getItem("jwt");
     const headers = jwt ? { Authorization: `Bearer ${jwt}` } : {};
     try {
+      console.log("[ЕДДС] Подготовленный JSON:", JSON.stringify(data, null, 2));
       const res = await axios.post(`${URL}/services/edds/`, data, {
         headers,
         timeout: 30000,
@@ -65,7 +73,7 @@ export default function SendBlock({ tn, documentId, refresh }) {
 
   const handleSend = async () => {
     try {
-      if (!payload) {
+      if (!eddsPayload) {
         message.error("Нет данных для отправки");
         return;
       }
@@ -81,29 +89,21 @@ export default function SendBlock({ tn, documentId, refresh }) {
       setSending(true);
 
       if (toEdds) {
-        const resp = await sendToEdds(payload);
-        if (
-          resp?.success === true ||
-          resp?.ok === true ||
-          resp?.raw ||
-          resp?.data
-        ) {
+        const resp = await sendToEdds(eddsPayload);
+        if (resp?.success === true || resp?.ok === true || resp?.raw || resp?.data) {
           await patchFlags({ sendedEdds: true });
           setSentEdds(true);
           setEddsSelected(false);
           message.success("ЕДДС: отправлено");
         } else {
           const details =
-            resp?.message ||
-            (resp?.data ? JSON.stringify(resp.data) : "Ответ без сообщения");
+            resp?.message || (resp?.data ? JSON.stringify(resp.data) : "Ответ без сообщения");
           message.error("ЕДДС: ошибка — " + details);
         }
       }
 
       if (toMes) {
-        console.log(
-          "Отправка в МосЭнергоСбыт:\n" + JSON.stringify(payload, null, 2)
-        );
+        console.log("Отправка в МосЭнергоСбыт:", JSON.stringify(eddsPayload, null, 2));
         await patchFlags({ sendedMosEnergoSbit: true });
         setSentMes(true);
         setMesSelected(false);
@@ -119,8 +119,7 @@ export default function SendBlock({ tn, documentId, refresh }) {
     }
   };
 
-  const canSend =
-    !sending && ((eddsSelected && !sentEdds) || (mesSelected && !sentMes));
+  const canSend = !sending && ((eddsSelected && !sentEdds) || (mesSelected && !sentMes));
 
   return (
     <div>
@@ -149,23 +148,13 @@ export default function SendBlock({ tn, documentId, refresh }) {
           МосЭнергоСбыт
         </Checkbox>
 
-        <Button
-          type="primary"
-          onClick={handleSend}
-          disabled={!canSend}
-          loading={sending}
-        >
+        <Button type="primary" onClick={handleSend} disabled={!canSend} loading={sending}>
           Отправить
         </Button>
-
-        {/* <Button onClick={handleTest} disabled={sending}>
-          Тест JSON
-        </Button> */}
       </Flex>
 
       <Typography.Paragraph type="secondary" style={{ marginTop: 6 }}>
-        После успешной отправки чекбокс блокируется. Проверяйте данные перед
-        отправкой.
+        После успешной отправки чекбокс блокируется. Проверяйте данные перед отправкой.
       </Typography.Paragraph>
 
       <Divider style={{ margin: "8px 0 0" }} />
