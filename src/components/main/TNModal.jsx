@@ -32,6 +32,15 @@ export default function TNModal({ open, documentId, onClose }) {
       footer={false}
       destroyOnClose
     >
+
+          {/* Блок отправки вынесен в отдельный компонент */}
+          <SendBlock
+            tn={tn}
+            documentId={documentId}
+            updateTn={updateTn} // на случай, если захочешь переиспользовать
+            refresh={() => getTn(documentId)}
+          />
+
       {isLoadingTn && (
         <Flex justify="center" style={{ padding: 24 }}>
           <Spin />
@@ -40,7 +49,7 @@ export default function TNModal({ open, documentId, onClose }) {
 
       {!isLoadingTn && tn && tn.data && (
         <>
-          <Descriptions
+          {/* <Descriptions
             column={1}
             labelStyle={{ width: 260 }}
             title={
@@ -62,7 +71,7 @@ export default function TNModal({ open, documentId, onClose }) {
                   : "—",
               },
             ]}
-          />
+          /> */}
 
           {fieldsSetting && fieldsSetting.length > 0 && (
             <>
@@ -88,13 +97,13 @@ export default function TNModal({ open, documentId, onClose }) {
 
           <Divider style={{ margin: "12px 0" }} />
 
-          {/* Блок отправки вынесен в отдельный компонент */}
-          <SendBlock
+
+          {/* <SendBlock
             tn={tn}
             documentId={documentId}
-            updateTn={updateTn} // на случай, если захочешь переиспользовать
+            updateTn={updateTn} 
             refresh={() => getTn(documentId)}
-          />
+          /> */}
         </>
       )}
     </Modal>
