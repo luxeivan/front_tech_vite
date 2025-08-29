@@ -112,17 +112,35 @@ function buildMkdFromFiasList(str) {
 export default function SendBlock({ tn, documentId, refresh }) {
   const [sentEdds, setSentEdds] = useState(false);
   const [sentMes, setSentMes] = useState(false);
-  const [eddsSelected, setEddsSelected] = useState(false);
-  const [mesSelected, setMesSelected] = useState(false);
+  const [eddsSelected, setEddsSelected] = useState(true);
+  const [mesSelected, setMesSelected] = useState(true);
   const [sending, setSending] = useState(false);
+
+  // useEffect(() => {
+  //   const d = tn?.data;
+  //   setSentEdds(Boolean(d?.sendedEdds));
+  //   setSentMes(Boolean(d?.sendedMosEnergoSbit));
+  //   if (d?.sendedEdds) setEddsSelected(false);
+  //   if (d?.sendedMosEnergoSbit) setMesSelected(false);
+  // }, [tn?.data?.sendedEdds, tn?.data?.sendedMosEnergoSbit, tn?.data]);
 
   useEffect(() => {
     const d = tn?.data;
-    setSentEdds(Boolean(d?.sendedEdds));
-    setSentMes(Boolean(d?.sendedMosEnergoSbit));
-    if (d?.sendedEdds) setEddsSelected(false);
-    if (d?.sendedMosEnergoSbit) setMesSelected(false);
-  }, [tn?.data?.sendedEdds, tn?.data?.sendedMosEnergoSbit, tn?.data]);
+    const eddsSent = Boolean(d?.sendedEdds);
+    const mesSent = Boolean(d?.sendedMosEnergoSbit);
+
+    setSentEdds(eddsSent);
+    setSentMes(mesSent);
+
+    // если уже отправлено — галку не ставим; если нет — ставим автоматически
+    setEddsSelected(eddsSent ? false : true);
+    setMesSelected(mesSent ? false : true);
+  }, [
+    tn?.data?.sendedEdds,
+    tn?.data?.sendedMosEnergoSbit,
+    tn?.data,
+    documentId,
+  ]);
 
   const eddsPayload = useMemo(() => {
     const obj = tn?.data;
