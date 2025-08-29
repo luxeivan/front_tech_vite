@@ -1,27 +1,99 @@
-import React, { useEffect } from "react";
-import { Descriptions, Divider, Flex, Modal, Spin, Typography } from "antd";
+// /src/components/main/TNModal.jsx
+import React, { useEffect, useMemo, useState } from "react";
+import { Descriptions, Divider, Flex, Modal, Spin, message } from "antd";
 import dayjs from "dayjs";
+import axios from "axios";
 
 import useData from "../../stores/useData";
 import useAuth from "../../stores/useAuth";
 import EditableField from "./EditableField";
 import SendBlock from "./Send/SendBlock";
 
+const URL = import.meta.env.VITE_URL_BACKEND;
+
 export default function TNModal({ open, documentId, onClose }) {
-  const { tn, getTn, isLoadingTn, updateTn } = useData((s) => s);
+  const { tn, getTn, isLoadingTn } = useData((s) => s);
   const { fieldsSetting } = useAuth((s) => s);
 
-  // Подтягиваем карточку при открытии/смене id
   useEffect(() => {
     if (open && documentId) getTn(documentId);
   }, [open, documentId, getTn]);
 
-  // Обновление одного поля из EditableField (редактируем только JSON "data")
+  // локальный слепок JSON-поля data (несохранённые правки)
+  const [overrideData, setOverrideData] = useState(null);
+  // флаг «идёт сохранение поля»
+  const [saving, setSaving] = useState(false);
+
+  // сбрасываем локальные правки при смене записи
+  useEffect(() => {
+    setOverrideData(null);
+  }, [documentId]);
+
+  // объединяем «что вернул сервер» + «локальные правки»
+  const mergedJsonData = useMemo(() => {
+    const base = tn?.data?.data ?? {};
+    return { ...base, ...(overrideData || {}) };
+  }, [tn?.data?.data, overrideData]);
+
+  // «эффективная» карточка — её и отдадим в SendBlock,
+  // чтобы payload всегда строился по актуальным данным
+  const tnEffective = useMemo(() => {
+    if (!tn) return tn;
+    return {
+      ...tn,
+      data: {
+        ...(tn.data || {}),
+        data: mergedJsonData,
+      },
+    };
+  }, [tn, mergedJsonData]);
+
+  // Сохраняем строго JSON-поле data и мягко перезагружаем только карточку
   const handlerUpdateTn = async (name, value) => {
-    const current = tn?.data?.data ?? {};
-    const nextData = { ...current, [name]: value };
-    await updateTn(documentId, { data: nextData }); // важно передать в корне data, чтобы не трогать другие поля
-    await getTn(documentId);
+    const jwt = localStorage.getItem("jwt");
+    if (!jwt) {
+      message.error("Нет JWT");
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      const current = tn?.data?.data ?? {};
+      const nextData = { ...current, [name]: value };
+
+      // мгновенно отражаем новое значение, чтобы UI не моргал
+      setOverrideData(nextData);
+
+      // обновляем только json-поле `data`
+      const res = await axios.put(
+        `${URL}/api/teh-narusheniyas/${documentId}`,
+        { data: { data: nextData } },
+        { headers: { Authorization: `Bearer ${jwt}` } }
+      );
+
+      // подстраховка: берём то, что реально сохранил сервер
+      const savedData = res?.data?.data?.attributes?.data;
+      if (savedData && typeof savedData === "object") {
+        setOverrideData(savedData);
+      }
+
+      // точечно обновляем карточку из БД (без закрытия модалки/перерисовки страницы)
+      await getTn(documentId);
+
+      // после прихода сервера локальный слепок уже не нужен
+      setOverrideData(null);
+
+      message.success("Сохранено");
+    } catch (e) {
+      console.error("Ошибка сохранения поля:", e);
+      message.error("Не удалось сохранить");
+      // откатим локальный снепшот и подтянем актуал
+      setOverrideData(null);
+      await getTn(documentId);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -32,79 +104,47 @@ export default function TNModal({ open, documentId, onClose }) {
       footer={false}
       destroyOnClose
     >
+      {/* ВАЖНО: передаём tnEffective, чтобы JSON для ЕДДС был по текущим значениям */}
+      <SendBlock
+        tn={tnEffective}
+        documentId={documentId}
+        refresh={() => getTn(documentId)}
+      />
 
-          {/* Блок отправки вынесен в отдельный компонент */}
-          <SendBlock
-            tn={tn}
-            documentId={documentId}
-            updateTn={updateTn} // на случай, если захочешь переиспользовать
-            refresh={() => getTn(documentId)}
-          />
-
-      {isLoadingTn && (
+      {isLoadingTn ? (
         <Flex justify="center" style={{ padding: 24 }}>
           <Spin />
         </Flex>
-      )}
-
-      {!isLoadingTn && tn && tn.data && (
-        <>
-          {/* <Descriptions
-            column={1}
-            labelStyle={{ width: 260 }}
-            title={
-              <Typography.Title level={4} style={{ margin: 0 }}>
-                Номер {tn.data.number}
-              </Typography.Title>
-            }
-            items={[
-              {
-                key: "energo",
-                label: "Объект",
-                children: tn.data.energoObject || "—",
-              },
-              {
-                key: "dt",
-                label: "Дата/время возникновения",
-                children: tn.data.createDateTime
-                  ? dayjs(tn.data.createDateTime).format("DD.MM.YYYY HH:mm")
-                  : "—",
-              },
-            ]}
-          /> */}
-
-          {fieldsSetting && fieldsSetting.length > 0 && (
-            <>
-              <Divider style={{ margin: "12px 0" }} />
-              <Descriptions
-                column={1}
-                labelStyle={{ width: 260 }}
-                items={fieldsSetting.map((item) => ({
-                  key: item.nameModus || item.label,
-                  label: item.label,
-                  children: (
-                    <EditableField
-                      editable={item.editable}
-                      name={item.nameModus}
-                      value={tn?.data?.data?.[item.nameModus]}
-                      handlerUpdateTn={handlerUpdateTn}
-                    />
-                  ),
-                }))}
-              />
-            </>
-          )}
-
-          <Divider style={{ margin: "12px 0" }} />
-
-
-          {/* <SendBlock
-            tn={tn}
-            documentId={documentId}
-            updateTn={updateTn} 
-            refresh={() => getTn(documentId)}
-          /> */}
-        </>
+      ) : (
+        tn &&
+        tn.data && (
+          <>
+            {fieldsSetting?.length > 0 && (
+              <>
+                <Divider style={{ margin: "12px 0" }} />
+                <Spin spinning={saving}>
+                  <Descriptions
+                    column={1}
+                    labelStyle={{ width: 260 }}
+                    items={fieldsSetting.map((item) => ({
+                      key: item.nameModus || item.label,
+                      label: item.label,
+                      children: (
+                        <EditableField
+                          editable={item.editable}
+                          name={item.nameModus}
+                          value={mergedJsonData?.[item.nameModus]}
+                          handlerUpdateTn={handlerUpdateTn}
+                        />
+                      ),
+                    }))}
+                  />
+                </Spin>
+              </>
+            )}
+            <Divider style={{ margin: "12px 0" }} />
+          </>
+        )
       )}
     </Modal>
   );
