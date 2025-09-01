@@ -3,7 +3,6 @@ import {
   ConfigProvider,
   DatePicker,
   Flex,
-  Modal,
   Pagination,
   Select,
   Spin,
@@ -14,10 +13,12 @@ import React, { useEffect, useState } from "react";
 import useData from "../../stores/useData";
 import dayjs from "dayjs";
 import { ReloadOutlined } from "@ant-design/icons";
-import ItemTN from "./ItemTN";
 import useAuth from "../../stores/useAuth";
 import TableTNActionsBar from "./TableTNActionsBar";
 import TNModal from "./TNModal";
+import ruRU from "antd/locale/ru_RU";
+import "dayjs/locale/ru";
+dayjs.locale("ru");
 
 // helper: normalize статус из разных мест объекта
 const getStatusName = (item) => {
@@ -31,6 +32,8 @@ const getStatusName = (item) => {
   return typeof raw === "string" ? raw.trim().toLowerCase() : null;
 };
 
+const getCreateDate = (item) => item?.createDateTime ?? item?.data?.createDateTime ?? item?.data?.data?.createDateTime ?? item?.data?.data?.F81_060_EVENTDATETIME ?? null;
+
 const STATUS_OPTIONS = [
   { label: "Открыта", value: "открыта" },
   { label: "Запитана", value: "запитана" },
@@ -40,7 +43,6 @@ const STATUS_OPTIONS = [
 function WelcomeHeader({ totalOpened, loadingOpened }) {
   const { user, getJwt, getUserMe } = useAuth((s) => s);
   React.useEffect(() => {
-    // дергаем локальный jwt и пробуем подтянуть профиль
     const jwt = getJwt();
     if (jwt) {
       getUserMe?.();
@@ -70,20 +72,6 @@ function WelcomeHeader({ totalOpened, loadingOpened }) {
   );
 }
 
-// function ActionsBar({ onReset }) {
-//   return (
-//     <Flex
-//       justify="center"
-//       gap={8}
-//       style={{ marginBottom: 12, flexWrap: "wrap" }}
-//     >
-//       <Button>Дашборд</Button>
-//       <Button onClick={onReset}>Сбросить фильтры</Button>
-//       <Button>AI-Аналитика</Button>
-//       <Button>🔔 Звук: Выкл</Button>
-//     </Flex>
-//   );
-// }
 
 function FiltersBar({
   dateValue,
@@ -103,6 +91,7 @@ function FiltersBar({
           value={dateValue}
           format={"DD.MM.YYYY"}
           onChange={onDateChange}
+          placeholder="Выберите дату"
         />
         <Typography.Text style={{ whiteSpace: "nowrap" }}>Статус ТН:</Typography.Text>
         <Select
@@ -114,16 +103,13 @@ function FiltersBar({
           onChange={onStatusChange}
           options={STATUS_OPTIONS}
           dropdownMatchSelectWidth={false}
+          maxTagCount={false}
         />
       </Flex>
       {rightExtra}
     </Flex>
   );
 }
-
-/** =========================
- *  ОСНОВНОЙ КОМПОНЕНТ
- *  ========================= */
 
 const defaultPageSize = 10;
 const defaultPage = 1;
@@ -139,9 +125,6 @@ export default function TableTN() {
   const [sound, setSound] = useState(false);
   const [selectedStatuses, setSelectedStatuses] = useState(["открыта"]);
 
-  // клиентская фильтрация активна, когда выбрано что-то кроме "Все"
-  const isAllStatuses = selectedStatuses.length === 0;
-
   const handleStatusChange = (vals) => {
     setSelectedStatuses(vals || []);
     setPagination((p) => ({ ...p, page: 1 }));
@@ -150,17 +133,17 @@ export default function TableTN() {
 
   const openedCount = React.useMemo(() => {
     const list = Array.isArray(tns?.data) ? tns.data : [];
-    return list.filter((i) => getStatusName(i) === "открыта").length;
-  }, [tns?.data]);
+    const byDate = list.filter((i) => {
+      const d = getCreateDate(i);
+      return date ? dayjs(d).isSame(date, "day") : true;
+    });
+    return byDate.filter((i) => getStatusName(i) === "открыта").length;
+  }, [tns?.data, date]);
   const loadingOpened = isLoadingTns || !Array.isArray(tns?.data);
 
   useEffect(() => {
-    // Серверная пагинация для "Все"
-    // Клиентская фильтрация — тянем побольше записей единожды
-    const fetchPage = isAllStatuses ? pagination.page : 1;
-    const fetchSize = isAllStatuses ? pagination.pageSize : 500; // хватит на сутки
-    getTns(fetchPage, fetchSize);
-  }, [pagination.page, pagination.pageSize, isAllStatuses, getTns]);
+    getTns(1, 500);
+  }, [date, selectedStatuses, getTns]);
 
   useEffect(() => {
     if (isLoadingTns) return;
@@ -175,20 +158,21 @@ export default function TableTN() {
   }, [tns?.data, isLoadingTns]);
 
   const listRaw = Array.isArray(tns?.data) ? tns.data : [];
-
-  // Если выбрано "Все" — показываем как есть (страница уже с сервера)
-  // Иначе фильтруем на клиенте и режем вручную для пагинации
-  const listFiltered = isAllStatuses
-    ? listRaw
-    : listRaw.filter((item) => {
+  const listByDate = listRaw.filter((item) => {
+    const d = getCreateDate(item);
+    return date ? dayjs(d).isSame(date, "day") : true;
+  });
+  const listFiltered = (selectedStatuses.length === 0)
+    ? listByDate
+    : listByDate.filter((item) => {
         const s = getStatusName(item);
         return s ? selectedStatuses.includes(s) : false;
       });
 
+  console.log('[filters] дата =', date?.format('DD.MM.YYYY'), '; статусы =', selectedStatuses, '; всего по фильтрам =', listFiltered.length);
+
   const startIndex = (pagination.page - 1) * pagination.pageSize;
-  const pageSlice = isAllStatuses
-    ? listFiltered
-    : listFiltered.slice(startIndex, startIndex + pagination.pageSize);
+  const pageSlice = listFiltered.slice(startIndex, startIndex + pagination.pageSize);
 
   const dataSource = pageSlice.length
     ? pageSlice.map((item) => {
@@ -244,11 +228,6 @@ export default function TableTN() {
       dataIndex: "createDateTime",
       key: "createDateTime",
     },
-    // {
-    //   title: "ЕДДС",
-    //   dataIndex: "sendedEdds",
-    //   key: "sendedEdds",
-    // },
   ];
 
   const paginationChange = (page, pageSize) => {
@@ -256,29 +235,31 @@ export default function TableTN() {
   };
 
   return (
-    <>
-      {/* ВЕРХНЯЯ ЧАСТЬ — приветствие и кнопки */}
+    <ConfigProvider
+      locale={ruRU}
+      theme={{
+        components: {
+          Table: {
+            rowHoverBg: "#ffb458ff",
+          },
+        },
+      }}
+    >
       <WelcomeHeader totalOpened={openedCount} loadingOpened={loadingOpened} />
-      {/* <ActionsBar
-        onReset={() => {
-          setDate(null);
-        }} */}
+
       <TableTNActionsBar
         onDashboard={() => {
-          // TODO: роут на дашборд/модалка/что угодно
           console.log("[actions] dashboard");
         }}
         onReset={() => {
-          setDate(null);
-          // TODO: сброс остальных фильтров
-          console.log("[actions] reset filters");
+          setDate(dayjs());
+          setSelectedStatuses(["открыта"]);
+          setPagination({ page: 1, pageSize: defaultPageSize });
         }}
         onAiAnalytics={() => {
-          // TODO: открыть AI-аналитику
           console.log("[actions] ai analytics");
         }}
         onToggleSound={() => {
-          // TODO: инвертировать флаг в сторе/локальном стейте
           setSound((v) => !v);
         }}
         soundEnabled={sound}
@@ -306,39 +287,25 @@ export default function TableTN() {
       />
 
       {/* ТАБЛИЦА */}
-      <ConfigProvider
-        theme={{
-          components: {
-            Table: {
-              rowHoverBg: "#ffb458ff",
+      <Table
+        dataSource={dataSource}
+        columns={columns}
+        pagination={false}
+        onRow={(record) => {
+          return {
+            style: { cursor: "pointer" },
+            onClick: () => {
+              setIsOpenModalTN(record.documentId);
             },
-          },
+          };
         }}
-      >
-        <Table
-          dataSource={dataSource}
-          columns={columns}
-          pagination={false}
-          onRow={(record) => {
-            return {
-              style: { cursor: "pointer" },
-              onClick: () => {
-                setIsOpenModalTN(record.documentId);
-              },
-            };
-          }}
-        />
-      </ConfigProvider>
+      />
 
       {/* ПАГИНАЦИЯ */}
       <div style={{ marginTop: 10 }}>
         <Pagination
           align="center"
-          total={
-            isAllStatuses
-              ? (tns?.meta?.pagination?.total ?? listFiltered.length)
-              : listFiltered.length
-          }
+          total={listFiltered.length}
           current={pagination.page}
           pageSize={pagination.pageSize}
           onChange={paginationChange}
@@ -354,6 +321,6 @@ export default function TableTN() {
         }}
         documentId={isOpenModalTN}
       />
-    </>
+    </ConfigProvider>
   );
 }
