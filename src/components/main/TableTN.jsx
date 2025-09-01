@@ -5,6 +5,8 @@ import {
   Flex,
   Modal,
   Pagination,
+  Select,
+  Spin,
   Table,
   Typography,
 } from "antd";
@@ -17,7 +19,25 @@ import useAuth from "../../stores/useAuth";
 import TableTNActionsBar from "./TableTNActionsBar";
 import TNModal from "./TNModal";
 
-function WelcomeHeader() {
+// helper: normalize статус из разных мест объекта
+const getStatusName = (item) => {
+  const raw =
+    item?.data?.data?.STATUS_NAME ??
+    item?.data?.STATUS_NAME ??
+    item?.STATUS_NAME ??
+    item?.data?.data?.status_name ??
+    item?.status_name ??
+    null;
+  return typeof raw === "string" ? raw.trim().toLowerCase() : null;
+};
+
+const STATUS_OPTIONS = [
+  { label: "Открыта", value: "открыта" },
+  { label: "Запитана", value: "запитана" },
+  { label: "Удалена", value: "удалена" },
+];
+
+function WelcomeHeader({ totalOpened, loadingOpened }) {
   const { user, getJwt, getUserMe } = useAuth((s) => s);
   React.useEffect(() => {
     // дергаем локальный jwt и пробуем подтянуть профиль
@@ -39,7 +59,12 @@ function WelcomeHeader() {
         Добро пожаловать, {name}
       </Typography.Title>
       <Typography.Title level={4} style={{ marginTop: 0, fontWeight: 500 }}>
-        Всего открытых ТН: —
+        Всего открытых ТН:{" "}
+        {loadingOpened ? (
+          <Spin size="small" />
+        ) : (
+          totalOpened
+        )}
       </Typography.Title>
     </div>
   );
@@ -60,18 +85,35 @@ function WelcomeHeader() {
 //   );
 // }
 
-function FiltersBar({ dateValue, onDateChange, rightExtra }) {
+function FiltersBar({
+  dateValue,
+  onDateChange,
+  selectedStatuses,
+  onStatusChange,
+  rightExtra,
+}) {
   return (
     <Flex
       justify="space-between"
       align="center"
       style={{ marginBottom: 10, flexWrap: "wrap", gap: 8 }}
     >
-      <Flex gap={8} wrap>
+      <Flex gap={8} wrap style={{ rowGap: 8 }}>
         <DatePicker
           value={dateValue}
           format={"DD.MM.YYYY"}
           onChange={onDateChange}
+        />
+        <Typography.Text style={{ whiteSpace: "nowrap" }}>Статус ТН:</Typography.Text>
+        <Select
+          mode="multiple"
+          allowClear
+          style={{ minWidth: 300 }}
+          placeholder="Выберите статус(ы)"
+          value={selectedStatuses}
+          onChange={onStatusChange}
+          options={STATUS_OPTIONS}
+          dropdownMatchSelectWidth={false}
         />
       </Flex>
       {rightExtra}
@@ -95,45 +137,86 @@ export default function TableTN() {
   const [isOpenModalTN, setIsOpenModalTN] = useState(false);
   const [date, setDate] = useState(dayjs());
   const [sound, setSound] = useState(false);
+  const [selectedStatuses, setSelectedStatuses] = useState(["открыта"]);
+
+  // клиентская фильтрация активна, когда выбрано что-то кроме "Все"
+  const isAllStatuses = selectedStatuses.length === 0;
+
+  const handleStatusChange = (vals) => {
+    setSelectedStatuses(vals || []);
+    setPagination((p) => ({ ...p, page: 1 }));
+    console.log("[filters] режим: Статусы =", vals || []);
+  };
+
+  const openedCount = React.useMemo(() => {
+    const list = Array.isArray(tns?.data) ? tns.data : [];
+    return list.filter((i) => getStatusName(i) === "открыта").length;
+  }, [tns?.data]);
+  const loadingOpened = isLoadingTns || !Array.isArray(tns?.data);
 
   useEffect(() => {
-    getTns(pagination.page, pagination.pageSize);
-  }, [pagination, getTns]);
+    // Серверная пагинация для "Все"
+    // Клиентская фильтрация — тянем побольше записей единожды
+    const fetchPage = isAllStatuses ? pagination.page : 1;
+    const fetchSize = isAllStatuses ? pagination.pageSize : 500; // хватит на сутки
+    getTns(fetchPage, fetchSize);
+  }, [pagination.page, pagination.pageSize, isAllStatuses, getTns]);
 
   useEffect(() => {
-    // отладка
-    // console.log("tns", tns);
-  }, [tns]);
+    if (isLoadingTns) return;
+    const all = Array.isArray(tns?.data) ? tns.data : [];
+    if (all.length === 0) return;
+    const opened = all.filter((i) => getStatusName(i) === "открыта");
+    console.log(`[filters] открытых ТН: ${opened.length}`);
+    opened.forEach((i) => {
+      const id = i?.documentId || i?.id;
+      console.log(`ТН ${id}: статус = "открыта"`);
+    });
+  }, [tns?.data, isLoadingTns]);
 
-  const dataSource =
-    tns && tns.data
-      ? tns.data.map((item) => {
-          return {
-            key: item.id,
-            number: item.number,
-            energoObject: item.energoObject,
-            addressList: item.addressList,
-            dispCenter: item.dispCenter,
-            createDateTime: dayjs(item.createDateTime).format(
-              "DD.MM.YYYY HH:mm"
-            ),
-            documentId: item.documentId,
-            sendedEdds: (
-              <Button
-                disabled={item.sendedEdds}
-                type="primary"
-                onClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  // console.log(item.documentId);
-                }}
-              >
-                {item.sendedEdds ? "Отправлено" : "Отправить"}
-              </Button>
-            ),
-          };
-        })
-      : [];
+  const listRaw = Array.isArray(tns?.data) ? tns.data : [];
+
+  // Если выбрано "Все" — показываем как есть (страница уже с сервера)
+  // Иначе фильтруем на клиенте и режем вручную для пагинации
+  const listFiltered = isAllStatuses
+    ? listRaw
+    : listRaw.filter((item) => {
+        const s = getStatusName(item);
+        return s ? selectedStatuses.includes(s) : false;
+      });
+
+  const startIndex = (pagination.page - 1) * pagination.pageSize;
+  const pageSlice = isAllStatuses
+    ? listFiltered
+    : listFiltered.slice(startIndex, startIndex + pagination.pageSize);
+
+  const dataSource = pageSlice.length
+    ? pageSlice.map((item) => {
+        return {
+          key: item.id,
+          number: item.number,
+          energoObject: item.energoObject,
+          addressList: item.addressList,
+          dispCenter: item.dispCenter,
+          createDateTime: dayjs(item.createDateTime).format(
+            "DD.MM.YYYY HH:mm"
+          ),
+          documentId: item.documentId,
+          sendedEdds: (
+            <Button
+              disabled={item.sendedEdds}
+              type="primary"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+              }}
+            >
+              {item.sendedEdds ? "Отправлено" : "Отправить"}
+            </Button>
+          ),
+        };
+      })
+    : [];
 
   const columns = [
     {
@@ -175,7 +258,7 @@ export default function TableTN() {
   return (
     <>
       {/* ВЕРХНЯЯ ЧАСТЬ — приветствие и кнопки */}
-      <WelcomeHeader />
+      <WelcomeHeader totalOpened={openedCount} loadingOpened={loadingOpened} />
       {/* <ActionsBar
         onReset={() => {
           setDate(null);
@@ -204,12 +287,16 @@ export default function TableTN() {
       {/* БЛОК ФИЛЬТРОВ */}
       <FiltersBar
         dateValue={date}
-        onDateChange={setDate}
+        onDateChange={(v) => {
+          setDate(v);
+          setPagination((p) => ({ ...p, page: 1 }));
+        }}
+        selectedStatuses={selectedStatuses}
+        onStatusChange={handleStatusChange}
         rightExtra={
           <Button
             disabled={isLoadingTns}
             onClick={() => {
-              // перезагрузка текущей страницы с текущим размером
               getTns(pagination.page, pagination.pageSize);
             }}
           >
@@ -247,7 +334,13 @@ export default function TableTN() {
       <div style={{ marginTop: 10 }}>
         <Pagination
           align="center"
-          total={tns?.meta?.pagination?.total}
+          total={
+            isAllStatuses
+              ? (tns?.meta?.pagination?.total ?? listFiltered.length)
+              : listFiltered.length
+          }
+          current={pagination.page}
+          pageSize={pagination.pageSize}
           onChange={paginationChange}
           showTotal={(total, range) => `${range[0]}-${range[1]} из ${total} ТН`}
         />

@@ -15,7 +15,7 @@ const useAuth = create((set) => ({
           headers: { Authorization: `Bearer ${jwt}` },
         })
         .then((r) => {
-          console.log('[auth] /users/me ->', r.data);
+          // console.log('[auth] /users/me ->', r.data);
           set({ user: r.data });
         })
         .catch((e) => {
@@ -54,7 +54,7 @@ const useAuth = create((set) => ({
       const r = await axios.get(`${urlBackend}/api/users/me`, {
         headers: { Authorization: `Bearer ${jwt}` },
       });
-      console.log('[auth] getUserMe ->', r.data);
+      // console.log('[auth] getUserMe ->', r.data);
       set({ user: r.data, isAuth: true });
       return r.data;
     } catch (e) {
@@ -64,9 +64,9 @@ const useAuth = create((set) => ({
   },
   getFieldsSetting: async () => {
     try {
-      console.log(
-        `${urlBackend}/api/nastrojki-polejs?pagination[pageSize]=100`
-      );
+      // console.log(
+      //   `${urlBackend}/api/nastrojki-polejs?pagination[pageSize]=100`
+      // );
 
       const res = await axios.get(
         `${urlBackend}/api/nastrojki-polejs?pagination[pageSize]=100`,
@@ -77,7 +77,7 @@ const useAuth = create((set) => ({
         }
       );
       if (res.data) {
-        console.log(res.data);
+        // console.log(res.data);
         set((state) => ({ fieldsSetting: res.data.data }));
       }
     } catch (error) {
