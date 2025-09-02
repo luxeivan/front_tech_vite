@@ -20,24 +20,30 @@ import ruRU from "antd/locale/ru_RU";
 import "dayjs/locale/ru";
 dayjs.locale("ru");
 
-// helper: normalize статус из разных мест объекта
 const getStatusName = (item) => {
-  const raw =
-    item?.data?.data?.STATUS_NAME ??
+  const rawTop = item?.STATUS_NAME;
+  if (typeof rawTop === "string" && rawTop.trim()) {
+    return rawTop.trim().toLowerCase();
+  }
+
+  const rawLegacy =
     item?.data?.STATUS_NAME ??
-    item?.STATUS_NAME ??
-    item?.data?.data?.status_name ??
+    item?.data?.data?.STATUS_NAME ??
     item?.status_name ??
+    item?.data?.data?.status_name ??
     null;
-  return typeof raw === "string" ? raw.trim().toLowerCase() : null;
+
+  return typeof rawLegacy === "string" ? rawLegacy.trim().toLowerCase() : null;
 };
 
 const getCreateDate = (item) => item?.createDateTime ?? item?.data?.createDateTime ?? item?.data?.data?.createDateTime ?? item?.data?.data?.F81_060_EVENTDATETIME ?? null;
 
+// 4 варианта статусов ТН
 const STATUS_OPTIONS = [
   { label: "Открыта", value: "открыта" },
   { label: "Запитана", value: "запитана" },
   { label: "Удалена", value: "удалена" },
+  { label: "Закрыта", value: "закрыта" },
 ];
 
 function WelcomeHeader({ totalOpened, loadingOpened }) {
@@ -92,6 +98,7 @@ function FiltersBar({
           format={"DD.MM.YYYY"}
           onChange={onDateChange}
           placeholder="Выберите дату"
+          allowClear
         />
         <Typography.Text style={{ whiteSpace: "nowrap" }}>Статус ТН:</Typography.Text>
         <Select
@@ -121,7 +128,7 @@ export default function TableTN() {
     pageSize: defaultPageSize,
   });
   const [isOpenModalTN, setIsOpenModalTN] = useState(false);
-  const [date, setDate] = useState(dayjs());
+  const [date, setDate] = useState(null);
   const [sound, setSound] = useState(false);
   const [selectedStatuses, setSelectedStatuses] = useState(["открыта"]);
 
@@ -140,6 +147,30 @@ export default function TableTN() {
     return byDate.filter((i) => getStatusName(i) === "открыта").length;
   }, [tns?.data, date]);
   const loadingOpened = isLoadingTns || !Array.isArray(tns?.data);
+
+  // Сколько всего ТН попадает под текущие фильтры (дата + статусы)
+  const totalByDate = React.useMemo(() => {
+    const list = Array.isArray(tns?.data) ? tns.data : [];
+    return list.filter((i) => {
+      const d = getCreateDate(i);
+      return date ? dayjs(d).isSame(date, "day") : true;
+    }).length;
+  }, [tns?.data, date]);
+
+  // Итог для шапки: если выбраны "все статусы" — показываем общее количество за дату (или за все даты, если дата пустая)
+  // если выбран только статус "открыта" — показываем количество открытых, иначе — количество по фильтрам
+  const headerTotal = React.useMemo(() => {
+    if (selectedStatuses.length === 0) return totalByDate;
+    if (selectedStatuses.length === 1 && selectedStatuses[0] === "открыта") return openedCount;
+    // считаем по активным фильтрам
+    const list = Array.isArray(tns?.data) ? tns.data : [];
+    return list.filter((i) => {
+      const d = getCreateDate(i);
+      if (date && !dayjs(d).isSame(date, "day")) return false;
+      const s = getStatusName(i);
+      return s ? selectedStatuses.includes(s) : false;
+    }).length;
+  }, [tns?.data, date, selectedStatuses, openedCount, totalByDate]);
 
   useEffect(() => {
     getTns(1, 500);
@@ -245,6 +276,7 @@ export default function TableTN() {
         },
       }}
     >
+      {/* Показываем всегда количество ОТКРЫТЫХ ТН (независимо от выбранных статусов), учитывая только фильтр по дате */}
       <WelcomeHeader totalOpened={openedCount} loadingOpened={loadingOpened} />
 
       <TableTNActionsBar
@@ -252,7 +284,7 @@ export default function TableTN() {
           console.log("[actions] dashboard");
         }}
         onReset={() => {
-          setDate(dayjs());
+          setDate(null);
           setSelectedStatuses(["открыта"]);
           setPagination({ page: 1, pageSize: defaultPageSize });
         }}
@@ -278,7 +310,7 @@ export default function TableTN() {
           <Button
             disabled={isLoadingTns}
             onClick={() => {
-              getTns(pagination.page, pagination.pageSize);
+              getTns(1, 500);
             }}
           >
             <ReloadOutlined />

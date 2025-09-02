@@ -1,4 +1,3 @@
-// /src/components/main/TNModal.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { Descriptions, Divider, Flex, Modal, Spin, message } from "antd";
 import dayjs from "dayjs";
@@ -77,18 +76,13 @@ export default function TNModal({ open, documentId, onClose }) {
       if (savedData && typeof savedData === "object") {
         setOverrideData(savedData);
       }
-
-      // точечно обновляем карточку из БД (без закрытия модалки/перерисовки страницы)
       await getTn(documentId);
-
-      // после прихода сервера локальный слепок уже не нужен
       setOverrideData(null);
 
       message.success("Сохранено");
     } catch (e) {
       console.error("Ошибка сохранения поля:", e);
       message.error("Не удалось сохранить");
-      // откатим локальный снепшот и подтянем актуал
       setOverrideData(null);
       await getTn(documentId);
     } finally {
