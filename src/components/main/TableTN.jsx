@@ -216,6 +216,53 @@ export default function TableTN() {
     console.log("Всего ТН:", all.length);
   }, [tns?.data, isLoadingTns]);
 
+  // === LIVE ПОДПИСКА (SSE) ===
+  useEffect(() => {
+    const base = import.meta.env.VITE_URL_BACKEND;
+    const url = `${base}/api/event`;
+
+    let es;
+    let timer = null;
+
+    const scheduleRefresh = (delay = 800) => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        // тянем «пачку» под клиентскую фильтрацию
+        getTns(1, 500);
+      }, delay);
+    };
+
+    const connect = () => {
+      console.log("📡 Подключаюсь к SSE:", url);
+      es = new EventSource(url, { withCredentials: false });
+
+      es.onmessage = (evt) => {
+        try {
+          const payload = JSON.parse(evt.data);
+          console.log("🔔 Live-событие:", payload);
+          // На любые события от нашего бэка — обновляем список
+          scheduleRefresh();
+        } catch (e) {
+          // игнорим некорректные сообщения
+        }
+      };
+
+      es.onerror = () => {
+        console.warn("⚠️ SSE ошибка/разрыв, переподключение через 3с…");
+        try { es.close(); } catch {}
+        setTimeout(connect, 3000);
+      };
+    };
+
+    connect();
+
+    return () => {
+      clearTimeout(timer);
+      try { es?.close(); } catch {}
+    };
+  }, [getTns]);
+  // === /LIVE ПОДПИСКА ===
+
   const listRaw = Array.isArray(tns?.data) ? tns.data : [];
   const listByDate = listRaw.filter((item) => {
     const d = getCreateDate(item);
