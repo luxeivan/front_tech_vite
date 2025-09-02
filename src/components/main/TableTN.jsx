@@ -36,7 +36,12 @@ const getStatusName = (item) => {
   return typeof rawLegacy === "string" ? rawLegacy.trim().toLowerCase() : null;
 };
 
-const getCreateDate = (item) => item?.createDateTime ?? item?.data?.createDateTime ?? item?.data?.data?.createDateTime ?? item?.data?.data?.F81_060_EVENTDATETIME ?? null;
+const getCreateDate = (item) =>
+  item?.createDateTime ??
+  item?.data?.createDateTime ??
+  item?.data?.data?.createDateTime ??
+  item?.data?.data?.F81_060_EVENTDATETIME ??
+  null;
 
 // 4 варианта статусов ТН
 const STATUS_OPTIONS = [
@@ -67,17 +72,11 @@ function WelcomeHeader({ totalOpened, loadingOpened }) {
         Добро пожаловать, {name}
       </Typography.Title>
       <Typography.Title level={4} style={{ marginTop: 0, fontWeight: 500 }}>
-        Всего открытых ТН:{" "}
-        {loadingOpened ? (
-          <Spin size="small" />
-        ) : (
-          totalOpened
-        )}
+        Всего открытых ТН: {loadingOpened ? <Spin size="small" /> : totalOpened}
       </Typography.Title>
     </div>
   );
 }
-
 
 function FiltersBar({
   dateValue,
@@ -100,7 +99,9 @@ function FiltersBar({
           placeholder="Выберите дату"
           allowClear
         />
-        <Typography.Text style={{ whiteSpace: "nowrap" }}>Статус ТН:</Typography.Text>
+        <Typography.Text style={{ whiteSpace: "nowrap" }}>
+          Статус ТН:
+        </Typography.Text>
         <Select
           mode="multiple"
           allowClear
@@ -157,11 +158,10 @@ export default function TableTN() {
     }).length;
   }, [tns?.data, date]);
 
-  // Итог для шапки: если выбраны "все статусы" — показываем общее количество за дату (или за все даты, если дата пустая)
-  // если выбран только статус "открыта" — показываем количество открытых, иначе — количество по фильтрам
   const headerTotal = React.useMemo(() => {
     if (selectedStatuses.length === 0) return totalByDate;
-    if (selectedStatuses.length === 1 && selectedStatuses[0] === "открыта") return openedCount;
+    if (selectedStatuses.length === 1 && selectedStatuses[0] === "открыта")
+      return openedCount;
     // считаем по активным фильтрам
     const list = Array.isArray(tns?.data) ? tns.data : [];
     return list.filter((i) => {
@@ -176,16 +176,44 @@ export default function TableTN() {
     getTns(1, 500);
   }, [date, selectedStatuses, getTns]);
 
+  // useEffect(() => {
+  //   if (isLoadingTns) return;
+  //   const all = Array.isArray(tns?.data) ? tns.data : [];
+  //   if (all.length === 0) return;
+  //   const opened = all.filter((i) => getStatusName(i) === "открыта");
+  //   console.log(`[filters] открытых ТН: ${opened.length}`);
+  //   opened.forEach((i) => {
+  //     const id = i?.documentId || i?.id;
+  //     console.log(`ТН ${id}: статус = "открыта"`);
+  //   });
+  // }, [tns?.data, isLoadingTns]);
+
   useEffect(() => {
     if (isLoadingTns) return;
     const all = Array.isArray(tns?.data) ? tns.data : [];
     if (all.length === 0) return;
+
+    // --- СТАРЫЙ ЛОГ ---
     const opened = all.filter((i) => getStatusName(i) === "открыта");
     console.log(`[filters] открытых ТН: ${opened.length}`);
     opened.forEach((i) => {
       const id = i?.documentId || i?.id;
       console.log(`ТН ${id}: статус = "открыта"`);
     });
+
+    // --- НОВЫЙ ЛОГ ДЛЯ АНАЛИТИКИ ---
+    console.log("=== ВСЕ ТН (для будущей AI-Аналитики) ===");
+    all.forEach((tn, i) => {
+      console.log(`#${i + 1}`, {
+        id: tn.id,
+        number: tn.number,
+        energoObject: tn.energoObject,
+        status: tn.STATUS_NAME,
+        createDateTime: tn.createDateTime,
+        dispCenter: tn.dispCenter,
+      });
+    });
+    console.log("Всего ТН:", all.length);
   }, [tns?.data, isLoadingTns]);
 
   const listRaw = Array.isArray(tns?.data) ? tns.data : [];
@@ -193,17 +221,28 @@ export default function TableTN() {
     const d = getCreateDate(item);
     return date ? dayjs(d).isSame(date, "day") : true;
   });
-  const listFiltered = (selectedStatuses.length === 0)
-    ? listByDate
-    : listByDate.filter((item) => {
-        const s = getStatusName(item);
-        return s ? selectedStatuses.includes(s) : false;
-      });
+  const listFiltered =
+    selectedStatuses.length === 0
+      ? listByDate
+      : listByDate.filter((item) => {
+          const s = getStatusName(item);
+          return s ? selectedStatuses.includes(s) : false;
+        });
 
-  console.log('[filters] дата =', date?.format('DD.MM.YYYY'), '; статусы =', selectedStatuses, '; всего по фильтрам =', listFiltered.length);
+  console.log(
+    "[filters] дата =",
+    date?.format("DD.MM.YYYY"),
+    "; статусы =",
+    selectedStatuses,
+    "; всего по фильтрам =",
+    listFiltered.length
+  );
 
   const startIndex = (pagination.page - 1) * pagination.pageSize;
-  const pageSlice = listFiltered.slice(startIndex, startIndex + pagination.pageSize);
+  const pageSlice = listFiltered.slice(
+    startIndex,
+    startIndex + pagination.pageSize
+  );
 
   const dataSource = pageSlice.length
     ? pageSlice.map((item) => {
@@ -213,9 +252,7 @@ export default function TableTN() {
           energoObject: item.energoObject,
           addressList: item.addressList,
           dispCenter: item.dispCenter,
-          createDateTime: dayjs(item.createDateTime).format(
-            "DD.MM.YYYY HH:mm"
-          ),
+          createDateTime: dayjs(item.createDateTime).format("DD.MM.YYYY HH:mm"),
           documentId: item.documentId,
           sendedEdds: (
             <Button
