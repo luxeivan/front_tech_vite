@@ -218,9 +218,9 @@ export default function TableTN() {
 
   // === LIVE ПОДПИСКА (SSE) ===
   useEffect(() => {
-    const base = import.meta.env.VITE_URL_BACKEND;
-    const url = `${base}/api/event`;
-
+    // const base = import.meta.env.VITE_URL_BACKEND;
+    const base = import.meta.env.VITE_URL_BACKEND_SERVICES;
+    const url = `${base}/services/event`;
     let es;
     let timer = null;
 
@@ -243,13 +243,15 @@ export default function TableTN() {
           // На любые события от нашего бэка — обновляем список
           scheduleRefresh();
         } catch (e) {
-          // игнорим некорректные сообщения
+          console.log("Ошибка срабатывания вебхука", e);
         }
       };
 
       es.onerror = () => {
         console.warn("⚠️ SSE ошибка/разрыв, переподключение через 3с…");
-        try { es.close(); } catch {}
+        try {
+          es.close();
+        } catch {}
         setTimeout(connect, 3000);
       };
     };
@@ -258,7 +260,9 @@ export default function TableTN() {
 
     return () => {
       clearTimeout(timer);
-      try { es?.close(); } catch {}
+      try {
+        es?.close();
+      } catch {}
     };
   }, [getTns]);
   // === /LIVE ПОДПИСКА ===
