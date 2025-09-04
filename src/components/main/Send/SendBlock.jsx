@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Button, Checkbox, Divider, Flex, Typography, message } from "antd";
 import axios from "axios";
 import { buildEddsPayload, sendToEdds } from "./Edds";
+import { buildMosEnergoSbytPayload } from "./MosEnergoSbyt";
 
 const URL = import.meta.env.VITE_URL_BACKEND;
 
@@ -28,6 +29,7 @@ export default function SendBlock({ tn, documentId, refresh }) {
   ]);
 
   const eddsPayload = useMemo(() => buildEddsPayload(tn), [tn?.data]);
+  const mesPayload = useMemo(() => buildMosEnergoSbytPayload(tn), [tn?.data]);
 
   const patchFlags = async (flags) => {
     const jwt = localStorage.getItem("jwt");
@@ -53,6 +55,23 @@ export default function SendBlock({ tn, documentId, refresh }) {
     } catch (e) {
       console.error("Тест ЕДДС: ошибка подготовки JSON:", e);
       message.error("Тест ЕДДС: ошибка подготовки JSON");
+    }
+  };
+
+  const handleTestMes = () => {
+    try {
+      if (!mesPayload) {
+        message.warning("Нет данных для теста МосЭнергоСбыта");
+        return;
+      }
+      console.log(
+        "МосЭнергоСбыт: тестовый JSON без отправки →\n" +
+          JSON.stringify(mesPayload, null, 2)
+      );
+      message.success("Тест МосЭнергоСбыт: JSON выведен в консоль");
+    } catch (e) {
+      console.error("Тест МосЭнергоСбыт: ошибка подготовки JSON:", e);
+      message.error("Тест МосЭнергоСбыт: ошибка подготовки JSON");
     }
   };
 
@@ -155,6 +174,9 @@ export default function SendBlock({ tn, documentId, refresh }) {
 
         <Button onClick={handleTestEdds} disabled={sending || !eddsPayload}>
           Тест ЕДДС
+        </Button>
+        <Button onClick={handleTestMes} disabled={sending || !mesPayload}>
+          Тест МосЭнергоСбыт
         </Button>
       </Flex>
 

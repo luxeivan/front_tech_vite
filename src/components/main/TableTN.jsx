@@ -204,14 +204,14 @@ export default function TableTN() {
     // --- НОВЫЙ ЛОГ ДЛЯ АНАЛИТИКИ ---
     console.log("=== ВСЕ ТН (для будущей AI-Аналитики) ===");
     all.forEach((tn, i) => {
-      console.log(`#${i + 1}`, {
-        id: tn.id,
-        number: tn.number,
-        energoObject: tn.energoObject,
-        status: tn.STATUS_NAME,
-        createDateTime: tn.createDateTime,
-        dispCenter: tn.dispCenter,
-      });
+      // console.log(`#${i + 1}`, {
+      //   id: tn.id,
+      //   number: tn.number,
+      //   energoObject: tn.energoObject,
+      //   status: tn.STATUS_NAME,
+      //   createDateTime: tn.createDateTime,
+      //   dispCenter: tn.dispCenter,
+      // });
     });
     console.log("Всего ТН:", all.length);
   }, [tns?.data, isLoadingTns]);
@@ -233,13 +233,13 @@ export default function TableTN() {
     };
 
     const connect = () => {
-      console.log("📡 Подключаюсь к SSE:", url);
+      // console.log("📡 Подключаюсь к SSE:", url);
       es = new EventSource(url, { withCredentials: false });
 
       es.onmessage = (evt) => {
         try {
           const payload = JSON.parse(evt.data);
-          console.log("🔔 Live-событие:", payload);
+          // console.log("🔔 Live-событие:", payload);
           // На любые события от нашего бэка — обновляем список
           scheduleRefresh();
         } catch (e) {
@@ -280,14 +280,14 @@ export default function TableTN() {
           return s ? selectedStatuses.includes(s) : false;
         });
 
-  console.log(
-    "[filters] дата =",
-    date?.format("DD.MM.YYYY"),
-    "; статусы =",
-    selectedStatuses,
-    "; всего по фильтрам =",
-    listFiltered.length
-  );
+  // console.log(
+  //   "[filters] дата =",
+  //   date?.format("DD.MM.YYYY"),
+  //   "; статусы =",
+  //   selectedStatuses,
+  //   "; всего по фильтрам =",
+  //   listFiltered.length
+  // );
 
   const startIndex = (pagination.page - 1) * pagination.pageSize;
   const pageSlice = listFiltered.slice(
