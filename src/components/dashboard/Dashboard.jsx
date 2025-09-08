@@ -71,6 +71,12 @@ const guidOf = (row) =>
   row?.VIOLATION_GUID_STR ||
   null;
 
+// номер ТН и время начала (создания)
+const tnNumber = (row) => pick(row, "number") ?? row?.number ?? null;
+const startDate = (row) =>
+  pick(row, "createDateTime") ?? pick(row, "F81_060_EVENTDATETIME") ?? null;
+const formatDateTime = (v) => (v ? dayjs(v).format("DD.MM.YYYY HH:mm:ss") : "—");
+
 /* ---------------- metric definitions ---------------- */
 const metricDefs = [
   {
@@ -269,17 +275,32 @@ export default function Dashboard() {
   // скопировать нумерованный список GUID'ов открытых ТН
   const handleCopyGuids = async () => {
     try {
-      const guids = rows.map(guidOf).filter(Boolean);
-      if (!guids.length) {
+      // собираем GUID + номер ТН + время начала
+      const items = rows
+        .map((r) => ({
+          guid: guidOf(r),
+          number: tnNumber(r),
+          start: startDate(r),
+        }))
+        .filter((x) => Boolean(x.guid));
+
+      if (!items.length) {
         message.warning("GUID не найдены");
         return;
       }
-      const numbered = guids.map((g, i) => `${i + 1}. ${g}`).join("\n");
+
+      const numbered = items
+        .map(
+          (it, i) =>
+            `${i + 1}. ${it.guid} — №${it.number ?? "—"}, ${formatDateTime(it.start)}`
+        )
+        .join("\n");
+
       await navigator.clipboard.writeText(numbered);
-      message.success(`Скопировано GUID: ${guids.length}`);
+      message.success(`Скопировано: ${items.length}`);
     } catch (e) {
       console.error("Копирование GUID: ошибка:", e);
-      message.error("Не удалось скопировать GUID");
+      message.error("Не удалось скопировать");
     }
   };
 
