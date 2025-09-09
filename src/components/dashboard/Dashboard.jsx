@@ -65,9 +65,9 @@ const districtName = (row) =>
 
 // попытаться достать GUID (documentId/VIOLATION_GUID_STR) из строки
 const guidOf = (row) =>
-  pick(row, "documentId") ||
+  pick(row, "guid") ||
   pick(row, "VIOLATION_GUID_STR") ||
-  row?.documentId ||
+  row?.guid ||
   row?.VIOLATION_GUID_STR ||
   null;
 
@@ -75,7 +75,8 @@ const guidOf = (row) =>
 const tnNumber = (row) => pick(row, "number") ?? row?.number ?? null;
 const startDate = (row) =>
   pick(row, "createDateTime") ?? pick(row, "F81_060_EVENTDATETIME") ?? null;
-const formatDateTime = (v) => (v ? dayjs(v).format("DD.MM.YYYY HH:mm:ss") : "—");
+const formatDateTime = (v) =>
+  v ? dayjs(v).format("DD.MM.YYYY HH:mm:ss") : "—";
 
 /* ---------------- metric definitions ---------------- */
 const metricDefs = [
@@ -220,13 +221,17 @@ export default function Dashboard() {
         "pagination[page]=1",
         "pagination[pageSize]=500",
         "sort[0]=createDateTime:DESC",
+        // серверная фильтрация — берём только открытые (isActive=true)
+        "filters[isActive][$eq]=true",
       ].join("&");
       const { data } = await axios.get(`${URL}/api/teh-narusheniyas?${qs}`, {
         headers: { Authorization: `Bearer ${jwt}` },
       });
 
       const list = Array.isArray(data?.data)
-        ? data.data.map((x) => (x?.attributes ? { id: x.id, ...x.attributes } : x))
+        ? data.data.map((x) =>
+            x?.attributes ? { id: x.id, ...x.attributes } : x
+          )
         : [];
 
       const openOnly = list.filter(isOpenTN);
@@ -292,7 +297,9 @@ export default function Dashboard() {
       const numbered = items
         .map(
           (it, i) =>
-            `${i + 1}. ${it.guid} — №${it.number ?? "—"}, ${formatDateTime(it.start)}`
+            `${i + 1}. ${it.guid} — №${it.number ?? "—"}, ${formatDateTime(
+              it.start
+            )}`
         )
         .join("\n");
 
@@ -313,7 +320,11 @@ export default function Dashboard() {
       if (!rows?.length) return "Нет данных";
 
       // Населённые пункты — только список
-      if (String(m?.title || "").toLowerCase().includes("населён")) {
+      if (
+        String(m?.title || "")
+          .toLowerCase()
+          .includes("населён")
+      ) {
         const list = Array.from(
           new Set(rows.map((r) => districtName(r)).filter(Boolean))
         ).sort((a, b) => String(a).localeCompare(String(b), "ru"));
@@ -376,7 +387,9 @@ export default function Dashboard() {
 
       return (
         <div style={{ maxHeight: 260, overflow: "auto", paddingRight: 8 }}>
-          <div style={{ fontWeight: 600, marginBottom: 4 }}>Список по районам</div>
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>
+            Список по районам
+          </div>
           {list.map(([d, v], i) => (
             <div key={d}>
               {i + 1}. {d}: {Number(v).toLocaleString("ru-RU")}
@@ -506,7 +519,10 @@ export default function Dashboard() {
                     style={{
                       borderRadius: 18,
                       height: "100%",
-                      boxShadow: hovered === title ? "0 14px 24px rgba(0,0,0,0.12)" : "0 8px 18px rgba(0,0,0,0.06)",
+                      boxShadow:
+                        hovered === title
+                          ? "0 14px 24px rgba(0,0,0,0.12)"
+                          : "0 8px 18px rgba(0,0,0,0.06)",
                       transform: hovered === title ? "scale(1.03)" : "scale(1)",
                       transition: "transform .15s ease, box-shadow .15s ease",
                     }}
@@ -518,7 +534,9 @@ export default function Dashboard() {
                       style={{ width: "100%", textAlign: "center" }}
                     >
                       <span style={{ fontSize: 38, color }}>{icon}</span>
-                      <Text style={{ fontSize: 14, color: "#8c8c8c" }}>{title}</Text>
+                      <Text style={{ fontSize: 14, color: "#8c8c8c" }}>
+                        {title}
+                      </Text>
                       <Text style={{ fontSize: 36, fontWeight: 600, color }}>
                         {Number(value || 0).toLocaleString("ru-RU")}
                       </Text>
