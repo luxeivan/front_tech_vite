@@ -138,11 +138,10 @@ export function buildEddsPayload(tn) {
   const countPeople =
     raw.POPULATION_COUNT ?? raw.population_count ?? obj.count_people ?? null;
 
-  const fioWork = raw.CREATE_USER || obj.fio_response_work || null;
-  const fioPhone = raw.fio_response_phone || obj.fio_response_phone || null;
+  const fioWork = clean((raw.CREATE_USER || obj.fio_response_work || "").trim());
+  const fioPhone = clean((raw.fio_response_phone || obj.fio_response_phone || "").trim());
 
-  const description =
-    obj.description || raw.F81_042_DISPNAME || raw.DESCRIPTION || null;
+  const description = clean((obj.description || raw.F81_042_DISPNAME || raw.DESCRIPTION || "").trim());
 
   const resources = Array.isArray(obj.resources) ? obj.resources : [5];
 
@@ -150,7 +149,7 @@ export function buildEddsPayload(tn) {
   const clinicsAll = clean(raw.CLINICS_ALL);
   const hospitalsAll = clean(raw.HOSPITALS_ALL);
   const schoolsAll = clean(raw.SCHOOLS_ALL);
-  const kindergartensAll = clean(raw.KINDERГАРТENS_ALL);
+  const kindergartensAll = clean(raw.KINDERGARTENS_ALL);
   const boilerAll = clean(raw.BOILER_ALL);
   const ctpAll = clean(raw.CTP_ALL);
   const knsAll = clean(raw.KNS_ALL);
@@ -163,6 +162,7 @@ export function buildEddsPayload(tn) {
   const line110All = clean(raw.LINE110_ALL);
   const line35All = clean(raw.LINE35_ALL);
   const lineSnAll = clean(raw.LINESN_ALL);
+  const line04All = clean(raw.LINENN_ALL);
   const settlementCount = clean(raw.SETTLEMENT_COUNT);
 
   const involved = {
@@ -181,11 +181,86 @@ export function buildEddsPayload(tn) {
     ),
   };
 
-  const mkd = buildMkdFromFiasList(
+  // const mkd = buildMkdFromFiasList(
+  //   raw.FIAS_LIST || obj.FIAS_LIST || obj.house_fias_list
+  // );
+
+  // const out = {};
+
+  // --- Соц.объекты из raw.SocialObjects -> массивы EDDS
+const socials = Array.isArray(raw.SocialObjects) ? raw.SocialObjects : [];
+
+function toKeyBySocialTyp(t) {
+  const s = String(t || "").toLowerCase();
+  if (s.includes("снт")) return "snt_objects";
+  if (s.includes("школ")) return "school_objects";
+  if (s.includes("детс") || s.includes("сад")) return "kindergarten_objects";
+  if (s.includes("больниц")) return "hospital_objects";
+  if (s.includes("поликлин")) return "polyclinic_objects";
+  if (s.includes("котель")) return "boiler_room_objects";
+  if (s.includes("взу")) return "water_intake_objects";
+  if (s.includes("кнс")) return "canalization_pumping_objects";
+  if (s.includes("мкд") || s.includes("дом")) return "mkd";
+  return null;
+}
+
+const typedObjects = {
+  snt_objects: [],
+  school_objects: [],
+  kindergarten_objects: [],
+  hospital_objects: [],
+  polyclinic_objects: [],
+  boiler_room_objects: [],
+  water_intake_objects: [],
+  canalization_pumping_objects: [],
+  mkd: [],
+};
+
+const seen = {
+  snt_objects: new Set(),
+  school_objects: new Set(),
+  kindergarten_objects: new Set(),
+  hospital_objects: new Set(),
+  polyclinic_objects: new Set(),
+  boiler_room_objects: new Set(),
+  water_intake_objects: new Set(),
+  canalization_pumping_objects: new Set(),
+  mkd: new Set(),
+};
+
+socials.forEach((it) => {
+  const key = toKeyBySocialTyp(it?.SocialTyp);
+  const fias = clean(it?.FIAS)?.toLowerCase();
+  if (!key || !fias) return;
+  if (seen[key].has(fias)) return;
+
+  if (key === "mkd") {
+    typedObjects.mkd.push({ fias });
+    seen.mkd.add(fias);
+    return;
+  }
+
+  const entry = { fias };
+  const name = clean(it?.Name);
+  const lat = clean(it?.lat || it?.LAT);
+  const lon = clean(it?.lon || it?.LON);
+  if (name) entry.name = name;
+  if (lat) entry.lat = String(lat);
+  if (lon) entry.lon = String(lon);
+
+  typedObjects[key].push(entry);
+  seen[key].add(fias);
+});
+
+// mkd из SocialObjects; если их нет — fallback на FIAS_LIST (как раньше)
+let mkd = typedObjects.mkd;
+if (mkd.length === 0) {
+  mkd = buildMkdFromFiasList(
     raw.FIAS_LIST || obj.FIAS_LIST || obj.house_fias_list
   );
+}
 
-  const out = {};
+const out = {};
 
   if (incidentId) out.incident_id = String(incidentId);
   if (type) out.type = String(type);
@@ -211,6 +286,14 @@ export function buildEddsPayload(tn) {
   if (wellsAll != null) out.water_intake_count = String(wellsAll);
   if (knsAll != null) out.canalization_pumping_count = String(knsAll);
 
+  // fallback по количествам из разобранных массивов, если в raw нет явных счётчиков
+  if (out.water_intake_count == null && typedObjects.water_intake_objects.length) {
+    out.water_intake_count = String(typedObjects.water_intake_objects.length);
+  }
+  if (out.canalization_pumping_count == null && typedObjects.canalization_pumping_objects.length) {
+    out.canalization_pumping_count = String(typedObjects.canalization_pumping_objects.length);
+  }
+
   const socialParts = [
     mkdAll,
     clinicsAll,
@@ -228,6 +311,7 @@ export function buildEddsPayload(tn) {
     "110kv_count": line110All,
     "35kv_count": line35All,
     "6_20kv_count": lineSnAll,
+    "04kv_count": line04All,
   };
   if (Object.values(electric_lines).some((v) => v != null)) {
     out.electric_lines = Object.fromEntries(
@@ -278,14 +362,14 @@ export function buildEddsPayload(tn) {
 
   if (Array.isArray(mkd) && mkd.length > 0) out.mkd = mkd;
 
-  out.snt_objects = [];
-  out.school_objects = [];
-  out.kindergarten_objects = [];
-  out.hospital_objects = [];
-  out.polyclinic_objects = [];
-  out.boiler_room_objects = [];
-  out.water_intake_objects = [];
-  out.canalization_pumping_objects = [];
+  if (typedObjects.snt_objects.length) out.snt_objects = typedObjects.snt_objects;
+  if (typedObjects.school_objects.length) out.school_objects = typedObjects.school_objects;
+  if (typedObjects.kindergarten_objects.length) out.kindergarten_objects = typedObjects.kindergarten_objects;
+  if (typedObjects.hospital_objects.length) out.hospital_objects = typedObjects.hospital_objects;
+  if (typedObjects.polyclinic_objects.length) out.polyclinic_objects = typedObjects.polyclinic_objects;
+  if (typedObjects.boiler_room_objects.length) out.boiler_room_objects = typedObjects.boiler_room_objects;
+  if (typedObjects.water_intake_objects.length) out.water_intake_objects = typedObjects.water_intake_objects;
+  if (typedObjects.canalization_pumping_objects.length) out.canalization_pumping_objects = typedObjects.canalization_pumping_objects;
 
   const lat = clean(raw.lat || raw.LAT);
   const lon = clean(raw.lon || raw.LON);
