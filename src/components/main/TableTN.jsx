@@ -16,6 +16,7 @@ import { ReloadOutlined } from "@ant-design/icons";
 import useAuth from "../../stores/useAuth";
 import TableTNActionsBar from "./TableTNActionsBar";
 import TNModal from "./TNModal";
+import AiAnalyticsModal from "../ai/AiAnalyticsModal";
 import ruRU from "antd/locale/ru_RU";
 import "dayjs/locale/ru";
 dayjs.locale("ru");
@@ -132,6 +133,7 @@ export default function TableTN() {
   const [date, setDate] = useState(null);
   const [sound, setSound] = useState(false);
   const [selectedStatuses, setSelectedStatuses] = useState(["открыта"]);
+  const [showAi, setShowAi] = useState(false);
 
   const handleStatusChange = (vals) => {
     setSelectedStatuses(vals || []);
@@ -376,9 +378,7 @@ export default function TableTN() {
           setSelectedStatuses(["открыта"]);
           setPagination({ page: 1, pageSize: defaultPageSize });
         }}
-        onAiAnalytics={() => {
-          console.log("[actions] ai analytics");
-        }}
+        onAiAnalytics={() => setShowAi(true)}
         onToggleSound={() => {
           setSound((v) => !v);
         }}
@@ -440,6 +440,13 @@ export default function TableTN() {
           setIsOpenModalTN(false);
         }}
         documentId={isOpenModalTN}
+      />
+
+      <AiAnalyticsModal
+        open={showAi}
+        onClose={() => setShowAi(false)}
+        items={listFiltered}
+        title={date ? `За ${date.format("DD.MM.YYYY")}` : "Все выбранные ТН"}
       />
     </ConfigProvider>
   );
