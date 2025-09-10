@@ -1,3 +1,4 @@
+// /src/components/ai/AiAnalyticsModal.jsx
 import React from "react";
 import {
   Modal,
@@ -10,9 +11,13 @@ import {
   Row,
   Col,
   message,
-  Spin,
 } from "antd";
 import useAuth from "../../stores/useAuth";
+import FancyLoader from "../ui/FancyLoader";
+import CountUp from "../ui/CountUp";
+import PeaksBars from "../ui/PeaksBars";
+import ConfettiBurst from "../ui/ConfettiBurst";
+import { animateRowsByGuids } from "../ui/highlightAnomalyRows";
 import { computeMetrics, formatSummary, buildAiPrompt } from "../../ai/metrics";
 
 export default function AiAnalyticsModal({ open, onClose, items = [], title }) {
@@ -24,6 +29,9 @@ export default function AiAnalyticsModal({ open, onClose, items = [], title }) {
   // Красивый оверлей "Обращаемся к ИИ / Ждём ответ"
   const [aiPhase, setAiPhase] = React.useState(null); // "contact" | null
   const [phaseText, setPhaseText] = React.useState("Обращаемся к ИИ…");
+  const [burstKey, setBurstKey] = React.useState(0);
+
+  const tblWrapRef = React.useRef(null);
 
   const delay = (ms) => new Promise((r) => setTimeout(r, ms));
   const minDelay = async (p, ms) => {
@@ -31,7 +39,6 @@ export default function AiAnalyticsModal({ open, onClose, items = [], title }) {
     return result;
   };
 
-  // форматтер для двух знаков после запятой
   const nf2 = React.useMemo(
     () =>
       new Intl.NumberFormat("ru-RU", {
@@ -46,26 +53,42 @@ export default function AiAnalyticsModal({ open, onClose, items = [], title }) {
     if (!open) return;
     const m = computeMetrics(items, { title: title || "Текущая выборка" });
     setMetrics(m);
-    setAiText(""); // сбрасываем предыдущий текст
+    setAiText("");
   }, [open, items, title]);
+
+  React.useEffect(() => {
+    // После появления текста ИИ — анимируем строки с аномалиями (animejs)
+    if (!aiText || !metrics?.outliers?.length) return;
+    const guids = metrics.outliers.map((o) => o.guid);
+    animateRowsByGuids(tblWrapRef.current, guids);
+  }, [aiText, metrics]);
 
   const callLLM = async (mode) => {
     if (!metrics) return;
     setLoading(true);
     setAiPhase("contact");
     setPhaseText("Обращаемся к ИИ…");
-    const phaseTimer = setTimeout(() => setPhaseText("Ждём ответ от ИИ…"), 1200);
+    const phaseTimer = setTimeout(
+      () => setPhaseText("Ждём ответ от ИИ…"),
+      1200
+    );
 
     try {
       const base = import.meta.env.VITE_URL_BACKEND; // важно
       const url = `${base}/services/ai/analysis`;
       const jwt = getJwt?.();
 
-      // Урезаем outliers до нужных полей и прикладываем дружественные подсказки для модели
       const forSend = {
         ...metrics,
         outliers: (metrics.outliers || []).map(
-          ({ guid, energoObject, duration_min, duration_h, dispCenter, status }) => ({
+          ({
+            guid,
+            energoObject,
+            duration_min,
+            duration_h,
+            dispCenter,
+            status,
+          }) => ({
             guid,
             energoObject,
             duration_min,
@@ -89,18 +112,19 @@ export default function AiAnalyticsModal({ open, onClose, items = [], title }) {
         return { ok: r.ok, data };
       });
 
-      // гарантируем красивый лоадер минимум 2.2с
+      // красивый лоадер минимум 2.2с
       const { ok, data } = await minDelay(req, 2200);
 
       if (ok && data?.text) {
         setAiText(data.text);
+        setBurstKey((k) => k + 1); // конфетти при успехе
       } else {
-        setAiText(formatSummary(metrics)); // локальная выжимка
+        setAiText(formatSummary(metrics));
         message.warning("ИИ недоступен — показано краткое локальное резюме.");
       }
-    } catch (e) {
+    } catch {
       setAiText(formatSummary(metrics));
-      message.warning("Ошибка AI‑сервиса — показано локальное резюме.");
+      message.warning("Ошибка AI-сервиса — показано локальное резюме.");
     } finally {
       clearTimeout(phaseTimer);
       setAiPhase(null);
@@ -112,7 +136,13 @@ export default function AiAnalyticsModal({ open, onClose, items = [], title }) {
     { title: "№", render: (_, __, i) => i + 1, width: 60 },
     { title: "GUID", dataIndex: "guid", key: "guid", ellipsis: true },
     { title: "Объект", dataIndex: "energoObject", key: "energoObject" },
-    { title: "Дисп.", dataIndex: "dispCenter", key: "dispCenter", width: 160, ellipsis: true },
+    {
+      title: "Дисп.",
+      dataIndex: "dispCenter",
+      key: "dispCenter",
+      width: 160,
+      ellipsis: true,
+    },
     {
       title: "Длительность, ч",
       dataIndex: "duration_h",
@@ -130,7 +160,7 @@ export default function AiAnalyticsModal({ open, onClose, items = [], title }) {
           <Alert
             type="info"
             showIcon
-            message="AI‑аналитика"
+            message="AI-аналитика"
             description="Краткий обзор и рекомендации по данным"
           />
 
@@ -141,36 +171,64 @@ export default function AiAnalyticsModal({ open, onClose, items = [], title }) {
                   <Statistic
                     title="Всего ТН (уник. GUID)"
                     value={metrics.unique_guids ?? metrics.total ?? 0}
+                    valueRender={() => (
+                      <CountUp
+                        value={metrics.unique_guids ?? metrics.total ?? 0}
+                      />
+                    )}
                   />
                 </Col>
                 <Col span={6}>
                   <Statistic
                     title="Средняя длительность, ч"
                     value={metrics.durations.avg_h ?? 0}
-                    precision={2}
-                    suffix=" ч"
+                    valueRender={() => (
+                      <CountUp
+                        value={metrics.durations.avg_h ?? 0}
+                        format={(n) => `${nf2.format(n)} ч`}
+                      />
+                    )}
                   />
                 </Col>
                 <Col span={6}>
                   <Statistic
                     title="Медиана, ч"
                     value={metrics.durations.median_h ?? 0}
-                    precision={2}
-                    suffix=" ч"
+                    valueRender={() => (
+                      <CountUp
+                        value={metrics.durations.median_h ?? 0}
+                        format={(n) => `${nf2.format(n)} ч`}
+                      />
+                    )}
                   />
                 </Col>
                 <Col span={6}>
-                  <Statistic title="Аномалий, шт" value={metrics.outliers.length} />
+                  <Statistic
+                    title="Аномалий, шт"
+                    value={metrics.outliers.length}
+                    valueRender={() => (
+                      <CountUp value={metrics.outliers.length} />
+                    )}
+                  />
                 </Col>
               </Row>
 
-              <Descriptions bordered size="small" column={1} style={{ marginTop: 8 }}>
-                <Descriptions.Item label="Топ‑3 диспетчерских">
-                  {metrics.topDispCenters.map((x) => `${x.name} (${x.count})`).join(", ") || "—"}
+              <Descriptions
+                bordered
+                size="small"
+                column={1}
+                style={{ marginTop: 8 }}
+              >
+                <Descriptions.Item label="Топ-3 диспетчерских">
+                  {metrics.topDispCenters
+                    .map((x) => `${x.name} (${x.count})`)
+                    .join(", ") || "—"}
                 </Descriptions.Item>
+
                 <Descriptions.Item label="Пиковые часы">
-                  {metrics.peaksByHour.map((x) => `${x.hour}:00 (${x.count})`).join(", ") || "—"}
+                  <PeaksBars data={metrics.peaksByHour} />
                 </Descriptions.Item>
+
                 <Descriptions.Item label="«Долгие 10%» (порог)">
                   {fmtH(metrics.durations.long10_h)}
                 </Descriptions.Item>
@@ -180,8 +238,8 @@ export default function AiAnalyticsModal({ open, onClose, items = [], title }) {
               </Descriptions>
 
               {metrics.outliers.length > 0 && (
-                <div style={{ marginTop: 8 }}>
-                  <b>Аномально долгие ТН (топ‑10)</b>
+                <div style={{ marginTop: 8 }} ref={tblWrapRef}>
+                  <b>Аномально долгие ТН (топ-10)</b>
                   <Table
                     size="small"
                     rowKey={(r) => r.guid}
@@ -194,10 +252,17 @@ export default function AiAnalyticsModal({ open, onClose, items = [], title }) {
               )}
 
               <Space style={{ marginTop: 12 }}>
-                <Button loading={loading} onClick={() => setAiText(formatSummary(metrics))}>
+                <Button
+                  loading={loading}
+                  onClick={() => setAiText(formatSummary(metrics))}
+                >
                   Короткое резюме без ИИ
                 </Button>
-                <Button type="primary" loading={loading} onClick={() => callLLM("summary")}>
+                <Button
+                  type="primary"
+                  loading={loading}
+                  onClick={() => callLLM("summary")}
+                >
                   Сформировать резюме
                 </Button>
                 <Button loading={loading} onClick={() => callLLM("recs")}>
@@ -209,15 +274,20 @@ export default function AiAnalyticsModal({ open, onClose, items = [], title }) {
               </Space>
 
               {aiText && (
-                <Alert
-                  type="success"
-                  showIcon
-                  message="Готовый текст"
-                  description={
-                    <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{aiText}</div>
-                  }
-                  style={{ marginTop: 12 }}
-                />
+                <>
+                  <ConfettiBurst key={burstKey} />
+                  <Alert
+                    type="success"
+                    showIcon
+                    message="Готовый текст"
+                    description={
+                      <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
+                        {aiText}
+                      </div>
+                    }
+                    style={{ marginTop: 12 }}
+                  />
+                </>
               )}
             </>
           )}
@@ -237,7 +307,7 @@ export default function AiAnalyticsModal({ open, onClose, items = [], title }) {
             }}
           >
             <div style={{ textAlign: "center" }}>
-              <Spin size="large" />
+              <FancyLoader variant="orbit" color="#e37021" size={140} />
               <div style={{ marginTop: 12, fontWeight: 600 }}>{phaseText}</div>
             </div>
           </div>
