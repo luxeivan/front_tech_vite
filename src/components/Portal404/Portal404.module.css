@@ -1,0 +1,32 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  min-height: 100vh;
+  background: #fff;
+}
+.visualRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.item {
+  width: 240px;
+  height: auto;
+  margin: 0 1rem;
+}
+.digit {
+  font-size: 240px;
+  line-height: 1;
+  color: #e37021;
+  user-select: none;
+}
+.tagline {
+  margin-top: 2rem;
+  text-align: center;
+  color: #333;
+  font-size: 1.25rem;
+  font-weight: 500;
+}

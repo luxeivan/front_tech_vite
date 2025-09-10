@@ -7,6 +7,7 @@ import Header from "./components/Header";
 import AuthForm from "./components/AuthForm";
 import TableTN from "./components/main/TableTN";
 import Dashboard from "./components/dashboard/Dashboard";
+import Portal404 from "./components/Portal404/Portal404";
 
 function App() {
   const { authing, isAuth, exit, getJwt, fieldsSetting, getFieldsSetting } =
@@ -19,7 +20,7 @@ function App() {
     getFieldsSetting();
   }, [isAuth]);
 
-  const authOk = isAuth || !!localStorage.getItem('jwt');
+  const authOk = isAuth || !!localStorage.getItem("jwt");
 
   return (
     <BrowserRouter>
@@ -36,7 +37,8 @@ function App() {
           />
 
           {/* Фоллбек */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          {/* <Route path="*" element={<Navigate to="/" replace />} /> */}
+          <Route path="*" element={<Portal404 />} />
         </Routes>
       </Container>
     </BrowserRouter>
