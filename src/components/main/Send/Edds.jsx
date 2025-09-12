@@ -138,10 +138,10 @@ export function buildEddsPayload(tn) {
   const countPeople =
     raw.POPULATION_COUNT ?? raw.population_count ?? obj.count_people ?? null;
 
-  const fioWork = clean((raw.CREATE_USER || obj.fio_response_work || "").trim());
-  const fioPhone = clean((raw.fio_response_phone || obj.fio_response_phone || "").trim());
-
-  const description = clean((obj.description || raw.F81_042_DISPNAME || raw.DESCRIPTION || "").trim());
+  // 🔒 Требование Заказчика: всегда отправлять фиксированные значения
+  const fioWork = "Оперативный дежурный САЦ";
+  const fioPhone = "84957803976";
+  const description = "Электропробой"; // временно константа, позже возьмём из JSON
 
   const resources = Array.isArray(obj.resources) ? obj.resources : [5];
 
