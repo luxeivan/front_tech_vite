@@ -8,6 +8,9 @@ import {
   Spin,
   Table,
   Typography,
+  Tag,
+  Tooltip,
+  Space,
 } from "antd";
 import React, { useEffect, useState } from "react";
 import useData from "../../stores/useData";
@@ -117,6 +120,159 @@ function FiltersBar({
       </Flex>
       {rightExtra}
     </Flex>
+  );
+}
+
+// --- СЗО: извлечение по типам из raw.SocialObjects + фолбэки по *_ALL полям ---
+const SZO_ORDER = [
+  "mkd",
+  "schools",
+  "kindergartens",
+  "hospitals",
+  "polyclinics",
+  "boiler",
+  "water",
+  "kns",
+  "snt",
+];
+
+const SZO_META = {
+  mkd: { label: "МКД", color: "default" },
+  schools: { label: "Школы", color: "blue" },
+  kindergartens: { label: "Детсады", color: "geekblue" },
+  hospitals: { label: "Больницы", color: "red" },
+  polyclinics: { label: "Поликлиники", color: "magenta" },
+  boiler: { label: "Котельные", color: "orange" },
+  water: { label: "ВЗУ", color: "green" },
+  kns: { label: "КНС", color: "volcano" },
+  snt: { label: "СНТ", color: "purple" },
+};
+
+function s(v) {
+  return typeof v === "string" ? v.trim() : v == null ? "" : String(v).trim();
+}
+
+function getRawData(item) {
+  // чаще всего соц-объекты лежат в item.data.data
+  return item?.data?.data ?? item?.data ?? item ?? {};
+}
+
+function classifySocialTyp(t) {
+  const x = s(t).toLowerCase();
+  if (x.includes("мкд") || x.includes("дом")) return "mkd";
+  if (x.includes("школ")) return "schools";
+  if (x.includes("детс") || x.includes("сад")) return "kindergartens";
+  if (x.includes("больниц")) return "hospitals";
+  if (x.includes("поликлин")) return "polyclinics";
+  if (x.includes("котель")) return "boiler";
+  if (x.includes("взу") || x.includes("скваж")) return "water";
+  if (x.includes("кнс")) return "kns";
+  if (x.includes("снт")) return "snt";
+  return null;
+}
+
+/** Собираем сводку СЗО: counts + короткие списки имён (для тултипов) */
+function buildSzoSummaryFromItem(item) {
+  const raw = getRawData(item);
+  const socials = Array.isArray(raw.SocialObjects) ? raw.SocialObjects : [];
+
+  // Заготовка
+  const base = {
+    mkd: { count: 0, names: [] },
+    schools: { count: 0, names: [] },
+    kindergartens: { count: 0, names: [] },
+    hospitals: { count: 0, names: [] },
+    polyclinics: { count: 0, names: [] },
+    boiler: { count: 0, names: [] },
+    water: { count: 0, names: [] },
+    kns: { count: 0, names: [] },
+    snt: { count: 0, names: [] },
+  };
+
+  const seenByKey = {
+    mkd: new Set(),
+    schools: new Set(),
+    kindergartens: new Set(),
+    hospitals: new Set(),
+    polyclinics: new Set(),
+    boiler: new Set(),
+    water: new Set(),
+    kns: new Set(),
+    snt: new Set(),
+  };
+
+  if (socials.length) {
+    // Классифицируем каждый объект
+    socials.forEach((it) => {
+      const key = classifySocialTyp(it?.SocialTyp);
+      if (!key) return;
+      // уникальность по FIAS или имени
+      const uniq =
+        s(it?.FIAS)?.toLowerCase() || s(it?.Name) || Math.random().toString(36);
+      if (seenByKey[key].has(uniq)) return;
+      seenByKey[key].add(uniq);
+
+      base[key].count += 1;
+      const name = s(it?.Name);
+      if (name) base[key].names.push(name);
+    });
+  } else {
+    // Фолбэк по суммарным *_ALL полям, если массива нет
+    const num = (v) => {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : 0;
+    };
+    base.mkd.count = num(raw.MKD_ALL);
+    base.schools.count = num(raw.SCHOOLS_ALL);
+    base.kindergartens.count = num(raw.KINDERGARTENS_ALL);
+    base.hospitals.count = num(raw.HOSPITALS_ALL);
+    base.polyclinics.count = num(raw.CLINICS_ALL);
+    base.boiler.count = num(raw.BOILER_ALL);
+    // ВЗУ/скважины встречались как WELLS_ALL
+    base.water.count = num(raw.WELLS_ALL);
+    base.kns.count = num(raw.KNS_ALL);
+    // СНТ обычно только в SocialObjects — оставим 0
+  }
+
+  // Сконвертируем в компактный массив для UI
+  const tags = [];
+  for (const key of SZO_ORDER) {
+    const { count, names } = base[key];
+    if (count > 0) {
+      tags.push({
+        key,
+        label: SZO_META[key].label,
+        color: SZO_META[key].color,
+        count,
+        names: names.slice(0, 10), // короткий список в тултип
+        more: Math.max(0, names.length - 10),
+      });
+    }
+  }
+  return tags;
+}
+
+/** Ячейка таблицы с тегами СЗО */
+function SzoCell({ tags }) {
+  if (!Array.isArray(tags) || tags.length === 0)
+    return <span style={{ color: "#999" }}>—</span>;
+  return (
+    <Space size={[6, 6]} wrap>
+      {tags.map((t) => {
+        const title = t.names.length
+          ? `${t.label}: ${t.names.join(", ")}${
+              t.more ? ` и ещё +${t.more}` : ""
+            }`
+          : `${t.label}: ${t.count} шт.`;
+        return (
+          <Tooltip key={t.key} title={title} mouseEnterDelay={0.15}>
+            <Tag color={t.color} style={{ marginInlineEnd: 0 }}>
+              {t.label}: {t.count}
+            </Tag>
+          </Tooltip>
+        );
+      })}
+    </Space>
   );
 }
 
@@ -299,6 +455,7 @@ export default function TableTN() {
 
   const dataSource = pageSlice.length
     ? pageSlice.map((item) => {
+        const szoTags = buildSzoSummaryFromItem(item);
         return {
           key: item.id,
           number: item.number,
@@ -307,6 +464,7 @@ export default function TableTN() {
           dispCenter: item.dispCenter,
           createDateTime: dayjs(item.createDateTime).format("DD.MM.YYYY HH:mm"),
           documentId: item.documentId,
+          szoTags,
           sendedEdds: (
             <Button
               disabled={item.sendedEdds}
@@ -328,26 +486,44 @@ export default function TableTN() {
       title: "Номер",
       dataIndex: "number",
       key: "number",
+      width: 120,
+      ellipsis: true,
     },
     {
       title: "Объект",
       dataIndex: "energoObject",
       key: "energoObject",
-    },
-    {
-      title: "Адрес",
-      dataIndex: "addressList",
-      key: "addressList",
+      width: 220,
+      ellipsis: true,
     },
     {
       title: "Диспетчерская",
       dataIndex: "dispCenter",
       key: "dispCenter",
+      width: 180,
+      ellipsis: true,
+    },
+    {
+      title: "Адрес",
+      dataIndex: "addressList",
+      key: "addressList",
+      // без width — эта колонка тянет свободное место
+      ellipsis: true,
+    },
+    {
+      title: "СЗО",
+      dataIndex: "szoTags",
+      key: "szo",
+      width: 380,
+      render: (tags) => <SzoCell tags={tags} />,
+      ellipsis: true,
     },
     {
       title: "Дата/время возникновения",
       dataIndex: "createDateTime",
       key: "createDateTime",
+      width: 180,
+      ellipsis: true,
     },
   ];
 
