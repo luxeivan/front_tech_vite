@@ -25,27 +25,42 @@ import "dayjs/locale/ru";
 dayjs.locale("ru");
 
 const getStatusName = (item) => {
-  const rawTop = item?.STATUS_NAME;
-  if (typeof rawTop === "string" && rawTop.trim()) {
-    return rawTop.trim().toLowerCase();
+  const a = item?.attributes;
+  const possible = [
+    item?.STATUS_NAME,
+    a?.STATUS_NAME,
+    item?.data?.STATUS_NAME,
+    item?.data?.data?.STATUS_NAME,
+    item?.status_name,
+    item?.data?.data?.status_name,
+    a?.status_name,
+  ];
+  for (const v of possible) {
+    if (typeof v === "string" && v.trim()) return v.trim().toLowerCase();
   }
-
-  const rawLegacy =
-    item?.data?.STATUS_NAME ??
-    item?.data?.data?.STATUS_NAME ??
-    item?.status_name ??
-    item?.data?.data?.status_name ??
-    null;
-
-  return typeof rawLegacy === "string" ? rawLegacy.trim().toLowerCase() : null;
+  return null;
 };
 
 const getCreateDate = (item) =>
   item?.createDateTime ??
+  item?.attributes?.createDateTime ??
   item?.data?.createDateTime ??
   item?.data?.data?.createDateTime ??
   item?.data?.data?.F81_060_EVENTDATETIME ??
+  item?.attributes?.data?.data?.F81_060_EVENTDATETIME ??
   null;
+
+const isOpen = (item) => {
+  const a = item?.attributes;
+  const v =
+    item?.isActive ??
+    a?.isActive ??
+    item?.data?.isActive ??
+    item?.data?.data?.isActive ??
+    (a && a.isActive && a.isActive.value);
+
+  return v === true || v === 1 || v === "true";
+};
 
 // 4 варианта статусов ТН
 const STATUS_OPTIONS = [
@@ -303,7 +318,7 @@ export default function TableTN() {
       const d = getCreateDate(i);
       return date ? dayjs(d).isSame(date, "day") : true;
     });
-    return byDate.filter((i) => getStatusName(i) === "открыта").length;
+    return byDate.filter((i) => isOpen(i)).length;
   }, [tns?.data, date]);
   const loadingOpened = isLoadingTns || !Array.isArray(tns?.data);
 
@@ -430,11 +445,28 @@ export default function TableTN() {
     const d = getCreateDate(item);
     return date ? dayjs(d).isSame(date, "day") : true;
   });
+  // const listFiltered =
+  //   selectedStatuses.length === 0
+  //     ? listByDate
+  //     : listByDate.filter((item) => {
+  //         const s = getStatusName(item);
+  //         return s ? selectedStatuses.includes(s) : false;
+  //       });
+
   const listFiltered =
     selectedStatuses.length === 0
       ? listByDate
       : listByDate.filter((item) => {
           const s = getStatusName(item);
+          const openSelected =
+            selectedStatuses.length === 1 && selectedStatuses[0] === "открыта";
+
+          // Если выбран режим "Открыта" — считаем по isActive (и на всякий случай по STATUS_NAME)
+          if (openSelected) {
+            return isOpen(item) || s === "открыта";
+          }
+
+          // Иначе фильтруем по выбранным статусам из строки
           return s ? selectedStatuses.includes(s) : false;
         });
 
@@ -455,26 +487,38 @@ export default function TableTN() {
 
   const dataSource = pageSlice.length
     ? pageSlice.map((item) => {
-        const szoTags = buildSzoSummaryFromItem(item);
+        const src = item?.attributes
+          ? { id: item.id, ...item.attributes }
+          : item;
+        const szoTags = buildSzoSummaryFromItem(src);
+        const docId =
+          src.documentId ||
+          src.guid ||
+          src.VIOLATION_GUID_STR ||
+          item.documentId ||
+          item.guid ||
+          item.VIOLATION_GUID_STR ||
+          src.id;
+
         return {
-          key: item.id,
-          number: item.number,
-          energoObject: item.energoObject,
-          addressList: item.addressList,
-          dispCenter: item.dispCenter,
-          createDateTime: dayjs(item.createDateTime).format("DD.MM.YYYY HH:mm"),
-          documentId: item.documentId,
+          key: src.id ?? item.id,
+          number: src.number,
+          energoObject: src.energoObject,
+          addressList: src.addressList,
+          dispCenter: src.dispCenter,
+          createDateTime: dayjs(getCreateDate(item)).format("DD.MM.YYYY HH:mm"),
+          documentId: docId,
           szoTags,
           sendedEdds: (
             <Button
-              disabled={item.sendedEdds}
+              disabled={src.sendedEdds}
               type="primary"
               onClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
               }}
             >
-              {item.sendedEdds ? "Отправлено" : "Отправить"}
+              {src.sendedEdds ? "Отправлено" : "Отправить"}
             </Button>
           ),
         };
