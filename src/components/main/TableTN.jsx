@@ -11,6 +11,7 @@ import {
   Tag,
   Tooltip,
   Space,
+  Input,
 } from "antd";
 import React, { useEffect, useState } from "react";
 import useData from "../../stores/useData";
@@ -103,6 +104,10 @@ function FiltersBar({
   selectedStatuses,
   onStatusChange,
   rightExtra,
+  searchNumber,
+  onSearchNumberChange,
+  searchGuid,
+  onSearchGuidChange,
 }) {
   return (
     <Flex
@@ -131,6 +136,20 @@ function FiltersBar({
           options={STATUS_OPTIONS}
           dropdownMatchSelectWidth={false}
           maxTagCount={false}
+        />
+        <Input
+          allowClear
+          placeholder="№ ТН…"
+          value={searchNumber}
+          onChange={(e) => onSearchNumberChange(e.target.value)}
+          style={{ width: 140 }}
+        />
+        <Input
+          allowClear
+          placeholder="GUID…"
+          value={searchGuid}
+          onChange={(e) => onSearchGuidChange(e.target.value)}
+          style={{ width: 240 }}
         />
       </Flex>
       {rightExtra}
@@ -305,6 +324,8 @@ export default function TableTN() {
   const [sound, setSound] = useState(false);
   const [selectedStatuses, setSelectedStatuses] = useState(["открыта"]);
   const [showAi, setShowAi] = useState(false);
+  const [searchNumber, setSearchNumber] = useState("");
+  const [searchGuid, setSearchGuid] = useState("");
 
   const handleStatusChange = (vals) => {
     setSelectedStatuses(vals || []);
@@ -445,30 +466,47 @@ export default function TableTN() {
     const d = getCreateDate(item);
     return date ? dayjs(d).isSame(date, "day") : true;
   });
-  // const listFiltered =
-  //   selectedStatuses.length === 0
-  //     ? listByDate
-  //     : listByDate.filter((item) => {
-  //         const s = getStatusName(item);
-  //         return s ? selectedStatuses.includes(s) : false;
-  //       });
+  const listFiltered = listByDate.filter((item) => {
+    // --- status filter ---
+    const s = getStatusName(item);
+    const openSelected =
+      selectedStatuses.length === 1 && selectedStatuses[0] === "открыта";
+    const statusOk =
+      selectedStatuses.length === 0
+        ? true
+        : openSelected
+        ? isOpen(item) || s === "открыта"
+        : s
+        ? selectedStatuses.includes(s)
+        : false;
 
-  const listFiltered =
-    selectedStatuses.length === 0
-      ? listByDate
-      : listByDate.filter((item) => {
-          const s = getStatusName(item);
-          const openSelected =
-            selectedStatuses.length === 1 && selectedStatuses[0] === "открыта";
+    if (!statusOk) return false;
 
-          // Если выбран режим "Открыта" — считаем по isActive (и на всякий случай по STATUS_NAME)
-          if (openSelected) {
-            return isOpen(item) || s === "открыта";
-          }
+    // --- number + guid search ---
+    const src = item?.attributes ? { id: item.id, ...item.attributes } : item;
+    const numStr = (src?.number != null ? String(src.number) : "").toLowerCase();
 
-          // Иначе фильтруем по выбранным статусам из строки
-          return s ? selectedStatuses.includes(s) : false;
-        });
+    const guidCandidates = [
+      src?.guid,
+      src?.VIOLATION_GUID_STR,
+      src?.documentId,
+      item?.guid,
+      item?.VIOLATION_GUID_STR,
+      item?.documentId,
+      item?.data?.data?.VIOLATION_GUID_STR,
+      item?.data?.data?.guid,
+    ].filter(Boolean);
+
+    const guidStr = (guidCandidates[0] ? String(guidCandidates[0]) : "").toLowerCase();
+
+    const qNum = String(searchNumber || "").trim().toLowerCase();
+    const qGuid = String(searchGuid || "").trim().toLowerCase();
+
+    const numberOk = qNum ? numStr.includes(qNum) : true;
+    const guidOk = qGuid ? guidStr.includes(qGuid) : true;
+
+    return numberOk && guidOk;
+  });
 
   // console.log(
   //   "[filters] дата =",
@@ -614,6 +652,16 @@ export default function TableTN() {
         }}
         selectedStatuses={selectedStatuses}
         onStatusChange={handleStatusChange}
+        searchNumber={searchNumber}
+        onSearchNumberChange={(v) => {
+          setSearchNumber(v);
+          setPagination((p) => ({ ...p, page: 1 }));
+        }}
+        searchGuid={searchGuid}
+        onSearchGuidChange={(v) => {
+          setSearchGuid(v);
+          setPagination((p) => ({ ...p, page: 1 }));
+        }}
         rightExtra={
           <Button
             disabled={isLoadingTns}
