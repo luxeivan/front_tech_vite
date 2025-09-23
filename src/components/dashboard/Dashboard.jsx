@@ -197,7 +197,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const headerRef = useRef(null);
   const [mapHeight, setMapHeight] = useState(420);
-  const MAP_SCALE = 0.5; // уменьшаем карту в 2 раза относительно доступной высоты
+  const MAP_SCALE = 0.6; // делаем карту чуть выше ( ~60% доступной высоты )
   const CARD_SCALE = 0.7; // уменьшаем высоту карточек ~на 30%
 
   // density / compact mode by window size (to always fit one screen)
@@ -636,6 +636,45 @@ export default function Dashboard() {
                     )
                   )}
                 </div>
+                {/* Задействовано сил и средств Мособлэнерго card */}
+                <div style={{ marginTop: 12 }}>
+                  <Card
+                    style={{ borderRadius: 20 }}
+                    styles={{ body: { padding: compact ? 10 : 14 } }}
+                    title={
+                      <div
+                        style={{
+                          fontWeight: 700,
+                          color: "#1575bc",
+                          textAlign: "center",
+                        }}
+                      >
+                        Задействовано сил и средств Мособлэнерго
+                      </div>
+                    }
+                  >
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: `repeat(auto-fill, minmax(${
+                          compact ? 170 : 200
+                        }px, 1fr))`,
+                        gap: compact ? 10 : 12,
+                        alignItems: "stretch",
+                      }}
+                    >
+                      {stats.map(({ icon, title, value, color }) => (
+                        <Chip
+                          key={title}
+                          icon={icon}
+                          title={title}
+                          value={value}
+                          color={color}
+                        />
+                      ))}
+                    </div>
+                  </Card>
+                </div>
               </>
             )}
 
@@ -689,44 +728,6 @@ export default function Dashboard() {
                 </YMaps>
               </div>
             </Card>
-            <div style={{ marginTop: 12 }}>
-              <Card
-                style={{ borderRadius: 20 }}
-                styles={{ body: { padding: compact ? 10 : 14 } }}
-                title={
-                  <div
-                    style={{
-                      fontWeight: 700,
-                      color: "#1575bc",
-                      textAlign: "center",
-                    }}
-                  >
-                    Задействовано сил и средств Мособлэнерго
-                  </div>
-                }
-              >
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: `repeat(auto-fill, minmax(${
-                      compact ? 170 : 200
-                    }px, 1fr))`,
-                    gap: compact ? 10 : 12,
-                    alignItems: "stretch",
-                  }}
-                >
-                  {stats.map(({ icon, title, value, color }) => (
-                    <Chip
-                      key={title}
-                      icon={icon}
-                      title={title}
-                      value={value}
-                      color={color}
-                    />
-                  ))}
-                </div>
-              </Card>
-            </div>
           </div>
         </div>
       </div>
