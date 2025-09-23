@@ -187,7 +187,6 @@ function s(v) {
 }
 
 function getRawData(item) {
-  // чаще всего соц-объекты лежат в item.data.data
   return item?.data?.data ?? item?.data ?? item ?? {};
 }
 
@@ -205,7 +204,6 @@ function classifySocialTyp(t) {
   return null;
 }
 
-/** Собираем сводку СЗО: counts + короткие списки имён (для тултипов) */
 function buildSzoSummaryFromItem(item) {
   const raw = getRawData(item);
   const socials = Array.isArray(raw.SocialObjects) ? raw.SocialObjects : [];
@@ -286,7 +284,7 @@ function buildSzoSummaryFromItem(item) {
   return tags;
 }
 
-/** Ячейка таблицы с тегами СЗО */
+
 function SzoCell({ tags }) {
   if (!Array.isArray(tags) || tags.length === 0)
     return <span style={{ color: "#999" }}>—</span>;
@@ -343,7 +341,7 @@ export default function TableTN() {
   }, [tns?.data, date]);
   const loadingOpened = isLoadingTns || !Array.isArray(tns?.data);
 
-  // Сколько всего ТН попадает под текущие фильтры (дата + статусы)
+
   const totalByDate = React.useMemo(() => {
     const list = Array.isArray(tns?.data) ? tns.data : [];
     return list.filter((i) => {
@@ -370,24 +368,11 @@ export default function TableTN() {
     getTns(1, 500);
   }, [date, selectedStatuses, getTns]);
 
-  // useEffect(() => {
-  //   if (isLoadingTns) return;
-  //   const all = Array.isArray(tns?.data) ? tns.data : [];
-  //   if (all.length === 0) return;
-  //   const opened = all.filter((i) => getStatusName(i) === "открыта");
-  //   console.log(`[filters] открытых ТН: ${opened.length}`);
-  //   opened.forEach((i) => {
-  //     const id = i?.documentId || i?.id;
-  //     console.log(`ТН ${id}: статус = "открыта"`);
-  //   });
-  // }, [tns?.data, isLoadingTns]);
-
   useEffect(() => {
     if (isLoadingTns) return;
     const all = Array.isArray(tns?.data) ? tns.data : [];
     if (all.length === 0) return;
 
-    // --- СТАРЫЙ ЛОГ ---
     const opened = all.filter((i) => getStatusName(i) === "открыта");
     console.log(`[filters] открытых ТН: ${opened.length}`);
     opened.forEach((i) => {
@@ -395,24 +380,14 @@ export default function TableTN() {
       console.log(`ТН ${id}: статус = "открыта"`);
     });
 
-    // --- НОВЫЙ ЛОГ ДЛЯ АНАЛИТИКИ ---
     console.log("=== ВСЕ ТН (для будущей AI-Аналитики) ===");
     all.forEach((tn, i) => {
-      // console.log(`#${i + 1}`, {
-      //   id: tn.id,
-      //   number: tn.number,
-      //   energoObject: tn.energoObject,
-      //   status: tn.STATUS_NAME,
-      //   createDateTime: tn.createDateTime,
-      //   dispCenter: tn.dispCenter,
-      // });
     });
     console.log("Всего ТН:", all.length);
   }, [tns?.data, isLoadingTns]);
 
   // === LIVE ПОДПИСКА (SSE) ===
   useEffect(() => {
-    // const base = import.meta.env.VITE_URL_BACKEND;
     const base = import.meta.env.VITE_URL_BACKEND_SERVICES;
     const url = `${base}/services/event`;
     let es;
@@ -421,20 +396,16 @@ export default function TableTN() {
     const scheduleRefresh = (delay = 800) => {
       clearTimeout(timer);
       timer = setTimeout(() => {
-        // тянем «пачку» под клиентскую фильтрацию
         getTns(1, 500);
       }, delay);
     };
 
     const connect = () => {
-      // console.log("📡 Подключаюсь к SSE:", url);
       es = new EventSource(url, { withCredentials: false });
 
       es.onmessage = (evt) => {
         try {
           const payload = JSON.parse(evt.data);
-          // console.log("🔔 Live-событие:", payload);
-          // На любые события от нашего бэка — обновляем список
           scheduleRefresh();
         } catch (e) {
           console.log("Ошибка срабатывания вебхука", e);
@@ -508,14 +479,6 @@ export default function TableTN() {
     return numberOk && guidOk;
   });
 
-  // console.log(
-  //   "[filters] дата =",
-  //   date?.format("DD.MM.YYYY"),
-  //   "; статусы =",
-  //   selectedStatuses,
-  //   "; всего по фильтрам =",
-  //   listFiltered.length
-  // );
 
   const startIndex = (pagination.page - 1) * pagination.pageSize;
   const pageSlice = listFiltered.slice(

@@ -31,11 +31,13 @@ import {
   ToolOutlined,
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
+import { YMaps, Map } from "@pbe/react-yandex-maps";
 import dayjs from "dayjs";
 import axios from "axios";
 
 const { Title, Text } = Typography;
 const URL = import.meta.env.VITE_URL_BACKEND;
+const YMAPS_KEY = import.meta.env.VITE_YMAPS_KEY;
 
 /* ---------------- helpers ---------------- */
 const toNumber = (v) => {
@@ -193,6 +195,10 @@ const statDefs = [
 /* ---------------- redesigned component ---------------- */
 export default function Dashboard() {
   const navigate = useNavigate();
+  const headerRef = useRef(null);
+  const [mapHeight, setMapHeight] = useState(420);
+  const MAP_SCALE = 0.5; // уменьшаем карту в 2 раза относительно доступной высоты
+  const CARD_SCALE = 0.7; // уменьшаем высоту карточек ~на 30%
 
   // density / compact mode by window size (to always fit one screen)
   const [compact, setCompact] = useState(false);
@@ -201,13 +207,22 @@ export default function Dashboard() {
       const h = window.innerHeight;
       const w = window.innerWidth;
       setCompact(h < 900 || w < 1280);
+
+      // вычисляем доступную высоту для карты исходя из высоты шапки
+      const headerH = headerRef.current
+        ? headerRef.current.getBoundingClientRect().height
+        : 0;
+      const paddingY = 32; // паддинги контейнера контента
+      const base = Math.max(300, Math.floor(h - headerH - paddingY));
+      const scaled = Math.max(200, Math.floor(base * MAP_SCALE));
+      setMapHeight(scaled);
     };
     onResize();
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // small, modern “chip”
+  // small, modern “chip” (card height ~30% ниже)
   const Chip = ({ icon, title, value, color, tooltip }) => (
     <Tooltip
       placement="bottom"
@@ -218,40 +233,45 @@ export default function Dashboard() {
         hoverable
         size="small"
         bordered
-        // style={{
-        //   borderRadius: 14,
-        //   backdropFilter: "saturate(130%) blur(2px)",
-        //   boxShadow: "0 4px 12px rgba(18, 31, 53, .06)",
-        // }}
         style={{
           borderRadius: 14,
           backdropFilter: "saturate(130%) blur(2px)",
           boxShadow: "0 4px 12px rgba(18, 31, 53, .06)",
-          height: "100%", // <— добавлено
+          height: "100%",
         }}
-        styles={{ body: { padding: compact ? "10px 12px" : "12px 16px" } }}
+        styles={{
+          body: {
+            padding: compact
+              ? `${Math.round(10 * CARD_SCALE)}px ${Math.round(
+                  12 * CARD_SCALE
+                )}px`
+              : `${Math.round(12 * CARD_SCALE)}px ${Math.round(
+                  16 * CARD_SCALE
+                )}px`,
+          },
+        }}
       >
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: `${compact ? 26 : 30}px 1fr auto`,
+            gridTemplateColumns: `${compact ? 24 : 28}px 1fr auto`,
             alignItems: "center",
-            gap: compact ? 10 : 12,
-            minHeight: compact ? 76 : 92, // было 68/82
-            height: "100%", // <— добавлено
+            gap: compact ? 8 : 10,
+            minHeight: Math.round((compact ? 76 : 92) * CARD_SCALE),
+            height: "100%",
           }}
         >
-          <span style={{ fontSize: compact ? 22 : 26, color }}>{icon}</span>
+          <span style={{ fontSize: compact ? 18 : 22, color }}>{icon}</span>
           <div
             style={{
               lineHeight: 1.2,
               color: "#6b778c",
-              fontSize: compact ? 12 : 13,
+              fontSize: compact ? 11 : 12,
             }}
           >
             {title}
           </div>
-          <div style={{ fontSize: compact ? 22 : 26, fontWeight: 800, color }}>
+          <div style={{ fontSize: compact ? 18 : 22, fontWeight: 800, color }}>
             {Number(value || 0).toLocaleString("ru-RU")}
           </div>
         </div>
@@ -460,42 +480,21 @@ export default function Dashboard() {
     <div style={{ width: "100%", minHeight: "100vh", background: "#f7f9fc" }}>
       {/* Hero / Header */}
       <div
+        ref={headerRef}
         style={{
           background:
             "linear-gradient(90deg, #eaf4ff 0%, #f9fbff 50%, #ffffff 100%)",
           borderBottom: "1px solid #eef3f8",
         }}
       >
-        {/* <div style={{ maxWidth: 1600, margin: "0 auto", padding: "14px 16px" }}>
-          <Row align="middle" justify="space-between">
-            <Col>
-              <Button onClick={() => navigate("/")} icon={<HomeOutlined />}>
-                На главную
-              </Button>
-            </Col>
-            <Col flex={1}>
-              <Title
-                level={2}
-                style={{
-                  margin: 0,
-                  textAlign: "center",
-                  color: "#1575bc",
-                  fontWeight: 800,
-                  letterSpacing: 0.2,
-                }}
-              >
-                ТЕХНОЛОГИЧЕСКИЕ НАРУШЕНИЯ В ЭЛЕКТРИЧЕСКИХ СЕТЯХ АО
-                «МОСОБЛЭНЕРГО»
-              </Title>
-            </Col>
-            <Col>
-              <Text style={{ fontWeight: 600, color: "#1575bc" }}>
-                По состоянию на {now}
-              </Text>
-            </Col>
-          </Row>
-        </div> */}
-        <div style={{ maxWidth: 1800, margin: "0 auto", padding: "14px 16px" }}>
+        <div
+          style={{
+            maxWidth: "min(100vw, 2400px)",
+            width: "100%",
+            margin: "0 auto",
+            padding: "14px 24px",
+          }}
+        >
           <Row align="middle" justify="start">
             <Col>
               <Button onClick={() => navigate("/")} icon={<HomeOutlined />}>
@@ -532,118 +531,188 @@ export default function Dashboard() {
       </div>
 
       {/* Content */}
-      <div style={{ maxWidth: 1600, margin: "0 auto", padding: 16 }}>
-        {loading && !error && (
-          <Space
-            style={{ width: "100%", justifyContent: "center", marginTop: 40 }}
-          >
-            <Spin size="large" />
-          </Space>
-        )}
-        {error && (
-          <Title level={4} type="danger" style={{ textAlign: "center" }}>
-            {error}
-          </Title>
-        )}
-
-        {!loading && !error && (
-          <>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: `minmax(${compact ? 260 : 300}px, ${
-                  compact ? 320 : 360
-                }px) repeat(auto-fill, minmax(${compact ? 190 : 220}px, 1fr))`,
-                gridAutoFlow: "row dense",
-                gridAutoRows: "minmax(74px, auto)",
-                gap: compact ? 10 : 14,
-                alignItems: "stretch",
-              }}
-            >
-              {/* main summary card */}
-              <Card
-                variant="filled"
-                style={{ borderRadius: 20, background: "#e9f4ff" }}
-                styles={{ body: { padding: compact ? 16 : 22 } }}
+      <div
+        style={{
+          maxWidth: "min(100vw, 2400px)",
+          width: "100%",
+          margin: "0 auto",
+          padding: "12px 24px 24px",
+        }}
+      >
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: compact
+              ? "1fr"
+              : "minmax(820px, 2.2fr) minmax(460px, 1fr)",
+            gap: compact ? 10 : 14,
+            alignItems: "start",
+          }}
+        >
+          {/* LEFT: cards & stats */}
+          <div>
+            {loading && !error && (
+              <Space
+                style={{
+                  width: "100%",
+                  justifyContent: "center",
+                  marginTop: 40,
+                }}
               >
-                {/* <Statistic
-                  title={
-                    <Text strong style={{ fontSize: compact ? 16 : 18 }}>
-                      Всего открытых ТН
-                    </Text>
-                  }
-                  value={rows.length}
-                  valueStyle={{
-                    fontSize: compact ? 52 : 64,
-                    color: "#1575bc",
-                    fontWeight: 800,
-                    lineHeight: 1,
-                  }}
-                /> */}
+                <Spin size="large" />
+              </Space>
+            )}
+            {error && (
+              <Title level={4} type="danger" style={{ textAlign: "center" }}>
+                {error}
+              </Title>
+            )}
+
+            {!loading && !error && (
+              <>
                 <div
                   style={{
-                    display: "flex",
-                    alignItems: "baseline",
-                    justifyContent: "center",
-                    gap: 12,
-                    flexWrap: "wrap",
+                    display: "grid",
+                    gridTemplateColumns: `minmax(${compact ? 260 : 300}px, ${
+                      compact ? 320 : 360
+                    }px) repeat(auto-fill, minmax(${
+                      compact ? 190 : 220
+                    }px, 1fr))`,
+                    gridAutoFlow: "row dense",
+                    gridAutoRows: "minmax(50px, auto)",
+                    gap: compact ? 10 : 14,
+                    alignItems: "stretch",
                   }}
                 >
-                  <Text strong style={{ fontSize: compact ? 18 : 20 }}>
-                    Всего открытых ТН:
-                  </Text>
-                  <span
+                  {/* main summary card */}
+                  <Card
+                    variant="filled"
+                    style={{ borderRadius: 20, background: "#e9f4ff" }}
+                    styles={{ body: { padding: compact ? 12 : 16 } }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "baseline",
+                        justifyContent: "center",
+                        gap: 12,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <Text strong style={{ fontSize: compact ? 18 : 20 }}>
+                        Всего открытых ТН:
+                      </Text>
+                      <span
+                        style={{
+                          fontSize: compact ? 40 : 50,
+                          color: "#1575bc",
+                          fontWeight: 900,
+                          lineHeight: 1,
+                        }}
+                      >
+                        {rows.length}
+                      </span>
+                    </div>
+                    <Button
+                      onClick={handleCopyGuids}
+                      disabled={!rows?.length}
+                      style={{ marginTop: 12, borderRadius: 12, width: "100%" }}
+                    >
+                      Скопировать GUID
+                    </Button>
+                  </Card>
+
+                  {/* metrics */}
+                  {metrics.map(
+                    ({ icon, title, value, color, field, custom }) => (
+                      <Chip
+                        key={title}
+                        icon={icon}
+                        title={title}
+                        value={value}
+                        color={color}
+                        tooltip={renderMetricDetails({ title, field, custom })}
+                      />
+                    )
+                  )}
+                </div>
+              </>
+            )}
+
+            {rows.length === 0 && loading && (
+              <Skeleton
+                active
+                paragraph={{ rows: 4 }}
+                style={{ marginTop: 24 }}
+              />
+            )}
+          </div>
+
+          {/* RIGHT: map */}
+          <div>
+            <Card
+              style={{ borderRadius: 20, overflow: "hidden" }}
+              styles={{ body: { padding: 0 } }}
+              title={
+                <div style={{ fontWeight: 700, color: "#1575bc" }}>
+                  Карта отключений (подложка)
+                </div>
+              }
+            >
+              <div
+                style={{
+                  width: "100%",
+                  height: mapHeight,
+                  minHeight: compact ? 180 : 220,
+                }}
+              >
+                <YMaps
+                  query={
+                    YMAPS_KEY
+                      ? {
+                          apikey: YMAPS_KEY,
+                          lang: "ru_RU",
+                          load: "package.full",
+                        }
+                      : { lang: "ru_RU", load: "package.full" }
+                  }
+                >
+                  <Map
+                    defaultState={{ center: [55.751244, 37.618423], zoom: 8 }}
+                    options={{
+                      suppressMapOpenBlock: true,
+                      yandexMapDisablePoiInteractivity: true,
+                    }}
+                    width="100%"
+                    height="100%"
+                  />
+                </YMaps>
+              </div>
+            </Card>
+            <div style={{ marginTop: 12 }}>
+              <Card
+                style={{ borderRadius: 20 }}
+                styles={{ body: { padding: compact ? 10 : 14 } }}
+                title={
+                  <div
                     style={{
-                      fontSize: compact ? 56 : 72,
+                      fontWeight: 700,
                       color: "#1575bc",
-                      fontWeight: 900,
-                      lineHeight: 1,
+                      textAlign: "center",
                     }}
                   >
-                    {rows.length}
-                  </span>
-                </div>
-                <Button
-                  onClick={handleCopyGuids}
-                  disabled={!rows?.length}
-                  style={{ marginTop: 12, borderRadius: 12, width: "100%" }}
-                >
-                  Скопировать GUID
-                </Button>
-              </Card>
-
-              {/* metrics */}
-              {metrics.map(({ icon, title, value, color, field, custom }) => (
-                <Chip
-                  key={title}
-                  icon={icon}
-                  title={title}
-                  value={value}
-                  color={color}
-                  tooltip={renderMetricDetails({ title, field, custom })}
-                />
-              ))}
-
-              {/* resources section */}
-              <div style={{ gridColumn: "1 / -1", marginTop: 4 }}>
-                <div
-                  style={{
-                    fontWeight: 700,
-                    color: "#1575bc",
-                    textAlign: "center",
-                    margin: "8px 0",
-                  }}
-                >
-                  Задействовано сил и средств Мособлэнерго
-                </div>
+                    Задействовано сил и средств Мособлэнерго
+                  </div>
+                }
+              >
                 <div
                   style={{
                     display: "grid",
                     gridTemplateColumns: `repeat(auto-fill, minmax(${
-                      compact ? 190 : 220
+                      compact ? 170 : 200
                     }px, 1fr))`,
-                    gap: compact ? 10 : 14,
-                    justifyContent: "center",
+                    gap: compact ? 10 : 12,
+                    alignItems: "stretch",
                   }}
                 >
                   {stats.map(({ icon, title, value, color }) => (
@@ -656,17 +725,11 @@ export default function Dashboard() {
                     />
                   ))}
                 </div>
-              </div>
+              </Card>
             </div>
-          </>
-        )}
-
-        {rows.length === 0 && loading && (
-          <Skeleton active paragraph={{ rows: 4 }} style={{ marginTop: 24 }} />
-        )}
+          </div>
+        </div>
       </div>
     </div>
   );
 }
-
-
