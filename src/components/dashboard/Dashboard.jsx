@@ -31,7 +31,7 @@ import {
   ToolOutlined,
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
-import { YMaps, Map } from "@pbe/react-yandex-maps";
+import MapPanel from "./Map";
 import dayjs from "dayjs";
 import axios from "axios";
 
@@ -284,6 +284,9 @@ export default function Dashboard() {
   const [error, setError] = useState(null);
   const [rows, setRows] = useState([]);
   const esRef = useRef(null);
+
+  // Points for the map (variant #2: clusterized markers). Fill later with real data.
+  const [mapPoints, setMapPoints] = useState([]);
 
   // header ticker
   useEffect(() => {
@@ -705,27 +708,12 @@ export default function Dashboard() {
                   minHeight: compact ? 180 : 220,
                 }}
               >
-                <YMaps
-                  query={
-                    YMAPS_KEY
-                      ? {
-                          apikey: YMAPS_KEY,
-                          lang: "ru_RU",
-                          load: "package.full",
-                        }
-                      : { lang: "ru_RU", load: "package.full" }
-                  }
-                >
-                  <Map
-                    defaultState={{ center: [55.751244, 37.618423], zoom: 8 }}
-                    options={{
-                      suppressMapOpenBlock: true,
-                      yandexMapDisablePoiInteractivity: true,
-                    }}
-                    width="100%"
-                    height="100%"
-                  />
-                </YMaps>
+                <MapPanel
+                  apikey={YMAPS_KEY}
+                  height="100%"
+                  initialState={{ center: [55.751244, 37.618423], zoom: 8 }}
+                  points={mapPoints}
+                />
               </div>
             </Card>
           </div>
