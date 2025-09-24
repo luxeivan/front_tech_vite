@@ -37,7 +37,97 @@ import axios from "axios";
 
 const { Title, Text } = Typography;
 const URL = import.meta.env.VITE_URL_BACKEND;
-const YMAPS_KEY = import.meta.env.VITE_YMAPS_KEY;
+const FIAS_COLLECTION = import.meta.env.VITE_STRAPI_FIAS_COLLECTION || "adress";
+
+const FIAS_BATCH_SIZE = 100; // Strapi page size cap
+const FIAS_CONCURRENCY = 4; // parallel requests (be gentle)
+const MAP_MAX_POINTS = 50000; // safety limit for client-side rendering
+
+// Try to extract an array of FIAS codes from different shapes of a row (strict)
+
+// strict GUID validator for FIAS (32 hex или 36 с дефисами)
+const isFiasGuid = (s) => {
+  if (!s && s !== 0) return false;
+  const str = String(s).trim();
+  return (
+    /^[0-9a-fA-F]{32}$/.test(str) ||
+    /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(
+      str
+    )
+  );
+};
+
+// Достаём ФИАСы ТОЛЬКО из FIAS_LIST
+const extractFiasFromRow = (row) => {
+  const seen = new Set();
+  const candidates = [
+    row?.data?.FIAS_LIST, // обычное место
+    row?.FIAS_LIST, // на всякий случай
+    row?.data?.data?.FIAS_LIST, // сверх-защита
+  ];
+  for (const src of candidates) {
+    if (!src) continue;
+    String(src)
+      .split(/[;,]/) // FIAS разделены ; или ,
+      .map((t) => t.trim())
+      .filter(Boolean)
+      .forEach((t) => {
+        if (isFiasGuid(t)) seen.add(t);
+      });
+  }
+  return Array.from(seen);
+};
+
+// Chunk helper
+const chunk = (arr, n) => {
+  const out = [];
+  for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n));
+  return out;
+};
+
+// Build Strapi $in filter for arrays using bracket notation (qs will encode properly)
+const buildInParams = (field, values) => {
+  const params = {};
+  params[`filters[${field}][$in]`] = values; // qs encodes arrays as [0],[1],...
+  return params;
+};
+
+// Safely extract lat/lon from various attribute shapes
+const pickLatLon = (obj) => {
+  if (!obj) return null;
+  const a = obj.attributes ? obj.attributes : obj;
+  const latRaw =
+    a.lat ??
+    a.latitude ??
+    a.geo_lat ??
+    a.geoLat ??
+    (Array.isArray(a?.coords) ? a.coords[0] : undefined);
+  const lonRaw =
+    a.lon ??
+    a.longitude ??
+    a.geo_lon ??
+    a.geoLon ??
+    (Array.isArray(a?.coords) ? a.coords[1] : undefined);
+  const lat = typeof latRaw === "number" ? latRaw : parseFloat(latRaw);
+  const lon = typeof lonRaw === "number" ? lonRaw : parseFloat(lonRaw);
+  if (Number.isFinite(lat) && Number.isFinite(lon)) return { lat, lon };
+  return null;
+};
+
+// Encode params for Strapi (supports bracket-notation arrays like fields[0]=...)
+const encodeStrapiQuery = (params) => {
+  const parts = [];
+  const push = (k, v) =>
+    parts.push(`${encodeURIComponent(k)}=${encodeURIComponent(v)}`);
+  for (const [key, value] of Object.entries(params)) {
+    if (Array.isArray(value)) {
+      value.forEach((v, i) => push(`${key}[${i}]`, v));
+    } else {
+      push(key, value);
+    }
+  }
+  return parts.join("&");
+};
 
 /* ---------------- helpers ---------------- */
 const toNumber = (v) => {
@@ -285,8 +375,149 @@ export default function Dashboard() {
   const [rows, setRows] = useState([]);
   const esRef = useRef(null);
 
+  const fiasCodes = useMemo(
+    () =>
+      Array.from(
+        new Set(rows.flatMap((r) => extractFiasFromRow(r)).filter(Boolean))
+      ),
+    [rows]
+  );
+
+  const fiasCacheRef = useRef(new Map()); // fias -> {lat, lon}
+  const abortRef = useRef(null);
+  const [loadProgress, setLoadProgress] = useState({ loaded: 0, total: 0 });
+
   // Points for the map (variant #2: clusterized markers). Fill later with real data.
   const [mapPoints, setMapPoints] = useState([]);
+  // Derive FIAS codes from open TNs and resolve to coordinates via Strapi special collection
+  useEffect(() => {
+    // Cleanup previous run
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
+
+    // Gather unique FIAS codes from rows
+    const allCodes = Array.from(
+      new Set(rows.flatMap((r) => extractFiasFromRow(r)).filter(Boolean))
+    );
+
+    if (!allCodes.length) {
+      setMapPoints([]);
+      setLoadProgress({ loaded: 0, total: 0 });
+      return;
+    }
+
+    // If too many, we will sample uniformly to keep UI responsive
+    const limit = Math.max(1000, MAP_MAX_POINTS * 2); // fetch more than we render (cluster quality)
+    const codes =
+      allCodes.length > limit
+        ? allCodes.filter(
+            (_, i) => i % Math.ceil(allCodes.length / limit) === 0
+          )
+        : allCodes;
+
+    const ac = new AbortController();
+    abortRef.current = ac;
+
+    // Prepare queues
+    const cache = fiasCacheRef.current;
+    const toResolve = codes.filter((c) => !cache.has(c));
+    const resolvedFromCache = codes
+      .filter((c) => cache.has(c))
+      .map((c) => ({ fias: c, ...cache.get(c) }));
+
+    // Set initial points from cache
+    const initialPoints = resolvedFromCache.map(({ fias, lat, lon }) => ({
+      id: fias,
+      lat,
+      lon,
+    }));
+    setMapPoints(initialPoints.slice(0, MAP_MAX_POINTS));
+    setLoadProgress({ loaded: initialPoints.length, total: codes.length });
+
+    const batches = chunk(toResolve, FIAS_BATCH_SIZE);
+
+    // Helper to load one batch
+    const loadBatch = async (batch) => {
+      if (!batch.length) return [];
+
+      const query = encodeStrapiQuery({
+        ...buildInParams("fiasId", batch),
+        "pagination[page]": 1,
+        "pagination[pageSize]": FIAS_BATCH_SIZE,
+        fields: [
+          "fiasId",
+          "lat",
+          "lon",
+          "latitude",
+          "longitude",
+          "geo_lat",
+          "geo_lon",
+        ],
+      });
+
+      const url = `${URL}/api/${FIAS_COLLECTION}?${query}`;
+      const resp = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("jwt") || ""}`,
+        },
+        signal: ac.signal,
+      });
+      if (!resp.ok) throw new Error(`FIAS lookup failed: ${resp.status}`);
+      const json = await resp.json();
+      const arr = Array.isArray(json?.data) ? json.data : [];
+
+      const results = [];
+      for (const item of arr) {
+        const a = item?.attributes ? item.attributes : item;
+        const fias = a.fiasId || a.fias || a.FIAS || a.fias_code || a.FIAS_CODE;
+        const ll = pickLatLon(a);
+        if (fias && ll) {
+          cache.set(fias, ll);
+          results.push({ fias, ...ll });
+        }
+      }
+      return results;
+    };
+
+    // Run with limited concurrency
+    const batchesList = batches;
+    let idx = 0;
+    let active = 0;
+    const collected = [...initialPoints];
+
+    const next = () => {
+      if (ac.signal.aborted) return;
+      while (active < FIAS_CONCURRENCY && idx < batchesList.length) {
+        const b = batchesList[idx++];
+        active++;
+        loadBatch(b)
+          .then((res) => {
+            if (ac.signal.aborted) return;
+            res.forEach(({ fias, lat, lon }) =>
+              collected.push({ id: fias, lat, lon })
+            );
+            setLoadProgress({
+              loaded: Math.min(collected.length, codes.length),
+              total: codes.length,
+            });
+            setMapPoints(collected.slice(0, MAP_MAX_POINTS));
+          })
+          .catch(() => {})
+          .finally(() => {
+            active--;
+            if (idx < batchesList.length) next();
+          });
+      }
+    };
+
+    next();
+
+    return () => {
+      ac.abort();
+    };
+  }, [rows]);
 
   // header ticker
   useEffect(() => {
@@ -623,6 +854,14 @@ export default function Dashboard() {
                     >
                       Скопировать GUID
                     </Button>
+
+                    {/* <Button
+                      onClick={handleCopyFias}
+                      disabled={!rows?.length}
+                      style={{ marginTop: 8, borderRadius: 12, width: "100%" }}
+                    >
+                      Скопировать все ФИАС
+                    </Button> */}
                   </Card>
 
                   {/* metrics */}
@@ -706,14 +945,37 @@ export default function Dashboard() {
                   width: "100%",
                   height: mapHeight,
                   minHeight: compact ? 180 : 220,
+                  position: "relative",
                 }}
               >
                 <MapPanel
-                  apikey={YMAPS_KEY}
                   height="100%"
                   initialState={{ center: [55.751244, 37.618423], zoom: 8 }}
-                  points={mapPoints}
+                  fiasCodes={fiasCodes}
+                  url={URL}
+                  fiasCollection={FIAS_COLLECTION}
                 />
+                {loadProgress.total > 0 && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      bottom: 8,
+                      right: 12,
+                      background: "rgba(255,255,255,0.85)",
+                      padding: "4px 8px",
+                      borderRadius: 8,
+                      fontSize: 12,
+                    }}
+                  >
+                    Точек на карте:{" "}
+                    {Math.min(
+                      loadProgress.loaded,
+                      MAP_MAX_POINTS
+                    ).toLocaleString("ru-RU")}{" "}
+                    из {loadProgress.total.toLocaleString("ru-RU")}
+                    {loadProgress.loaded > MAP_MAX_POINTS && " (ограничено)"}
+                  </div>
+                )}
               </div>
             </Card>
           </div>
