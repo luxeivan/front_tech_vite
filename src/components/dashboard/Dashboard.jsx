@@ -436,25 +436,34 @@ export default function Dashboard() {
     setMapPoints(initialPoints.slice(0, MAP_MAX_POINTS));
     setLoadProgress({ loaded: initialPoints.length, total: codes.length });
 
-    const batches = chunk(toResolve, FIAS_BATCH_SIZE);
+    const BASE = String(URL).replace(/\/$/, "");
+    const MAX_URL_LEN = 1800;
+
+    const buildQuery = (ids) =>
+      encodeStrapiQuery({
+        ...buildInParams("fiasId", ids),
+        "pagination[page]": 1,
+        "pagination[pageSize]": Math.min(ids.length, FIAS_BATCH_SIZE),
+        fields: ["fiasId", "lat", "lon"],
+      });
+    const buildUrl = (ids) => `${BASE}/api/${FIAS_COLLECTION}?${buildQuery(ids)}`;
+
+    let inner = Math.min(50, toResolve.length || 50);
+    while (inner > 1 && buildUrl(toResolve.slice(0, inner)).length > MAX_URL_LEN) {
+      inner = Math.max(1, Math.floor(inner * 0.7));
+    }
+
+    const batches = [];
+    for (let i = 0; i < toResolve.length; i += inner) {
+      batches.push(toResolve.slice(i, i + inner));
+    }
 
     // Helper to load one batch
     const loadBatch = async (batch) => {
       if (!batch.length) return [];
 
-      const query = encodeStrapiQuery({
-        ...buildInParams("fiasId", batch),
-        "pagination[page]": 1,
-        "pagination[pageSize]": FIAS_BATCH_SIZE,
-        fields: [
-          "fiasId",
-          "lat",
-          "lon",
-        ],
-      });
-
-      const url = `${URL}/api/${FIAS_COLLECTION}?${query}`;
-      const resp = await fetch(url, {
+      const urlStr = buildUrl(batch);
+      const resp = await fetch(urlStr, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("jwt") || ""}`,
         },

@@ -63,6 +63,8 @@ export default function MapPanel({
   const cacheRef = useRef(new Map()); // fias -> {lat, lon}
   const abortRef = useRef(null);
   const omRef = useRef(null);
+  const mapRef = useRef(null);
+  const fittedRef = useRef(false);
   const [resolvedPoints, setResolvedPoints] = useState([]);
 
   // Пробиваем ФИАС в координаты (если они переданы)
@@ -92,19 +94,34 @@ export default function MapPanel({
     const toResolve = uniq.filter((c) => !cache.has(c));
     if (!toResolve.length) return;
 
-    const BATCH_SIZE = 100;
     const CONCURRENCY = 4;
-    const batches = chunk(toResolve, BATCH_SIZE);
 
-    const loadBatch = async (batch) => {
-      const query = encodeStrapiQuery({
-        ...buildInParams("fiasId", batch),
+    const BASE = String(url).replace(/\/$/, "");
+    const MAX_URL_LEN = 1800; // безопасный лимит для большинства прокси
+
+    const buildQuery = (ids) =>
+      encodeStrapiQuery({
+        ...buildInParams("fiasId", ids),
         "pagination[page]": 1,
-        "pagination[pageSize]": BATCH_SIZE,
+        "pagination[pageSize]": Math.min(ids.length, 100),
         fields: ["fiasId", "lat", "lon"],
       });
+    const buildUrl = (ids) => `${BASE}/api/${fiasCollection}?${buildQuery(ids)}`;
 
-      const resp = await fetch(`${url}/api/${fiasCollection}?${query}`, {
+    // подобрать размер куска так, чтобы URL не раздувался
+    let innerSize = Math.min(50, toResolve.length || 50);
+    while (innerSize > 1 && buildUrl(toResolve.slice(0, innerSize)).length > MAX_URL_LEN) {
+      innerSize = Math.max(1, Math.floor(innerSize * 0.7));
+    }
+
+    const batches = [];
+    for (let i = 0; i < toResolve.length; i += innerSize) {
+      batches.push(toResolve.slice(i, i + innerSize));
+    }
+
+    const loadBatch = async (batch) => {
+      const urlStr = buildUrl(batch);
+      const resp = await fetch(urlStr, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("jwt") || ""}`,
         },
@@ -192,7 +209,7 @@ export default function MapPanel({
           {
             type: "Feature",
             id: p.id ?? p.fias ?? i,
-            geometry: { type: "Point", coordinates: [lon, lat] }, // GeoJSON/Yandex: [lon, lat]
+            geometry: { type: "Point", coordinates: [lat, lon] }, // Yandex expects [lat, lon]
             properties: {
               iconCaption: p.iconCaption ?? p.caption ?? "",
               hintContent: p.hintContent ?? p.caption ?? "",
@@ -212,6 +229,27 @@ export default function MapPanel({
     console.log('[MapPanel] resolvedPoints:', resolvedPoints.length, resolvedPoints.slice(0, 10));
     console.log('[MapPanel] features to draw:', features?.features?.length || 0);
   }, [features, fiasCodes, resolvedPoints]);
+
+  // Auto-fit map to markers on first load
+  useEffect(() => {
+    if (fittedRef.current) return;
+    try {
+      if (!mapRef.current) return;
+      const pts = resolvedPoints;
+      if (!pts || !pts.length) return;
+      const lats = pts.map((p) => (typeof p.lat === 'number' ? p.lat : parseFloat(p.lat))).filter((v) => Number.isFinite(v));
+      const lons = pts.map((p) => (typeof p.lon === 'number' ? p.lon : parseFloat(p.lon))).filter((v) => Number.isFinite(v));
+      if (!lats.length || !lons.length) return;
+      const minLat = Math.min(...lats);
+      const maxLat = Math.max(...lats);
+      const minLon = Math.min(...lons);
+      const maxLon = Math.max(...lons);
+      if ([minLat, maxLat, minLon, maxLon].every(Number.isFinite)) {
+        mapRef.current.setBounds([[minLat, minLon], [maxLat, maxLon]], { checkZoomRange: true, duration: 300 });
+        fittedRef.current = true;
+      }
+    } catch (_) {}
+  }, [resolvedPoints]);
 
   const omOptions = {
     clusterize: true,
@@ -249,6 +287,7 @@ export default function MapPanel({
           width="100%"
           height={height}
           onLoad={(ymaps) => console.log('[MapPanel] ymaps loaded:', !!ymaps)}
+          instanceRef={(ref) => (mapRef.current = ref)}
         >
           <ObjectManager
             options={omOptions}
