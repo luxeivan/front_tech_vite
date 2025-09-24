@@ -450,10 +450,6 @@ export default function Dashboard() {
           "fiasId",
           "lat",
           "lon",
-          "latitude",
-          "longitude",
-          "geo_lat",
-          "geo_lon",
         ],
       });
 

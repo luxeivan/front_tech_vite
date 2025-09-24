@@ -10,7 +10,7 @@ export default function MapPanel({
   fiasCodes = [],
   // НОВОЕ: backend и коллекция для Strapi поиска
   url,
-  fiasCollection,
+  fiasCollection = "adress",
   objectOptions = {},
   clusterOptions = {},
 }) {
@@ -62,6 +62,7 @@ export default function MapPanel({
 
   const cacheRef = useRef(new Map()); // fias -> {lat, lon}
   const abortRef = useRef(null);
+  const omRef = useRef(null);
   const [resolvedPoints, setResolvedPoints] = useState([]);
 
   // Пробиваем ФИАС в координаты (если они переданы)
@@ -100,15 +101,7 @@ export default function MapPanel({
         ...buildInParams("fiasId", batch),
         "pagination[page]": 1,
         "pagination[pageSize]": BATCH_SIZE,
-        fields: [
-          "fiasId",
-          "lat",
-          "lon",
-          "latitude",
-          "longitude",
-          "geo_lat",
-          "geo_lon",
-        ],
+        fields: ["fiasId", "lat", "lon"],
       });
 
       const resp = await fetch(`${url}/api/${fiasCollection}?${query}`, {
@@ -120,6 +113,7 @@ export default function MapPanel({
       if (!resp.ok) throw new Error(`FIAS lookup failed: ${resp.status}`);
 
       const json = await resp.json();
+      console.log('[MapPanel] fetched batch from Strapi:', Array.isArray(json?.data) ? json.data.length : 0);
       const arr = Array.isArray(json?.data) ? json.data : [];
       const out = [];
       for (const item of arr) {
@@ -168,12 +162,24 @@ export default function MapPanel({
       Array.isArray(fiasCodes) && fiasCodes.length ? resolvedPoints : points;
 
     const toCoords = (p) => {
-      if (Array.isArray(p.coordinates)) return p.coordinates;
-      if (Array.isArray(p.coords)) return p.coords;
-      if (typeof p.lat === "number" && typeof p.lon === "number")
-        return [p.lat, p.lon];
-      if (typeof p.latitude === "number" && typeof p.longitude === "number")
-        return [p.latitude, p.longitude];
+      if (Array.isArray(p.coordinates) && p.coordinates.length === 2)
+        return p.coordinates;
+      if (Array.isArray(p.coords) && p.coords.length === 2) return p.coords;
+
+      if (p.lat != null && p.lon != null) {
+        const lat = typeof p.lat === "number" ? p.lat : parseFloat(p.lat);
+        const lon = typeof p.lon === "number" ? p.lon : parseFloat(p.lon);
+        if (Number.isFinite(lat) && Number.isFinite(lon)) return [lat, lon];
+      }
+      if (p.latitude != null && p.longitude != null) {
+        const lat =
+          typeof p.latitude === "number" ? p.latitude : parseFloat(p.latitude);
+        const lon =
+          typeof p.longitude === "number"
+            ? p.longitude
+            : parseFloat(p.longitude);
+        if (Number.isFinite(lat) && Number.isFinite(lon)) return [lat, lon];
+      }
       return null;
     };
 
@@ -186,7 +192,7 @@ export default function MapPanel({
           {
             type: "Feature",
             id: p.id ?? p.fias ?? i,
-            geometry: { type: "Point", coordinates: [lon, lat] },
+            geometry: { type: "Point", coordinates: [lon, lat] }, // GeoJSON/Yandex: [lon, lat]
             properties: {
               iconCaption: p.iconCaption ?? p.caption ?? "",
               hintContent: p.hintContent ?? p.caption ?? "",
@@ -200,6 +206,12 @@ export default function MapPanel({
 
     return { type: "FeatureCollection", features: list };
   }, [points, fiasCodes, resolvedPoints]);
+
+  useEffect(() => {
+    console.log('[MapPanel] fiasCodes:', Array.isArray(fiasCodes) ? fiasCodes.length : 0);
+    console.log('[MapPanel] resolvedPoints:', resolvedPoints.length, resolvedPoints.slice(0, 10));
+    console.log('[MapPanel] features to draw:', features?.features?.length || 0);
+  }, [features, fiasCodes, resolvedPoints]);
 
   const omOptions = {
     clusterize: true,
@@ -223,26 +235,36 @@ export default function MapPanel({
     "objectManager.addon.clustersBalloon",
   ];
 
+  const shownCount = features.features.length;
+
   return (
-    <YMaps enterprise={false}>
-      <YMap
-        state={initialState}
-        options={{
-          suppressMapOpenBlock: true,
-          yandexMapDisablePoiInteractivity: true,
-        }}
-        width="100%"
-        height={height}
+    <div style={{ position: "relative", width: "100%", height }}>
+      <YMaps query={{ lang: 'ru_RU', load: 'package.full' }}>
+        <YMap
+          state={initialState}
+          options={{
+            suppressMapOpenBlock: true,
+            yandexMapDisablePoiInteractivity: true,
+          }}
+          width="100%"
+          height={height}
+          onLoad={(ymaps) => console.log('[MapPanel] ymaps loaded:', !!ymaps)}
+        >
+          <ObjectManager
+            options={omOptions}
+            objects={omObjects}
+            clusters={{ preset: 'islands#invertedVioletClusterIcons' }}
+            modules={modules}
+            features={features}
+            instanceRef={(ref) => (omRef.current = ref)}
+          />
+        </YMap>
+      </YMaps>
+      <div
+        style={{ position: "absolute", bottom: 6, right: 10, fontSize: 12, opacity: 0.75 }}
       >
-        <ObjectManager
-          options={omOptions}
-          objects={omObjects}
-          clusters={omClusters}
-          modules={modules}
-          defaultFeatures={features}
-          features={features}
-        />
-      </YMap>
-    </YMaps>
+        Точек на карте: {shownCount}
+      </div>
+    </div>
   );
 }
