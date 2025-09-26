@@ -88,6 +88,10 @@ function WelcomeHeader({ totalOpened, loadingOpened }) {
 
   return (
     <div style={{ textAlign: "center", margin: "12px 0 16px" }}>
+      <Typography.Title level={5} style={{ marginBottom: 4, color: "red" }}>
+        Коллеги, у нас закончились лимиты обращений к DaData, поэтому карта на
+        ДашБорде не будет работать (лимиты раз в сутки обновляются){" "}
+      </Typography.Title>
       <Typography.Title level={2} style={{ marginBottom: 4 }}>
         Добро пожаловать, {name}
       </Typography.Title>
@@ -284,7 +288,6 @@ function buildSzoSummaryFromItem(item) {
   return tags;
 }
 
-
 function SzoCell({ tags }) {
   if (!Array.isArray(tags) || tags.length === 0)
     return <span style={{ color: "#999" }}>—</span>;
@@ -341,7 +344,6 @@ export default function TableTN() {
   }, [tns?.data, date]);
   const loadingOpened = isLoadingTns || !Array.isArray(tns?.data);
 
-
   const totalByDate = React.useMemo(() => {
     const list = Array.isArray(tns?.data) ? tns.data : [];
     return list.filter((i) => {
@@ -381,8 +383,7 @@ export default function TableTN() {
     });
 
     console.log("=== ВСЕ ТН (для будущей AI-Аналитики) ===");
-    all.forEach((tn, i) => {
-    });
+    all.forEach((tn, i) => {});
     console.log("Всего ТН:", all.length);
   }, [tns?.data, isLoadingTns]);
 
@@ -455,7 +456,9 @@ export default function TableTN() {
 
     // --- number + guid search ---
     const src = item?.attributes ? { id: item.id, ...item.attributes } : item;
-    const numStr = (src?.number != null ? String(src.number) : "").toLowerCase();
+    const numStr = (
+      src?.number != null ? String(src.number) : ""
+    ).toLowerCase();
 
     const guidCandidates = [
       src?.guid,
@@ -468,17 +471,22 @@ export default function TableTN() {
       item?.data?.data?.guid,
     ].filter(Boolean);
 
-    const guidStr = (guidCandidates[0] ? String(guidCandidates[0]) : "").toLowerCase();
+    const guidStr = (
+      guidCandidates[0] ? String(guidCandidates[0]) : ""
+    ).toLowerCase();
 
-    const qNum = String(searchNumber || "").trim().toLowerCase();
-    const qGuid = String(searchGuid || "").trim().toLowerCase();
+    const qNum = String(searchNumber || "")
+      .trim()
+      .toLowerCase();
+    const qGuid = String(searchGuid || "")
+      .trim()
+      .toLowerCase();
 
     const numberOk = qNum ? numStr.includes(qNum) : true;
     const guidOk = qGuid ? guidStr.includes(qGuid) : true;
 
     return numberOk && guidOk;
   });
-
 
   const startIndex = (pagination.page - 1) * pagination.pageSize;
   const pageSlice = listFiltered.slice(

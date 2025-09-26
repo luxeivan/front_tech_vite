@@ -141,7 +141,8 @@ export function buildEddsPayload(tn) {
   // 🔒 Требование Заказчика: всегда отправлять фиксированные значения
   const fioWork = "Оперативный дежурный САЦ";
   const fioPhone = "84957803976";
-  const description = "Электропробой"; // временно константа, позже возьмём из JSON
+  const descriptionSrc = raw.REASON_OPER ?? obj.REASON_OPER ?? raw.reason_oper ?? obj.reason_oper ?? null;
+  const description = clean(descriptionSrc);
 
   const resources = Array.isArray(obj.resources) ? obj.resources : [5];
 

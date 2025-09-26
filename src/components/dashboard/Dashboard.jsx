@@ -446,10 +446,14 @@ export default function Dashboard() {
         "pagination[pageSize]": Math.min(ids.length, FIAS_BATCH_SIZE),
         fields: ["fiasId", "lat", "lon"],
       });
-    const buildUrl = (ids) => `${BASE}/api/${FIAS_COLLECTION}?${buildQuery(ids)}`;
+    const buildUrl = (ids) =>
+      `${BASE}/api/${FIAS_COLLECTION}?${buildQuery(ids)}`;
 
     let inner = Math.min(50, toResolve.length || 50);
-    while (inner > 1 && buildUrl(toResolve.slice(0, inner)).length > MAX_URL_LEN) {
+    while (
+      inner > 1 &&
+      buildUrl(toResolve.slice(0, inner)).length > MAX_URL_LEN
+    ) {
       inner = Math.max(1, Math.floor(inner * 0.7));
     }
 
@@ -765,6 +769,15 @@ export default function Dashboard() {
             >
               По состоянию на {now}
             </Text>
+
+            <Typography.Title
+              level={5}
+              style={{ marginBottom: 4, color: "red" }}
+            >
+              Коллеги, у нас закончились лимиты обращений к DaData, поэтому
+              карта на ДашБорде не будет работать (лимиты раз в сутки
+              обновляются, так что в понедельник починим 💪){" "}
+            </Typography.Title>
           </div>
         </div>
       </div>
