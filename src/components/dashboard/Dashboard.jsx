@@ -770,14 +770,14 @@ export default function Dashboard() {
               По состоянию на {now}
             </Text>
 
-            <Typography.Title
+            {/* <Typography.Title
               level={5}
               style={{ marginBottom: 4, color: "red" }}
             >
               Коллеги, у нас закончились лимиты обращений к DaData, поэтому
               карта на ДашБорде не будет работать (лимиты раз в сутки
               обновляются, так что в понедельник починим 💪){" "}
-            </Typography.Title>
+            </Typography.Title> */}
           </div>
         </div>
       </div>

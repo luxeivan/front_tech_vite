@@ -88,10 +88,10 @@ function WelcomeHeader({ totalOpened, loadingOpened }) {
 
   return (
     <div style={{ textAlign: "center", margin: "12px 0 16px" }}>
-      <Typography.Title level={5} style={{ marginBottom: 4, color: "red" }}>
+      {/* <Typography.Title level={5} style={{ marginBottom: 4, color: "red" }}>
         Коллеги, у нас закончились лимиты обращений к DaData, поэтому карта на
         ДашБорде не будет работать (лимиты раз в сутки обновляются){" "}
-      </Typography.Title>
+      </Typography.Title> */}
       <Typography.Title level={2} style={{ marginBottom: 4 }}>
         Добро пожаловать, {name}
       </Typography.Title>
