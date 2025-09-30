@@ -20,8 +20,8 @@ export default function TableTNActionsBar({
     >
       <Button onClick={() => navigate("/dashboard")}>Дашборд</Button>
       <Button onClick={onReset}>Сбросить фильтры</Button>
-      {/* <Button onClick={onAiAnalytics}>AI-Аналитика</Button>
-      <Button onClick={onToggleSound}>
+      <Button onClick={onAiAnalytics}>AI-Аналитика</Button>
+      {/* <Button onClick={onToggleSound}>
         {soundEnabled ? "🔔 Звук: Вкл" : "🔕 Звук: Выкл"}
       </Button> */}
     </Flex>

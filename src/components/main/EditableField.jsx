@@ -1,4 +1,3 @@
-// /src/components/main/EditableField.jsx
 import { EditOutlined } from "@ant-design/icons";
 import { Flex, Typography, Input, Button } from "antd";
 import React, { useEffect, useState } from "react";
@@ -9,6 +8,7 @@ export default function EditableField({
   name,
   value,
   editable,
+  canEdit = true,
 }) {
   const safeValue = value ?? "";
   const [isEdit, setIsEdit] = useState(false);
@@ -19,6 +19,11 @@ export default function EditableField({
     // если пришли новые данные — синхронизируем инпут
     if (!isEdit) setNewValue(value ?? "");
   }, [value, isEdit]);
+
+  // если вдруг роль поменялась на лету — закрываем режим редактирования
+  useEffect(() => {
+    if (!canEdit && isEdit) setIsEdit(false);
+  }, [canEdit, isEdit]);
 
   return (
     <Flex gap={10}>
@@ -53,12 +58,14 @@ export default function EditableField({
             Отмена
           </Button>
         </Flex>
-      ) : editable ? (
+      // ) : editable ? (
+      ) : editable && canEdit ? (
         <>
           <Typography.Text>{safeValue}</Typography.Text>
           <EditOutlined
             className={styles.editIcon}
             onClick={() => {
+              if (!canEdit) return;
               setNewValue(value ?? "");
               setIsEdit(true);
             }}
@@ -70,58 +77,3 @@ export default function EditableField({
     </Flex>
   );
 }
-// import { EditOutlined } from '@ant-design/icons'
-// import { Flex, Typography, Input, Button } from 'antd'
-// import React, { useEffect, useState } from 'react'
-// import styles from './EditableField.module.css'
-
-// export default function EditableField({ handlerUpdateTn, name, value, editable }) {
-//     const [isEdit, setIsEdit] = useState(false)
-//     const [newValue, setNewValue] = useState(false)
-//     useEffect(() => {
-//         setNewValue(value)
-//     }, [isEdit])
-
-//     return (
-//         <Flex gap={10}>
-//             {isEdit &&
-//                 <Flex vertical gap={10}>
-//                     <Input.TextArea
-//                         value={newValue}
-//                         onChange={(event) => {
-//                             // console.log(event);
-//                             setNewValue(event.target.value)
-//                         }}
-//                     />
-//                     <Button
-//                         type='primary'
-//                         onClick={() => {
-//                             setIsEdit(false)
-//                             handlerUpdateTn(name, newValue)
-//                         }}
-//                     >Изменить</Button>
-//                     <Button
-//                         onClick={() => {
-//                             setIsEdit(false)
-//                         }}
-//                     >Отмена</Button>
-//                 </Flex>
-//             }
-//             {!isEdit && editable &&
-//                 <>
-//                     <Typography.Text>{value}</Typography.Text>
-//                     <EditOutlined
-//                         style={{ }}
-//                         className={styles.editIcon}
-//                         onClick={() => {
-//                             setIsEdit(true)
-//                         }}
-//                     />
-//                 </>
-//             }
-//             {!isEdit && !editable &&
-//                 <Typography.Text>{value}</Typography.Text>
-//             }
-//         </Flex>
-//     )
-// }

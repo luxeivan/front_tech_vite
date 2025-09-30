@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Descriptions, Divider, Flex, Modal, Spin, message } from "antd";
-import dayjs from "dayjs";
 import axios from "axios";
 
 import useData from "../../stores/useData";
@@ -12,30 +11,26 @@ const URL = import.meta.env.VITE_URL_BACKEND;
 
 export default function TNModal({ open, documentId, onClose }) {
   const { tn, getTn, isLoadingTn } = useData((s) => s);
-  const { fieldsSetting } = useAuth((s) => s);
+  // const { fieldsSetting } = useAuth((s) => s);
+  const fieldsSetting = useAuth((s) => s.fieldsSetting);
+  const user = useAuth((s) => s.user);
+  const canEdit = user?.view_role === "standart";
 
   useEffect(() => {
     if (open && documentId) getTn(documentId);
   }, [open, documentId, getTn]);
 
-  // локальный слепок JSON-поля data (несохранённые правки)
   const [overrideData, setOverrideData] = useState(null);
-  // флаг «идёт сохранение поля»
   const [saving, setSaving] = useState(false);
-
-  // сбрасываем локальные правки при смене записи
   useEffect(() => {
     setOverrideData(null);
   }, [documentId]);
 
-  // объединяем «что вернул сервер» + «локальные правки»
   const mergedJsonData = useMemo(() => {
     const base = tn?.data?.data ?? {};
     return { ...base, ...(overrideData || {}) };
   }, [tn?.data?.data, overrideData]);
 
-  // «эффективная» карточка — её и отдадим в SendBlock,
-  // чтобы payload всегда строился по актуальным данным
   const tnEffective = useMemo(() => {
     if (!tn) return tn;
     return {
@@ -125,7 +120,9 @@ export default function TNModal({ open, documentId, onClose }) {
                       label: item.label,
                       children: (
                         <EditableField
+                          // editable={item.editable}
                           editable={item.editable}
+                          canEdit={canEdit}
                           name={item.nameModus}
                           value={mergedJsonData?.[item.nameModus]}
                           handlerUpdateTn={handlerUpdateTn}
