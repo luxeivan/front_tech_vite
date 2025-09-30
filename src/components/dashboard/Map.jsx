@@ -123,7 +123,7 @@ export default function MapPanel({
         ...buildInParams("fiasId", ids),
         "pagination[page]": 1,
         "pagination[pageSize]": Math.min(ids.length, 100),
-        fields: ["fiasId", "lat", "lon"],
+        fields: ["fiasId", "lat", "lon", "fullAddress"],
       });
     const buildUrl = (ids) =>
       `${BASE}/api/${fiasCollection}?${buildQuery(ids)}`;
@@ -172,10 +172,12 @@ export default function MapPanel({
           const fias =
             a.fiasId || a.fias || a.FIAS || a.fias_code || a.FIAS_CODE;
           const ll = pickLatLon(a);
-          //   console.log("[MapPanel] Processing item:", { fias, ll, a });
+          const fullAddress =
+            a.fullAddress ?? a.address ?? a.full_address ?? a.FullAddress ?? null;
           if (fias && ll) {
-            cache.set(fias, ll);
-            out.push({ id: fias, ...ll });
+            const payload = { lat: ll.lat, lon: ll.lon, fullAddress };
+            cache.set(fias, payload);
+            out.push({ id: fias, fiasId: fias, ...payload });
           }
         }
         // console.log("[MapPanel] Batch processed, valid points:", out.length);
@@ -253,6 +255,12 @@ export default function MapPanel({
           return [];
         }
         const [lat, lon] = coords;
+        const isMax = zoom >= 18;
+        const addr = p.fullAddress ?? p.address ?? "";
+        const coordsStr =
+          Number.isFinite(lat) && Number.isFinite(lon)
+            ? `${lat.toFixed(6)}, ${lon.toFixed(6)}`
+            : "";
 
         const fiasKey = p.id ?? p.fias ?? p.fiasId;
         const tnNums = Array.isArray(fiasOwners?.[fiasKey])
@@ -264,13 +272,26 @@ export default function MapPanel({
         const hintListMax = 8;
         const tnList = tnNums.slice(0, hintListMax).join(", ");
         const tnMore = tnNums.length > hintListMax ? ` и ещё ${tnNums.length - hintListMax}` : "";
-        const hintText = tnNums.length ? `ТН: ${tnList}${tnMore}` : (p.hintContent ?? p.caption ?? "");
+
+        let hintText;
+        if (isMax) {
+          const tnPart   = tnNums.length ? `<div><b>ТН:</b> ${tnList}${tnMore}</div>` : "";
+          const addrPart = addr ? `<div><b>Адрес:</b> ${addr}</div>` : "";
+          const fiasPart = fiasKey ? `<div><b>FIAS:</b> ${fiasKey}</div>` : "";
+          const coordPart= coordsStr ? `<div><b>Коорд.:</b> ${coordsStr}</div>` : "";
+          hintText = `<div>${tnPart}${addrPart}${fiasPart}${coordPart}</div>`;
+        } else {
+          hintText = tnNums.length ? `ТН: ${tnList}${tnMore}` : (p.hintContent ?? p.caption ?? "");
+        }
+
         const iconCap = p.iconCaption ?? (tnNums.length ? `ТН ${tnNums[0]}` : p.caption ?? "");
-        const balloonText =
-          p.balloonContent ??
-          (tnNums.length
-            ? `<div><b>ТН (в этой точке):</b><br/>${tnNums.map((n) => `№ ${n}`).join(", ")}</div>`
-            : "");
+
+        const tnBlock   = tnNums.length ? `<div><b>ТН (в этой точке):</b> ${tnNums.map((n) => `№ ${n}`).join(", ")}</div>` : "";
+        const addrBlock = addr ? `<div><b>Адрес:</b> ${addr}</div>` : "";
+        const fiasBlock = fiasKey ? `<div><b>FIAS:</b> ${fiasKey}</div>` : "";
+        const coordBlock= coordsStr ? `<div><b>Координаты:</b> ${coordsStr}</div>` : "";
+
+        const balloonText = p.balloonContent ?? `<div>${tnBlock}${addrBlock}${fiasBlock}${coordBlock}</div>`;
 
         return [
           {
@@ -289,7 +310,7 @@ export default function MapPanel({
     );
 
     return { type: "FeatureCollection", features: list };
-  }, [points, fiasCodes, resolvedPoints, fiasOwners]);
+  }, [points, fiasCodes, resolvedPoints, fiasOwners, zoom]);
 
   const omOptions = useMemo(
     () => ({
