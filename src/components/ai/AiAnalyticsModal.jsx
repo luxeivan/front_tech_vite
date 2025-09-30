@@ -1,4 +1,3 @@
-// /src/components/ai/AiAnalyticsModal.jsx
 import React from "react";
 import {
   Modal,
@@ -10,6 +9,7 @@ import {
   Statistic,
   Row,
   Col,
+  Card,
   message,
 } from "antd";
 import useAuth from "../../stores/useAuth";
@@ -251,35 +251,47 @@ export default function AiAnalyticsModal({ open, onClose, items = [], title }) {
                 </div>
               )}
 
-              <Space style={{ marginTop: 12 }}>
-                <Button
-                  loading={loading}
-                  onClick={() => setAiText(formatSummary(metrics))}
-                >
-                  Короткое резюме без ИИ
-                </Button>
-                <Button
-                  type="primary"
-                  loading={loading}
-                  onClick={() => callLLM("summary")}
-                >
-                  Сформировать резюме
-                </Button>
-                <Button loading={loading} onClick={() => callLLM("recs")}>
-                  Рекомендации
-                </Button>
-                <Button loading={loading} onClick={() => callLLM("anomalies")}>
-                  Аномалии (текст)
-                </Button>
-              </Space>
+              <Row gutter={12} style={{ marginTop: 12 }}>
+                <Col xs={24} md={10}>
+                  <Card size="small" title="Без ИИ" bordered>
+                    <Button
+                      block
+                      loading={loading}
+                      onClick={() => setAiText(formatSummary(metrics))}
+                    >
+                      Короткое резюме без ИИ
+                    </Button>
+                  </Card>
+                </Col>
+
+                <Col xs={24} md={14}>
+                  <Card size="small" title="Анализ ИИ" bordered>
+                    <Space wrap>
+                      <Button
+                        type="primary"
+                        loading={loading}
+                        onClick={() => callLLM("summary")}
+                      >
+                        Сформировать резюме
+                      </Button>
+                      <Button loading={loading} onClick={() => callLLM("recs")}>
+                        Рекомендации
+                      </Button>
+                      <Button loading={loading} onClick={() => callLLM("anomalies")}>
+                        Аномалии (текст)
+                      </Button>
+                    </Space>
+                  </Card>
+                </Col>
+              </Row>
 
               {aiText && (
                 <>
-                  <ConfettiBurst key={burstKey} />
+                  {/* <ConfettiBurst key={burstKey} /> */}
                   <Alert
                     type="success"
                     showIcon
-                    message="Готовый текст"
+                    // message="Готовый текст"
                     description={
                       <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
                         {aiText}
