@@ -383,6 +383,26 @@ export default function Dashboard() {
     [rows]
   );
 
+  // Build mapping: FIAS code -> array of TN numbers
+  const fiasOwners = useMemo(() => {
+    const map = new Map();
+    rows.forEach((r) => {
+      const num = tnNumber(r);
+      if (!num) return;
+      const list = extractFiasFromRow(r);
+      list.forEach((code) => {
+        if (!code) return;
+        if (!map.has(code)) map.set(code, new Set());
+        map.get(code).add(num);
+      });
+    });
+    const obj = {};
+    map.forEach((set, key) => {
+      obj[key] = Array.from(set);
+    });
+    return obj;
+  }, [rows]);
+
   const fiasCacheRef = useRef(new Map()); // fias -> {lat, lon}
   const abortRef = useRef(null);
   const [loadProgress, setLoadProgress] = useState({ loaded: 0, total: 0 });
@@ -972,6 +992,7 @@ export default function Dashboard() {
                   fiasCodes={fiasCodes}
                   url={URL}
                   fiasCollection={FIAS_COLLECTION}
+                  fiasOwners={fiasOwners}
                 />
                 {loadProgress.total > 0 && (
                   <div

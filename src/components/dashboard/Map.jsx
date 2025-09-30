@@ -10,6 +10,7 @@ export default function MapPanel({
   fiasCollection = "adress",
   objectOptions = {},
   clusterOptions = {},
+  fiasOwners = {},
 }) {
   const [zoom, setZoom] = useState(initialState?.zoom ?? 8);
 
@@ -252,15 +253,34 @@ export default function MapPanel({
           return [];
         }
         const [lat, lon] = coords;
+
+        const fiasKey = p.id ?? p.fias ?? p.fiasId;
+        const tnNums = Array.isArray(fiasOwners?.[fiasKey])
+          ? fiasOwners[fiasKey]
+          : Array.isArray(fiasOwners?.[p.fias])
+          ? fiasOwners[p.fias]
+          : [];
+
+        const hintListMax = 8;
+        const tnList = tnNums.slice(0, hintListMax).join(", ");
+        const tnMore = tnNums.length > hintListMax ? ` и ещё ${tnNums.length - hintListMax}` : "";
+        const hintText = tnNums.length ? `ТН: ${tnList}${tnMore}` : (p.hintContent ?? p.caption ?? "");
+        const iconCap = p.iconCaption ?? (tnNums.length ? `ТН ${tnNums[0]}` : p.caption ?? "");
+        const balloonText =
+          p.balloonContent ??
+          (tnNums.length
+            ? `<div><b>ТН (в этой точке):</b><br/>${tnNums.map((n) => `№ ${n}`).join(", ")}</div>`
+            : "");
+
         return [
           {
             type: "Feature",
-            id: p.id ?? p.fias ?? i,
+            id: fiasKey ?? i,
             geometry: { type: "Point", coordinates: [lat, lon] },
             properties: {
-              iconCaption: p.iconCaption ?? p.caption ?? "",
-              hintContent: p.hintContent ?? p.caption ?? "",
-              balloonContent: p.balloonContent ?? "",
+              iconCaption: iconCap,
+              hintContent: hintText,
+              balloonContent: balloonText,
               ...p.properties,
             },
           },
@@ -269,7 +289,7 @@ export default function MapPanel({
     );
 
     return { type: "FeatureCollection", features: list };
-  }, [points, fiasCodes, resolvedPoints]);
+  }, [points, fiasCodes, resolvedPoints, fiasOwners]);
 
   const omOptions = useMemo(
     () => ({
