@@ -25,9 +25,7 @@ export default function AiAnalyticsModal({ open, onClose, items = [], title }) {
   const [metrics, setMetrics] = React.useState(null);
   const [aiText, setAiText] = React.useState("");
   const [loading, setLoading] = React.useState(false);
-
-  // Красивый оверлей "Обращаемся к ИИ / Ждём ответ"
-  const [aiPhase, setAiPhase] = React.useState(null); // "contact" | null
+  const [aiPhase, setAiPhase] = React.useState(null); 
   const [phaseText, setPhaseText] = React.useState("Обращаемся к ИИ…");
   const [burstKey, setBurstKey] = React.useState(0);
 
@@ -57,7 +55,6 @@ export default function AiAnalyticsModal({ open, onClose, items = [], title }) {
   }, [open, items, title]);
 
   React.useEffect(() => {
-    // После появления текста ИИ — анимируем строки с аномалиями (animejs)
     if (!aiText || !metrics?.outliers?.length) return;
     const guids = metrics.outliers.map((o) => o.guid);
     animateRowsByGuids(tblWrapRef.current, guids);
@@ -161,7 +158,7 @@ export default function AiAnalyticsModal({ open, onClose, items = [], title }) {
             type="info"
             showIcon
             message="AI-аналитика"
-            description="Краткий обзор и рекомендации по данным"
+            description="Краткий обзор и рекомендации по данным на основе ИИ(mistralai/mistral-7b-instruct)"
           />
 
           {metrics && (
