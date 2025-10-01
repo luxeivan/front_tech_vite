@@ -191,7 +191,7 @@ export default function SendBlock({ tn, documentId, refresh }) {
       <Flex gap={16} align="center" style={{ marginTop: 8 }} wrap>
         <Checkbox
           checked={sentEdds || eddsSelected}
-          disabled={sentEdds || sending}
+          // disabled={sentEdds || sending}
           onChange={(e) => {
             if (sentEdds) return;
             setEddsSelected(e.target.checked);
@@ -202,7 +202,7 @@ export default function SendBlock({ tn, documentId, refresh }) {
 
         <Checkbox
           checked={sentMes || mesSelected}
-          disabled={sentMes || sending}
+          // disabled={sentMes || sending}
           onChange={(e) => {
             if (sentMes) return;
             setMesSelected(e.target.checked);
