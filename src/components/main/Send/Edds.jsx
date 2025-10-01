@@ -74,9 +74,10 @@ const TYPE_MAP = {
 };
 
 const STATUS_NAME_MAP = {
-  Открыта: "1",
+  Открыта: "2",
   Запитана: "4",
-  Удалена: "6",
+  Удалена: "4",
+  Закрыта: "4",
 };
 
 function toDate(v, withTime = false) {
