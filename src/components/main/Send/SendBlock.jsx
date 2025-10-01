@@ -12,7 +12,7 @@ export default function SendBlock({ tn, documentId, refresh }) {
   const [eddsSelected, setEddsSelected] = useState(true);
   const [mesSelected, setMesSelected] = useState(true);
   const [sending, setSending] = useState(false);
-  const [notice, setNotice] = useState(null); 
+  const [notice, setNotice] = useState(null);
 
   const showAlert = (type, text, autoHideMs = 6000) => {
     setNotice({ type, text });
@@ -111,8 +111,10 @@ export default function SendBlock({ tn, documentId, refresh }) {
 
   const handleSend = async () => {
     try {
-      const toEdds = eddsSelected && !sentEdds;
-      const toMes = mesSelected && !sentMes;
+      // const toEdds = eddsSelected && !sentEdds;
+      // const toMes = mesSelected && !sentMes;
+      const toEdds = eddsSelected;
+      const toMes = mesSelected;
 
       if (!toEdds && !toMes) {
         showAlert("warning", "Выберите получателя перед отправкой");
@@ -164,14 +166,19 @@ export default function SendBlock({ tn, documentId, refresh }) {
       await refresh?.();
     } catch (e) {
       console.error("Ошибка при отправке:", e);
-      showAlert("error", "Ошибка при отправке: " + (e?.message || "неизвестно"));
+      showAlert(
+        "error",
+        "Ошибка при отправке: " + (e?.message || "неизвестно")
+      );
     } finally {
       setSending(false);
     }
   };
 
-  const canSend =
-    !sending && ((eddsSelected && !sentEdds) || (mesSelected && !sentMes));
+  // const canSend =
+  //   !sending && ((eddsSelected && !sentEdds) || (mesSelected && !sentMes));
+
+  const canSend = !sending && (eddsSelected || mesSelected);
 
   return (
     <div>
@@ -189,24 +196,33 @@ export default function SendBlock({ tn, documentId, refresh }) {
       )}
 
       <Flex gap={16} align="center" style={{ marginTop: 8 }} wrap>
-        <Checkbox
+        {/* <Checkbox
           checked={sentEdds || eddsSelected}
           // disabled={sentEdds || sending}
           onChange={(e) => {
             if (sentEdds) return;
             setEddsSelected(e.target.checked);
           }}
+        > */}
+        <Checkbox
+          checked={eddsSelected}
+          onChange={(e) => setEddsSelected(e.target.checked)}
         >
           ЕДДС
         </Checkbox>
 
-        <Checkbox
+        {/* <Checkbox
           checked={sentMes || mesSelected}
           // disabled={sentMes || sending}
           onChange={(e) => {
             if (sentMes) return;
             setMesSelected(e.target.checked);
           }}
+        > */}
+
+        <Checkbox
+          checked={mesSelected}
+          onChange={(e) => setMesSelected(e.target.checked)}
         >
           МосЭнергоСбыт
         </Checkbox>
