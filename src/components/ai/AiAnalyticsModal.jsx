@@ -25,7 +25,7 @@ export default function AiAnalyticsModal({ open, onClose, items = [], title }) {
   const [metrics, setMetrics] = React.useState(null);
   const [aiText, setAiText] = React.useState("");
   const [loading, setLoading] = React.useState(false);
-  const [aiPhase, setAiPhase] = React.useState(null); 
+  const [aiPhase, setAiPhase] = React.useState(null);
   const [phaseText, setPhaseText] = React.useState("Обращаемся к ИИ…");
   const [burstKey, setBurstKey] = React.useState(0);
 
@@ -59,6 +59,10 @@ export default function AiAnalyticsModal({ open, onClose, items = [], title }) {
     const guids = metrics.outliers.map((o) => o.guid);
     animateRowsByGuids(tblWrapRef.current, guids);
   }, [aiText, metrics]);
+
+  React.useEffect(() => {
+    console.log("[aiModal] открыли =", open);
+  }, [open]);
 
   const callLLM = async (mode) => {
     if (!metrics) return;
@@ -151,14 +155,27 @@ export default function AiAnalyticsModal({ open, onClose, items = [], title }) {
   ];
 
   return (
-    <Modal open={open} onCancel={onClose} footer={null} width={900} centered>
+    // <Modal open={open} onCancel={onClose} footer={null} width={900} centered>
+    // AiAnalyticsModal.jsx
+    <Modal
+      open={open}
+      onCancel={onClose}
+      footer={null}
+      width={900}
+      centered
+      maskClosable={false}
+      keyboard={false}
+      destroyOnHidden={false}
+      // closable
+      afterOpenChange={(v) => console.log("[aiModal] afterOpenChange =", v)}
+    >
       <div style={{ position: "relative" }}>
         <Space direction="vertical" style={{ width: "100%" }}>
           <Alert
             type="info"
             showIcon
             message="AI-аналитика"
-            description="Краткий обзор и рекомендации по данным на основе ИИ(mistralai/mistral-7b-instruct)"
+            description="Краткий обзор и рекомендации по данным на основе ИИ(deepseek/deepseek-chat)"
           />
 
           {metrics && (
@@ -274,7 +291,10 @@ export default function AiAnalyticsModal({ open, onClose, items = [], title }) {
                       <Button loading={loading} onClick={() => callLLM("recs")}>
                         Рекомендации
                       </Button>
-                      <Button loading={loading} onClick={() => callLLM("anomalies")}>
+                      <Button
+                        loading={loading}
+                        onClick={() => callLLM("anomalies")}
+                      >
                         Аномалии
                       </Button>
                     </Space>
