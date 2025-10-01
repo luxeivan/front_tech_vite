@@ -256,7 +256,7 @@ export default function AiAnalyticsModal({ open, onClose, items = [], title }) {
                       loading={loading}
                       onClick={() => setAiText(formatSummary(metrics))}
                     >
-                      Короткое резюме без ИИ
+                      Короткое резюме
                     </Button>
                   </Card>
                 </Col>
@@ -269,13 +269,13 @@ export default function AiAnalyticsModal({ open, onClose, items = [], title }) {
                         loading={loading}
                         onClick={() => callLLM("summary")}
                       >
-                        Сформировать резюме
+                        Резюме
                       </Button>
                       <Button loading={loading} onClick={() => callLLM("recs")}>
                         Рекомендации
                       </Button>
                       <Button loading={loading} onClick={() => callLLM("anomalies")}>
-                        Аномалии (текст)
+                        Аномалии
                       </Button>
                     </Space>
                   </Card>
