@@ -138,10 +138,25 @@ export default function SendBlock({ tn, documentId, refresh }) {
         const resp = await sendToEdds(URL, eddsPayload, jwt);
         const ok = resp?.success === true || resp?.ok === true;
         if (ok) {
-          await patchFlags({ sendedEdds: true });
+          // мягко обновляем флаг в Strapi, но не роняем процесс при ошибке сети
+          try {
+            await patchFlags({ sendedEdds: true });
+          } catch (e) {
+            console.warn(
+              "[flags] Не удалось обновить Strapi по sendedEdds (не критично):",
+              e?.response?.data || e?.message
+            );
+          }
+
           setSentEdds(true);
           setEddsSelected(false);
-          showAlert("success", "ЕДДС: отправлено");
+
+          // тянем понятный текст из ответа ЕДДС
+          const okText =
+            resp?.message ||
+            (resp?.data?.claim_id ? `Данные приняты (ID: ${resp.data.claim_id})` : "отправлено");
+
+          showAlert("success", `ЕДДС: ${okText}`);
         } else {
           const details = formatErrorDetails(resp) || "Ответ без сообщения";
           showAlert("error", "ЕДДС: ошибка — " + details);
