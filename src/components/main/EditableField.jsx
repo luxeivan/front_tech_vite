@@ -9,7 +9,8 @@ export default function EditableField({
   value,
   editable,
   canEdit = true,
-  templateBuilder, // <-- НОВОЕ
+  templateBuilder, // функция, которая возвращает текст шаблона
+  textAreaProps, // 👈 новое: можно прокинуть настройки TextArea
 }) {
   const safeValue = value ?? "";
   const [isEdit, setIsEdit] = useState(false);
@@ -27,11 +28,15 @@ export default function EditableField({
   return (
     <Flex gap={10}>
       {isEdit ? (
-        <Flex vertical gap={10}>
+        <Flex vertical gap={10} style={{ width: "100%" }}>
           <Input.TextArea
             value={newValue}
             onChange={(e) => setNewValue(e.target.value)}
+            autoSize={{ minRows: 3, maxRows: 10 }} // дефолт
+            style={{ width: "100%" }}
+            {...(textAreaProps || {})} // 👈 переопределяем тут
           />
+
           <Flex gap={8} wrap>
             <Button
               type="primary"
@@ -56,9 +61,7 @@ export default function EditableField({
                   try {
                     const t = templateBuilder();
                     if (t) setNewValue(String(t));
-                  } catch (e) {
-                    // молча, шаблон необязателен
-                  }
+                  } catch {}
                 }}
               >
                 Шаблон

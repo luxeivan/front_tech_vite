@@ -109,47 +109,130 @@ export default function TNModal({ open, documentId, onClose }) {
         tn &&
         tn.data && (
           <>
-            {fieldsSetting?.length > 0 && (
+            {/* {fieldsSetting?.length > 0 && (
               <>
                 <Divider style={{ margin: "12px 0" }} />
                 <Spin spinning={saving}>
+
+
                   <Descriptions
                     column={1}
                     labelStyle={{ width: 260 }}
-                    items={fieldsSetting.map((item) => ({
-                      key: item.nameModus || item.label,
-                      label: item.label,
-                      // children: (
-                      //   <EditableField
-                      //     // editable={item.editable}
-                      //     editable={item.editable}
-                      //     canEdit={canEdit}
-                      //     name={item.nameModus}
-                      //     value={mergedJsonData?.[item.nameModus]}
-                      //     handlerUpdateTn={handlerUpdateTn}
-                      //   />
-                      // ),
-                      children: (
-                        <EditableField
-                          editable={item.editable}
-                          canEdit={canEdit}
-                          name={item.nameModus}
-                          value={mergedJsonData?.[item.nameModus]}
-                          handlerUpdateTn={handlerUpdateTn}
-                          // Кнопка "Шаблон" только для Описания (REASON_OPER)
-                          templateBuilder={
-                            item.nameModus === "REASON_OPER"
-                              ? () => buildDescriptionTemplate(mergedJsonData)
-                              : undefined
-                          }
-                        />
-                      ),
-                    }))}
+                    items={fieldsSetting.map((item) => {
+                      const isDescription = item.nameModus === "REASON_OPER";
+
+                      return {
+                        key: item.nameModus || item.label,
+                        label: item.label,
+                        children: (
+                          <EditableField
+                            editable={item.editable}
+                            canEdit={canEdit}
+                            name={item.nameModus}
+                            value={mergedJsonData?.[item.nameModus]}
+                            handlerUpdateTn={handlerUpdateTn}
+                            templateBuilder={
+                              isDescription
+                                ? () =>
+                                    buildDescriptionTemplate(
+                                      tn?.data?.data || {}
+                                    )
+                                : undefined
+                            }
+                            textAreaProps={
+                              isDescription
+                                ? {
+                                    autoSize: { minRows: 10, maxRows: 30 }, // 👈 выше и удобнее
+                                    style: { width: "100%", lineHeight: 1.5 },
+                                    showCount: false,
+                                  }
+                                : undefined
+                            }
+                          />
+                        ),
+                      };
+                    })}
                   />
                 </Spin>
               </>
             )}
-            <Divider style={{ margin: "12px 0" }} />
+            <Divider style={{ margin: "12px 0" }} /> */}
+
+            {/* ...выше без изменений... */}
+
+            {fieldsSetting?.length > 0 && (
+              <>
+                <Divider style={{ margin: "12px 0" }} />
+
+                <Spin spinning={saving}>
+                  {/*
+        1) Обычные поля (всё, кроме REASON_OPER) — как раньше
+      */}
+                  <Descriptions
+                    column={1}
+                    labelStyle={{ width: 260 }}
+                    items={fieldsSetting
+                      .filter((it) => it.nameModus !== "REASON_OPER")
+                      .map((item) => ({
+                        key: item.nameModus || item.label,
+                        label: item.label,
+                        children: (
+                          <EditableField
+                            editable={item.editable}
+                            canEdit={canEdit}
+                            name={item.nameModus}
+                            value={mergedJsonData?.[item.nameModus]}
+                            handlerUpdateTn={handlerUpdateTn}
+                          />
+                        ),
+                      }))}
+                  />
+
+                  {/*
+        2) Поле "Описание" (REASON_OPER) — отдельным вертикальным блоком,
+           лейбл сверху, textarea на всю ширину
+      */}
+                  {fieldsSetting.some(
+                    (it) => it.nameModus === "REASON_OPER"
+                  ) && (
+                    <Descriptions
+                      column={1}
+                      layout="vertical"
+                      style={{ marginTop: 12 }}
+                      items={[
+                        {
+                          key: "REASON_OPER",
+                          label:
+                            fieldsSetting.find(
+                              (it) => it.nameModus === "REASON_OPER"
+                            )?.label || "Описание",
+                          // ← вот это главное: ломаем inline-flex только тут
+                          contentStyle: { display: "block", width: "100%" },
+                          children: (
+                            <EditableField
+                              editable
+                              canEdit={canEdit}
+                              name="REASON_OPER"
+                              value={mergedJsonData?.REASON_OPER}
+                              handlerUpdateTn={handlerUpdateTn}
+                              templateBuilder={() =>
+                                buildDescriptionTemplate(tn?.data?.data || {})
+                              }
+                              textAreaProps={{
+                                autoSize: { minRows: 14, maxRows: 40 },
+                                style: { width: "100%", lineHeight: 1.5 },
+                              }}
+                            />
+                          ),
+                        },
+                      ]}
+                    />
+                  )}
+                </Spin>
+
+                <Divider style={{ margin: "12px 0" }} />
+              </>
+            )}
           </>
         )
       )}
