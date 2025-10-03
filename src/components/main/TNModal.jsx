@@ -118,14 +118,25 @@ export default function TNModal({ open, documentId, onClose }) {
                     items={fieldsSetting.map((item) => ({
                       key: item.nameModus || item.label,
                       label: item.label,
+                      // children: (
+                      //   <EditableField
+                      //     // editable={item.editable}
+                      //     editable={item.editable}
+                      //     canEdit={canEdit}
+                      //     name={item.nameModus}
+                      //     value={mergedJsonData?.[item.nameModus]}
+                      //     handlerUpdateTn={handlerUpdateTn}
+                      //   />
+                      // ),
                       children: (
                         <EditableField
-                          // editable={item.editable}
                           editable={item.editable}
                           canEdit={canEdit}
                           name={item.nameModus}
                           value={mergedJsonData?.[item.nameModus]}
                           handlerUpdateTn={handlerUpdateTn}
+                          // Добавляем кнопку "Шаблон" только для Описания (REASON_OPER)
+                          showTemplate={item.nameModus === "REASON_OPER"}
                         />
                       ),
                     }))}
