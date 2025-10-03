@@ -9,7 +9,7 @@ export default function EditableField({
   value,
   editable,
   canEdit = true,
-  showTemplate = false,
+  templateBuilder, // <-- НОВОЕ
 }) {
   const safeValue = value ?? "";
   const [isEdit, setIsEdit] = useState(false);
@@ -24,15 +24,6 @@ export default function EditableField({
     if (!canEdit && isEdit) setIsEdit(false);
   }, [canEdit, isEdit]);
 
-  // Простая демо-заготовка (позже подменим на реальный генератор)
-  const buildTemplateText = () =>
-    [
-      "Причина: ____________________.",
-      "Место/оборудование: ____________________.",
-      "Принятые меры: ____________________.",
-      "Ориентировочное восстановление: ____________________.",
-    ].join("\n");
-
   return (
     <Flex gap={10}>
       {isEdit ? (
@@ -40,9 +31,7 @@ export default function EditableField({
           <Input.TextArea
             value={newValue}
             onChange={(e) => setNewValue(e.target.value)}
-            autoSize={{ minRows: 3, maxRows: 8 }}
           />
-
           <Flex gap={8} wrap>
             <Button
               type="primary"
@@ -60,12 +49,16 @@ export default function EditableField({
               Изменить
             </Button>
 
-            {showTemplate && (
+            {typeof templateBuilder === "function" && (
               <Button
                 disabled={saving}
                 onClick={() => {
-                  // Подставляем шаблон в поле (без автосейва)
-                  setNewValue(buildTemplateText());
+                  try {
+                    const t = templateBuilder();
+                    if (t) setNewValue(String(t));
+                  } catch (e) {
+                    // молча, шаблон необязателен
+                  }
                 }}
               >
                 Шаблон

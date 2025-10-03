@@ -6,6 +6,7 @@ import useData from "../../stores/useData";
 import useAuth from "../../stores/useAuth";
 import EditableField from "./EditableField";
 import SendBlock from "./Send/SendBlock";
+import { buildDescriptionTemplate } from "../../utils/descriptionTemplate";
 
 const URL = import.meta.env.VITE_URL_BACKEND;
 
@@ -135,8 +136,12 @@ export default function TNModal({ open, documentId, onClose }) {
                           name={item.nameModus}
                           value={mergedJsonData?.[item.nameModus]}
                           handlerUpdateTn={handlerUpdateTn}
-                          // Добавляем кнопку "Шаблон" только для Описания (REASON_OPER)
-                          showTemplate={item.nameModus === "REASON_OPER"}
+                          // Кнопка "Шаблон" только для Описания (REASON_OPER)
+                          templateBuilder={
+                            item.nameModus === "REASON_OPER"
+                              ? () => buildDescriptionTemplate(mergedJsonData)
+                              : undefined
+                          }
                         />
                       ),
                     }))}
