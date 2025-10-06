@@ -174,7 +174,7 @@ export default function AiAnalyticsModal({ open, onClose, items = [], title }) {
             type="info"
             showIcon
             message="AI-аналитика"
-            description="Краткий обзор и рекомендации по данным на основе ИИ(deepseek/deepseek-chat)"
+            description="Временно недоступно. Ожидайте обновлений"
           />
 
           {metrics && (
@@ -278,22 +278,20 @@ export default function AiAnalyticsModal({ open, onClose, items = [], title }) {
                 </Col>
 
                 <Col xs={24} md={14}>
-                  <Card size="small" title="Анализ ИИ" bordered>
+                  <Card size="small" title="Анализ ИИ(временно недоступно)" bordered>
                     <Space wrap>
                       <Button
                         type="primary"
                         loading={loading}
+                        disabled
                         onClick={() => callLLM("summary")}
                       >
                         Резюме
                       </Button>
-                      <Button loading={loading} onClick={() => callLLM("recs")}>
+                      <Button loading={loading} disabled onClick={() => callLLM("recs")}>
                         Рекомендации
                       </Button>
-                      <Button
-                        loading={loading}
-                        onClick={() => callLLM("anomalies")}
-                      >
+                      <Button loading={loading} disabled onClick={() => callLLM("anomalies")}>
                         Аномалии
                       </Button>
                     </Space>
