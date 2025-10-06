@@ -163,11 +163,10 @@ export default function AiAnalyticsModal({ open, onClose, items = [], title }) {
       footer={null}
       width={900}
       centered
+      afterOpenChange={(v) => console.log("[aiModal] afterOpenChange =", v)}
       maskClosable={false}
       keyboard={false}
-      destroyOnHidden={false}
-      // closable
-      afterOpenChange={(v) => console.log("[aiModal] afterOpenChange =", v)}
+      destroyOnHidden={false} 
     >
       <div style={{ position: "relative" }}>
         <Space direction="vertical" style={{ width: "100%" }}>

@@ -324,7 +324,10 @@ export default function TableTN() {
   const [date, setDate] = useState(null);
   const [sound, setSound] = useState(false);
   const [selectedStatuses, setSelectedStatuses] = useState(["открыта"]);
+
   const [showAi, setShowAi] = useState(false);
+  const [aiItems, setAiItems] = useState([]); // снапшот данных для модалки ИИ
+  const [refreshLocked, setRefreshLocked] = useState(false); // флажок блокировки автообновлений
   const [searchNumber, setSearchNumber] = useState("");
   const [searchGuid, setSearchGuid] = useState("");
 
@@ -387,6 +390,10 @@ export default function TableTN() {
     console.log("Всего ТН:", all.length);
   }, [tns?.data, isLoadingTns]);
 
+  useEffect(() => {
+    setRefreshLocked(showAi || Boolean(isOpenModalTN));
+  }, [showAi, isOpenModalTN]);
+
   // === LIVE ПОДПИСКА (SSE) ===
   useEffect(() => {
     const base = import.meta.env.VITE_URL_BACKEND_SERVICES;
@@ -396,8 +403,13 @@ export default function TableTN() {
 
     const scheduleRefresh = (delay = 800) => {
       clearTimeout(timer);
+      // timer = setTimeout(() => {
+      //   getTns();
+      // }, delay);
+
+      if (refreshLocked) return;
       timer = setTimeout(() => {
-        getTns();
+        if (!refreshLocked) getTns();
       }, delay);
     };
 
@@ -607,7 +619,11 @@ export default function TableTN() {
           setSelectedStatuses(["открыта"]);
           setPagination({ page: 1, pageSize: defaultPageSize });
         }}
-        onAiAnalytics={() => setShowAi(true)}
+        // onAiAnalytics={() => setShowAi(true)}
+        onAiAnalytics={() => {
+          setAiItems(listFiltered);
+          setShowAi(true);
+        }}
         onToggleSound={() => {
           setSound((v) => !v);
         }}
@@ -684,7 +700,7 @@ export default function TableTN() {
       <AiAnalyticsModal
         open={showAi}
         onClose={() => setShowAi(false)}
-        items={listFiltered}
+        items={aiItems}
         title={date ? `За ${date.format("DD.MM.YYYY")}` : "Все выбранные ТН"}
       />
     </ConfigProvider>
