@@ -367,7 +367,7 @@ export default function TableTN() {
   }, [tns?.data, date, selectedStatuses, openedCount, totalByDate]);
 
   useEffect(() => {
-    getTns(1, 500);
+    getTns();
   }, [date, selectedStatuses, getTns]);
 
   useEffect(() => {
@@ -397,7 +397,7 @@ export default function TableTN() {
     const scheduleRefresh = (delay = 800) => {
       clearTimeout(timer);
       timer = setTimeout(() => {
-        getTns(1, 500);
+        getTns();
       }, delay);
     };
 
@@ -637,7 +637,7 @@ export default function TableTN() {
           <Button
             disabled={isLoadingTns}
             onClick={() => {
-              getTns(1, 500);
+              getTns();
             }}
           >
             <ReloadOutlined />
