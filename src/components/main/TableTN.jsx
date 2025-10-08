@@ -52,6 +52,21 @@ const getCreateDate = (item) =>
   item?.attributes?.data?.data?.F81_060_EVENTDATETIME ??
   null;
 
+function extractGuid(item) {
+  const src = item?.attributes ? { id: item.id, ...item.attributes } : item;
+  const candidates = [
+    src?.guid,
+    src?.VIOLATION_GUID_STR,
+    src?.documentId,
+    item?.guid,
+    item?.VIOLATION_GUID_STR,
+    item?.documentId,
+    item?.data?.data?.VIOLATION_GUID_STR,
+    item?.data?.data?.guid,
+  ].filter(Boolean);
+  return candidates.length ? String(candidates[0]) : null;
+}
+
 const isOpen = (item) => {
   const a = item?.attributes;
   const v =
@@ -332,6 +347,10 @@ export default function TableTN() {
   const [searchNumber, setSearchNumber] = useState("");
   const [searchGuid, setSearchGuid] = useState("");
   const [isJournalOpen, setIsJournalOpen] = useState(false);
+  const [highlightGuids, setHighlightGuids] = useState(new Set());
+  const audioRef = React.useRef(null);
+  const prevOpenGuidsRef = React.useRef(new Set());
+  const firstScanDoneRef = React.useRef(false);
 
   const handleStatusChange = (vals) => {
     setSelectedStatuses(vals || []);
@@ -396,6 +415,25 @@ export default function TableTN() {
     setRefreshLocked(showAi || Boolean(isOpenModalTN));
   }, [showAi, isOpenModalTN]);
 
+  useEffect(() => {
+    const a = audioRef.current;
+    if (!a) return;
+    if (sound) {
+      try {
+        a.muted = true;
+        a.play()
+          .then(() => {
+            a.pause();
+            a.currentTime = 0;
+            a.muted = false;
+          })
+          .catch(() => {
+            a.muted = false;
+          });
+      } catch {}
+    }
+  }, [sound]);
+
   // === LIVE ПОДПИСКА (SSE) ===
   useEffect(() => {
     const base = import.meta.env.VITE_URL_BACKEND_SERVICES;
@@ -445,6 +483,61 @@ export default function TableTN() {
       } catch {}
     };
   }, [getTns]);
+
+  // === /LIVE ПОДПИСКА ===
+
+  const addHighlight = React.useCallback((g) => {
+    if (!g) return;
+    setHighlightGuids((prev) => {
+      const next = new Set(prev);
+      if (next.has(g)) return next;
+      next.add(g);
+      setTimeout(() => {
+        setHighlightGuids((prev2) => {
+          const n = new Set(prev2);
+          n.delete(g);
+          return n;
+        });
+      }, 60_000);
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    const list = Array.isArray(tns?.data) ? tns.data : [];
+    const opened = list.filter((i) => getStatusName(i) === "открыта" || isOpen(i));
+
+    const currSet = new Set();
+    for (const it of opened) {
+      const g = extractGuid(it);
+      if (g) currSet.add(g);
+    }
+
+    const prevSet = prevOpenGuidsRef.current;
+    if (!firstScanDoneRef.current) {
+      firstScanDoneRef.current = true;
+      prevOpenGuidsRef.current = currSet;
+      return;
+    }
+
+    const newOnes = [];
+    for (const g of currSet) {
+      if (!prevSet.has(g)) newOnes.push(g);
+    }
+
+    if (newOnes.length) {
+      if (sound && audioRef.current) {
+        try {
+          const a = audioRef.current;
+          a.currentTime = 0;
+          a.play().catch(() => {});
+        } catch {}
+      }
+      newOnes.forEach(addHighlight);
+    }
+
+    prevOpenGuidsRef.current = currSet;
+  }, [tns?.data, sound, addHighlight]);
   // === /LIVE ПОДПИСКА ===
 
   const listRaw = Array.isArray(tns?.data) ? tns.data : [];
@@ -502,8 +595,11 @@ export default function TableTN() {
     return numberOk && guidOk;
   });
 
+  const listSorted = [...listFiltered].sort(
+    (a, b) => dayjs(getCreateDate(b)).valueOf() - dayjs(getCreateDate(a)).valueOf()
+  );
   const startIndex = (pagination.page - 1) * pagination.pageSize;
-  const pageSlice = listFiltered.slice(
+  const pageSlice = listSorted.slice(
     startIndex,
     startIndex + pagination.pageSize
   );
@@ -522,9 +618,11 @@ export default function TableTN() {
           item.guid ||
           item.VIOLATION_GUID_STR ||
           src.id;
+        const resolvedGuid = extractGuid(item);
 
         return {
           key: src.id ?? item.id,
+          guid: resolvedGuid,
           number: src.number,
           energoObject: src.energoObject,
           addressList: src.addressList,
@@ -609,6 +707,20 @@ export default function TableTN() {
         },
       }}
     >
+      <style>{`
+        @keyframes tnNewBlink {
+          0% { background: #f6ffed; }
+          50% { background: #ffffff; }
+          100% { background: #f6ffed; }
+        }
+        .tn-row-new > td { animation: tnNewBlink 1.2s ease-in-out infinite; }
+      `}</style>
+      <audio
+        ref={audioRef}
+        src="/sound/sound.mp3"
+        preload="auto"
+        style={{ display: "none" }}
+      />
       {/* Показываем всегда количество ОТКРЫТЫХ ТН (независимо от выбранных статусов), учитывая только фильтр по дате */}
       <WelcomeHeader totalOpened={openedCount} loadingOpened={loadingOpened} />
 
@@ -665,6 +777,7 @@ export default function TableTN() {
 
       {/* ТАБЛИЦА */}
       <Table
+        rowClassName={(record) => (highlightGuids.has(record.guid) ? 'tn-row-new' : '')}
         dataSource={dataSource}
         columns={columns}
         pagination={false}
