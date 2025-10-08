@@ -1,16 +1,27 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Button, Flex } from "antd";
 import { useNavigate } from "react-router-dom";
+import useAuth from "../../stores/useAuth";
 
 export default function TableTNActionsBar({
-  onDashboard,
   onReset,
   onAiAnalytics,
-  onToggleSound,
-  soundEnabled = false,
   style,
+  viewRole,
 }) {
   const navigate = useNavigate();
+
+  const { user, getUserMe } = useAuth();
+
+  useEffect(() => {
+    if (!user) {
+      getUserMe?.();
+    }
+  }, [user, getUserMe]);
+
+  const effectiveRole = viewRole || user?.view_role || null;
+
+  const showJournal = effectiveRole === "standart";
 
   return (
     <Flex
@@ -24,6 +35,7 @@ export default function TableTNActionsBar({
       {/* <Button onClick={onToggleSound}>
         {soundEnabled ? "🔔 Звук: Вкл" : "🔕 Звук: Выкл"}
       </Button> */}
+      {showJournal && (<Button>Журнал отправки</Button>)}
     </Flex>
   );
 }

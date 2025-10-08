@@ -382,7 +382,7 @@ export default function TableTN() {
     console.log(`[filters] открытых ТН: ${opened.length}`);
     opened.forEach((i) => {
       const id = i?.documentId || i?.id;
-      console.log(`ТН ${id}: статус = "открыта"`);
+      // console.log(`ТН ${id}: статус = "открыта"`);
     });
 
     console.log("=== ВСЕ ТН (для будущей AI-Аналитики) ===");
