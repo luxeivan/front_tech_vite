@@ -21,6 +21,7 @@ import useAuth from "../../stores/useAuth";
 import TableTNActionsBar from "./TableTNActionsBar";
 import TNModal from "./TNModal";
 import AiAnalyticsModal from "../ai/AiAnalyticsModal";
+import JournalOpenModal from "../journalOpen/JournalOpenModal";
 import ruRU from "antd/locale/ru_RU";
 import "dayjs/locale/ru";
 dayjs.locale("ru");
@@ -330,6 +331,7 @@ export default function TableTN() {
   const [refreshLocked, setRefreshLocked] = useState(false); // флажок блокировки автообновлений
   const [searchNumber, setSearchNumber] = useState("");
   const [searchGuid, setSearchGuid] = useState("");
+  const [isJournalOpen, setIsJournalOpen] = useState(false);
 
   const handleStatusChange = (vals) => {
     setSelectedStatuses(vals || []);
@@ -619,7 +621,6 @@ export default function TableTN() {
           setSelectedStatuses(["открыта"]);
           setPagination({ page: 1, pageSize: defaultPageSize });
         }}
-        // onAiAnalytics={() => setShowAi(true)}
         onAiAnalytics={() => {
           setAiItems(listFiltered);
           setShowAi(true);
@@ -628,6 +629,7 @@ export default function TableTN() {
           setSound((v) => !v);
         }}
         soundEnabled={sound}
+        onOpenJournal={() => setIsJournalOpen(true)}
       />
 
       {/* БЛОК ФИЛЬТРОВ */}
@@ -695,6 +697,11 @@ export default function TableTN() {
           setIsOpenModalTN(false);
         }}
         documentId={isOpenModalTN}
+      />
+
+      <JournalOpenModal
+        open={isJournalOpen}
+        onClose={() => setIsJournalOpen(false)}
       />
 
       <AiAnalyticsModal

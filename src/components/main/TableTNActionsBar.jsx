@@ -8,9 +8,9 @@ export default function TableTNActionsBar({
   onAiAnalytics,
   style,
   viewRole,
+  onOpenJournal,
 }) {
   const navigate = useNavigate();
-
   const { user, getUserMe } = useAuth();
 
   useEffect(() => {
@@ -20,7 +20,6 @@ export default function TableTNActionsBar({
   }, [user, getUserMe]);
 
   const effectiveRole = viewRole || user?.view_role || null;
-
   const showJournal = effectiveRole === "standart";
 
   return (
@@ -35,7 +34,11 @@ export default function TableTNActionsBar({
       {/* <Button onClick={onToggleSound}>
         {soundEnabled ? "🔔 Звук: Вкл" : "🔕 Звук: Выкл"}
       </Button> */}
-      {showJournal && (<Button>Журнал отправки</Button>)}
+      {showJournal && (
+        <Button onClick={() => onOpenJournal && onOpenJournal()}>
+          Журнал отправки
+        </Button>
+      )}
     </Flex>
   );
 }
