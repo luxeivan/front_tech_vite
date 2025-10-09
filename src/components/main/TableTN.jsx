@@ -348,6 +348,7 @@ export default function TableTN() {
   const [searchGuid, setSearchGuid] = useState("");
   const [isJournalOpen, setIsJournalOpen] = useState(false);
   const [highlightGuids, setHighlightGuids] = useState(new Set());
+  const [sorter, setSorter] = useState({ field: "createDateTime", order: "descend" });
   const audioRef = React.useRef(null);
   const prevOpenGuidsRef = React.useRef(new Set());
   const firstScanDoneRef = React.useRef(false);
@@ -595,56 +596,75 @@ export default function TableTN() {
     return numberOk && guidOk;
   });
 
-  const listSorted = [...listFiltered].sort(
-    (a, b) => dayjs(getCreateDate(b)).valueOf() - dayjs(getCreateDate(a)).valueOf()
-  );
+  // 1) Сформировать полноценные строки (включая ключи сортировки)
+  const rowsAll = listFiltered.map((item) => {
+    const src = item?.attributes ? { id: item.id, ...item.attributes } : item;
+    const szoTags = buildSzoSummaryFromItem(src);
+    const docId =
+      src.documentId ||
+      src.guid ||
+      src.VIOLATION_GUID_STR ||
+      item.documentId ||
+      item.guid ||
+      item.VIOLATION_GUID_STR ||
+      src.id;
+    const resolvedGuid = extractGuid(item);
+    const ts = dayjs(getCreateDate(item)).valueOf();
+
+    return {
+      key: src.id ?? item.id,
+      guid: resolvedGuid,
+      number: src.number,
+      energoObject: src.energoObject,
+      addressList: src.addressList,
+      dispCenter: src.dispCenter,
+      createDateTime: dayjs(ts).format("DD.MM.YYYY HH:mm"),
+      createTs: ts,
+      documentId: docId,
+      szoTags,
+      sendedEdds: (
+        <Button
+          disabled={src.sendedEdds}
+          type="primary"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+        >
+          {src.sendedEdds ? "Отправлено" : "Отправить"}
+        </Button>
+      ),
+    };
+  });
+
+  // 2) Отсортировать согласно текущему состояния сортировки (по умолчанию — дата/время, убыв.)
+  const cmpStr = (a = "", b = "") => String(a).trim().localeCompare(String(b).trim(), "ru", { numeric: true, sensitivity: "base" });
+  const sortedAll = [...rowsAll].sort((a, b) => {
+    let res = 0;
+    switch (sorter.field) {
+      case "number":
+        res = (Number(a.number) || 0) - (Number(b.number) || 0);
+        break;
+      case "energoObject":
+        res = cmpStr(a.energoObject, b.energoObject);
+        break;
+      case "dispCenter":
+        res = cmpStr(a.dispCenter, b.dispCenter);
+        break;
+      case "addressList":
+        res = cmpStr(a.addressList, b.addressList);
+        break;
+      case "createDateTime":
+      default:
+        res = (a.createTs || 0) - (b.createTs || 0);
+        break;
+    }
+    return sorter.order === "descend" ? -res : res;
+  });
+
+  // 3) Пагинация ПОСЛЕ сортировки
   const startIndex = (pagination.page - 1) * pagination.pageSize;
-  const pageSlice = listSorted.slice(
-    startIndex,
-    startIndex + pagination.pageSize
-  );
-
-  const dataSource = pageSlice.length
-    ? pageSlice.map((item) => {
-        const src = item?.attributes
-          ? { id: item.id, ...item.attributes }
-          : item;
-        const szoTags = buildSzoSummaryFromItem(src);
-        const docId =
-          src.documentId ||
-          src.guid ||
-          src.VIOLATION_GUID_STR ||
-          item.documentId ||
-          item.guid ||
-          item.VIOLATION_GUID_STR ||
-          src.id;
-        const resolvedGuid = extractGuid(item);
-
-        return {
-          key: src.id ?? item.id,
-          guid: resolvedGuid,
-          number: src.number,
-          energoObject: src.energoObject,
-          addressList: src.addressList,
-          dispCenter: src.dispCenter,
-          createDateTime: dayjs(getCreateDate(item)).format("DD.MM.YYYY HH:mm"),
-          documentId: docId,
-          szoTags,
-          sendedEdds: (
-            <Button
-              disabled={src.sendedEdds}
-              type="primary"
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-              }}
-            >
-              {src.sendedEdds ? "Отправлено" : "Отправить"}
-            </Button>
-          ),
-        };
-      })
-    : [];
+  const dataSource = sortedAll.slice(startIndex, startIndex + pagination.pageSize);
 
   const columns = [
     {
@@ -653,6 +673,8 @@ export default function TableTN() {
       key: "number",
       width: 120,
       ellipsis: true,
+      sorter: true,
+      sortOrder: sorter.field === "number" ? sorter.order : null,
     },
     {
       title: "Объект",
@@ -660,6 +682,8 @@ export default function TableTN() {
       key: "energoObject",
       width: 220,
       ellipsis: true,
+      sorter: true,
+      sortOrder: sorter.field === "energoObject" ? sorter.order : null,
     },
     {
       title: "Диспетчерская",
@@ -667,13 +691,16 @@ export default function TableTN() {
       key: "dispCenter",
       width: 180,
       ellipsis: true,
+      sorter: true,
+      sortOrder: sorter.field === "dispCenter" ? sorter.order : null,
     },
     {
       title: "Адрес",
       dataIndex: "addressList",
       key: "addressList",
-      // без width — эта колонка тянет свободное место
       ellipsis: true,
+      sorter: true,
+      sortOrder: sorter.field === "addressList" ? sorter.order : null,
     },
     {
       title: "СЗО",
@@ -689,6 +716,8 @@ export default function TableTN() {
       key: "createDateTime",
       width: 180,
       ellipsis: true,
+      sorter: true,
+      sortOrder: sorter.field === "createDateTime" ? sorter.order : null,
     },
   ];
 
@@ -781,6 +810,14 @@ export default function TableTN() {
         dataSource={dataSource}
         columns={columns}
         pagination={false}
+        onChange={(p, f, s) => {
+          const info = Array.isArray(s) ? s[0] : s;
+          if (info && info.field) {
+            setSorter({ field: info.field, order: info.order || 'ascend' });
+          } else {
+            setSorter({ field: 'createDateTime', order: 'descend' });
+          }
+        }}
         onRow={(record) => {
           return {
             style: { cursor: "pointer" },
