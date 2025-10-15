@@ -142,7 +142,24 @@ export function buildEddsPayload(tn) {
   // 🔒 Требование Заказчика: всегда отправлять фиксированные значения
   const fioWork = "Оперативный дежурный САЦ";
   const fioPhone = "84957803976";
-  const descriptionSrc = raw.REASON_OPER ?? obj.REASON_OPER ?? raw.reason_oper ?? obj.reason_oper ?? null;
+  // const descriptionSrc = raw.REASON_OPER ?? obj.REASON_OPER ?? raw.reason_oper ?? obj.reason_oper ?? null;
+  // const description = clean(descriptionSrc);
+
+  const descriptionSrcTop =
+    tn?.description ??
+    tn?.attributes?.description ??
+    obj?.description ??
+    raw?.description ??
+    null;
+
+  const descriptionSrc =
+    descriptionSrcTop ??
+    raw?.REASON_OPER ??
+    obj?.REASON_OPER ??
+    raw?.reason_oper ??
+    obj?.reason_oper ??
+    null;
+
   const description = clean(descriptionSrc);
 
   const resources = Array.isArray(obj.resources) ? obj.resources : [5];
@@ -190,79 +207,79 @@ export function buildEddsPayload(tn) {
   // const out = {};
 
   // --- Соц.объекты из raw.SocialObjects -> массивы EDDS
-const socials = Array.isArray(raw.SocialObjects) ? raw.SocialObjects : [];
+  const socials = Array.isArray(raw.SocialObjects) ? raw.SocialObjects : [];
 
-function toKeyBySocialTyp(t) {
-  const s = String(t || "").toLowerCase();
-  if (s.includes("снт")) return "snt_objects";
-  if (s.includes("школ")) return "school_objects";
-  if (s.includes("детс") || s.includes("сад")) return "kindergarten_objects";
-  if (s.includes("больниц")) return "hospital_objects";
-  if (s.includes("поликлин")) return "polyclinic_objects";
-  if (s.includes("котель")) return "boiler_room_objects";
-  if (s.includes("взу")) return "water_intake_objects";
-  if (s.includes("кнс")) return "canalization_pumping_objects";
-  if (s.includes("мкд") || s.includes("дом")) return "mkd";
-  return null;
-}
-
-const typedObjects = {
-  snt_objects: [],
-  school_objects: [],
-  kindergarten_objects: [],
-  hospital_objects: [],
-  polyclinic_objects: [],
-  boiler_room_objects: [],
-  water_intake_objects: [],
-  canalization_pumping_objects: [],
-  mkd: [],
-};
-
-const seen = {
-  snt_objects: new Set(),
-  school_objects: new Set(),
-  kindergarten_objects: new Set(),
-  hospital_objects: new Set(),
-  polyclinic_objects: new Set(),
-  boiler_room_objects: new Set(),
-  water_intake_objects: new Set(),
-  canalization_pumping_objects: new Set(),
-  mkd: new Set(),
-};
-
-socials.forEach((it) => {
-  const key = toKeyBySocialTyp(it?.SocialTyp);
-  const fias = clean(it?.FIAS)?.toLowerCase();
-  if (!key || !fias) return;
-  if (seen[key].has(fias)) return;
-
-  if (key === "mkd") {
-    typedObjects.mkd.push({ fias });
-    seen.mkd.add(fias);
-    return;
+  function toKeyBySocialTyp(t) {
+    const s = String(t || "").toLowerCase();
+    if (s.includes("снт")) return "snt_objects";
+    if (s.includes("школ")) return "school_objects";
+    if (s.includes("детс") || s.includes("сад")) return "kindergarten_objects";
+    if (s.includes("больниц")) return "hospital_objects";
+    if (s.includes("поликлин")) return "polyclinic_objects";
+    if (s.includes("котель")) return "boiler_room_objects";
+    if (s.includes("взу")) return "water_intake_objects";
+    if (s.includes("кнс")) return "canalization_pumping_objects";
+    if (s.includes("мкд") || s.includes("дом")) return "mkd";
+    return null;
   }
 
-  const entry = { fias };
-  const name = clean(it?.Name);
-  const lat = clean(it?.lat || it?.LAT);
-  const lon = clean(it?.lon || it?.LON);
-  if (name) entry.name = name;
-  if (lat) entry.lat = String(lat);
-  if (lon) entry.lon = String(lon);
+  const typedObjects = {
+    snt_objects: [],
+    school_objects: [],
+    kindergarten_objects: [],
+    hospital_objects: [],
+    polyclinic_objects: [],
+    boiler_room_objects: [],
+    water_intake_objects: [],
+    canalization_pumping_objects: [],
+    mkd: [],
+  };
 
-  typedObjects[key].push(entry);
-  seen[key].add(fias);
-});
+  const seen = {
+    snt_objects: new Set(),
+    school_objects: new Set(),
+    kindergarten_objects: new Set(),
+    hospital_objects: new Set(),
+    polyclinic_objects: new Set(),
+    boiler_room_objects: new Set(),
+    water_intake_objects: new Set(),
+    canalization_pumping_objects: new Set(),
+    mkd: new Set(),
+  };
 
-// mkd из SocialObjects; если их нет — fallback на FIAS_LIST (как раньше)
-let mkd = typedObjects.mkd;
-if (mkd.length === 0) {
-  mkd = buildMkdFromFiasList(
-    raw.FIAS_LIST || obj.FIAS_LIST || obj.house_fias_list
-  );
-}
+  socials.forEach((it) => {
+    const key = toKeyBySocialTyp(it?.SocialTyp);
+    const fias = clean(it?.FIAS)?.toLowerCase();
+    if (!key || !fias) return;
+    if (seen[key].has(fias)) return;
 
-const out = {};
+    if (key === "mkd") {
+      typedObjects.mkd.push({ fias });
+      seen.mkd.add(fias);
+      return;
+    }
+
+    const entry = { fias };
+    const name = clean(it?.Name);
+    const lat = clean(it?.lat || it?.LAT);
+    const lon = clean(it?.lon || it?.LON);
+    if (name) entry.name = name;
+    if (lat) entry.lat = String(lat);
+    if (lon) entry.lon = String(lon);
+
+    typedObjects[key].push(entry);
+    seen[key].add(fias);
+  });
+
+  // mkd из SocialObjects; если их нет — fallback на FIAS_LIST (как раньше)
+  let mkd = typedObjects.mkd;
+  if (mkd.length === 0) {
+    mkd = buildMkdFromFiasList(
+      raw.FIAS_LIST || obj.FIAS_LIST || obj.house_fias_list
+    );
+  }
+
+  const out = {};
 
   if (incidentId) out.incident_id = String(incidentId);
   if (type) out.type = String(type);
@@ -289,11 +306,19 @@ const out = {};
   if (knsAll != null) out.canalization_pumping_count = String(knsAll);
 
   // fallback по количествам из разобранных массивов, если в raw нет явных счётчиков
-  if (out.water_intake_count == null && typedObjects.water_intake_objects.length) {
+  if (
+    out.water_intake_count == null &&
+    typedObjects.water_intake_objects.length
+  ) {
     out.water_intake_count = String(typedObjects.water_intake_objects.length);
   }
-  if (out.canalization_pumping_count == null && typedObjects.canalization_pumping_objects.length) {
-    out.canalization_pumping_count = String(typedObjects.canalization_pumping_objects.length);
+  if (
+    out.canalization_pumping_count == null &&
+    typedObjects.canalization_pumping_objects.length
+  ) {
+    out.canalization_pumping_count = String(
+      typedObjects.canalization_pumping_objects.length
+    );
   }
 
   const socialParts = [
@@ -364,14 +389,23 @@ const out = {};
 
   if (Array.isArray(mkd) && mkd.length > 0) out.mkd = mkd;
 
-  if (typedObjects.snt_objects.length) out.snt_objects = typedObjects.snt_objects;
-  if (typedObjects.school_objects.length) out.school_objects = typedObjects.school_objects;
-  if (typedObjects.kindergarten_objects.length) out.kindergarten_objects = typedObjects.kindergarten_objects;
-  if (typedObjects.hospital_objects.length) out.hospital_objects = typedObjects.hospital_objects;
-  if (typedObjects.polyclinic_objects.length) out.polyclinic_objects = typedObjects.polyclinic_objects;
-  if (typedObjects.boiler_room_objects.length) out.boiler_room_objects = typedObjects.boiler_room_objects;
-  if (typedObjects.water_intake_objects.length) out.water_intake_objects = typedObjects.water_intake_objects;
-  if (typedObjects.canalization_pumping_objects.length) out.canalization_pumping_objects = typedObjects.canalization_pumping_objects;
+  if (typedObjects.snt_objects.length)
+    out.snt_objects = typedObjects.snt_objects;
+  if (typedObjects.school_objects.length)
+    out.school_objects = typedObjects.school_objects;
+  if (typedObjects.kindergarten_objects.length)
+    out.kindergarten_objects = typedObjects.kindergarten_objects;
+  if (typedObjects.hospital_objects.length)
+    out.hospital_objects = typedObjects.hospital_objects;
+  if (typedObjects.polyclinic_objects.length)
+    out.polyclinic_objects = typedObjects.polyclinic_objects;
+  if (typedObjects.boiler_room_objects.length)
+    out.boiler_room_objects = typedObjects.boiler_room_objects;
+  if (typedObjects.water_intake_objects.length)
+    out.water_intake_objects = typedObjects.water_intake_objects;
+  if (typedObjects.canalization_pumping_objects.length)
+    out.canalization_pumping_objects =
+      typedObjects.canalization_pumping_objects;
 
   const lat = clean(raw.lat || raw.LAT);
   const lon = clean(raw.lon || raw.LON);

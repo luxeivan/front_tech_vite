@@ -27,23 +27,33 @@ export default function TNModal({ open, documentId, onClose }) {
     setOverrideData(null);
   }, [documentId]);
 
+  const [overrideDescription, setOverrideDescription] = useState(null);
+  useEffect(() => {
+    setOverrideDescription(null);
+  }, [documentId]);
+
   const mergedJsonData = useMemo(() => {
     const base = tn?.data?.data ?? {};
     return { ...base, ...(overrideData || {}) };
   }, [tn?.data?.data, overrideData]);
 
+  const descriptionEffective = useMemo(() => {
+    if (overrideDescription != null) return overrideDescription;
+    const fromApi = tn?.data?.description ?? null;
+    return typeof fromApi === "string" ? fromApi : "";
+  }, [overrideDescription, tn]);
+
   const tnEffective = useMemo(() => {
     if (!tn) return tn;
     return {
       ...tn,
+      description: descriptionEffective,
       data: {
         ...(tn.data || {}),
         data: mergedJsonData,
       },
     };
-  }, [tn, mergedJsonData]);
-
-  // Сохраняем строго JSON-поле data и мягко перезагружаем только карточку
+  }, [tn, mergedJsonData, descriptionEffective]);
   const handlerUpdateTn = async (name, value) => {
     const jwt = localStorage.getItem("jwt");
     if (!jwt) {
@@ -86,6 +96,44 @@ export default function TNModal({ open, documentId, onClose }) {
     }
   };
 
+  const handlerUpdateDescription = async (value) => {
+    const jwt = localStorage.getItem("jwt");
+    if (!jwt) {
+      message.error("Нет JWT");
+      return;
+    }
+
+    try {
+      setSaving(true);
+      // мгновенно отражаем новое значение
+      setOverrideDescription(value);
+
+      const res = await axios.put(
+        `${URL}/api/teh-narusheniyas/${documentId}`,
+        { data: { description: value } },
+        { headers: { Authorization: `Bearer ${jwt}` } }
+      );
+
+      const saved =
+        res?.data?.data?.attributes?.description ??
+        res?.data?.data?.description;
+      if (typeof saved === "string") {
+        setOverrideDescription(saved);
+      }
+
+      await getTn(documentId);
+      setOverrideDescription(null);
+      message.success("Описание сохранено");
+    } catch (e) {
+      console.error("Ошибка сохранения описания:", e);
+      message.error("Не удалось сохранить описание");
+      setOverrideDescription(null);
+      await getTn(documentId);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <Modal
       title={"Технологическое нарушение"}
@@ -109,65 +157,11 @@ export default function TNModal({ open, documentId, onClose }) {
         tn &&
         tn.data && (
           <>
-            {/* {fieldsSetting?.length > 0 && (
-              <>
-                <Divider style={{ margin: "12px 0" }} />
-                <Spin spinning={saving}>
-
-
-                  <Descriptions
-                    column={1}
-                    labelStyle={{ width: 260 }}
-                    items={fieldsSetting.map((item) => {
-                      const isDescription = item.nameModus === "REASON_OPER";
-
-                      return {
-                        key: item.nameModus || item.label,
-                        label: item.label,
-                        children: (
-                          <EditableField
-                            editable={item.editable}
-                            canEdit={canEdit}
-                            name={item.nameModus}
-                            value={mergedJsonData?.[item.nameModus]}
-                            handlerUpdateTn={handlerUpdateTn}
-                            templateBuilder={
-                              isDescription
-                                ? () =>
-                                    buildDescriptionTemplate(
-                                      tn?.data?.data || {}
-                                    )
-                                : undefined
-                            }
-                            textAreaProps={
-                              isDescription
-                                ? {
-                                    autoSize: { minRows: 10, maxRows: 30 }, // 👈 выше и удобнее
-                                    style: { width: "100%", lineHeight: 1.5 },
-                                    showCount: false,
-                                  }
-                                : undefined
-                            }
-                          />
-                        ),
-                      };
-                    })}
-                  />
-                </Spin>
-              </>
-            )}
-            <Divider style={{ margin: "12px 0" }} /> */}
-
-            {/* ...выше без изменений... */}
-
             {fieldsSetting?.length > 0 && (
               <>
                 <Divider style={{ margin: "12px 0" }} />
 
                 <Spin spinning={saving}>
-                  {/*
-        1) Обычные поля (всё, кроме REASON_OPER) — как раньше
-      */}
                   <Descriptions
                     column={1}
                     labelStyle={{ width: 260 }}
@@ -188,46 +182,37 @@ export default function TNModal({ open, documentId, onClose }) {
                       }))}
                   />
 
-                  {/*
-        2) Поле "Описание" (REASON_OPER) — отдельным вертикальным блоком,
-           лейбл сверху, textarea на всю ширину
-      */}
-                  {fieldsSetting.some(
-                    (it) => it.nameModus === "REASON_OPER"
-                  ) && (
-                    <Descriptions
-                      column={1}
-                      layout="vertical"
-                      style={{ marginTop: 12 }}
-                      items={[
-                        {
-                          key: "REASON_OPER",
-                          label:
-                            fieldsSetting.find(
-                              (it) => it.nameModus === "REASON_OPER"
-                            )?.label || "Описание",
-                          // ← вот это главное: ломаем inline-flex только тут
-                          contentStyle: { display: "block", width: "100%" },
-                          children: (
-                            <EditableField
-                              editable
-                              canEdit={canEdit}
-                              name="REASON_OPER"
-                              value={mergedJsonData?.REASON_OPER}
-                              handlerUpdateTn={handlerUpdateTn}
-                              templateBuilder={() =>
-                                buildDescriptionTemplate(tn?.data?.data || {})
-                              }
-                              textAreaProps={{
-                                autoSize: { minRows: 14, maxRows: 40 },
-                                style: { width: "100%", lineHeight: 1.5 },
-                              }}
-                            />
-                          ),
-                        },
-                      ]}
-                    />
-                  )}
+                  {/* 2) Поле "Описание" — теперь редактируем верхнеуровневый `description`, а не REASON_OPER */}
+                  <Descriptions
+                    column={1}
+                    layout="vertical"
+                    style={{ marginTop: 12 }}
+                    items={[
+                      {
+                        key: "description",
+                        label: "Описание",
+                        contentStyle: { display: "block", width: "100%" },
+                        children: (
+                          <EditableField
+                            editable
+                            canEdit={canEdit}
+                            name="description"
+                            value={descriptionEffective}
+                            handlerUpdateTn={(_, v) =>
+                              handlerUpdateDescription(v)
+                            }
+                            templateBuilder={() =>
+                              buildDescriptionTemplate(tn?.data?.data || {})
+                            }
+                            textAreaProps={{
+                              autoSize: { minRows: 14, maxRows: 40 },
+                              style: { width: "100%", lineHeight: 1.5 },
+                            }}
+                          />
+                        ),
+                      },
+                    ]}
+                  />
                 </Spin>
 
                 <Divider style={{ margin: "12px 0" }} />

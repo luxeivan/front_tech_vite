@@ -11,11 +11,15 @@ export default function EditableField({
   canEdit = true,
   templateBuilder, // функция, которая возвращает текст шаблона
   textAreaProps, // 👈 новое: можно прокинуть настройки TextArea
+  onBeforeSave,
+  placeholder = "—",
 }) {
   const safeValue = value ?? "";
   const [isEdit, setIsEdit] = useState(false);
   const [newValue, setNewValue] = useState(safeValue);
   const [saving, setSaving] = useState(false);
+
+  const isNoop = (a, b) => String(a ?? "") === String(b ?? "");
 
   useEffect(() => {
     if (!isEdit) setNewValue(value ?? "");
@@ -35,6 +39,29 @@ export default function EditableField({
             autoSize={{ minRows: 3, maxRows: 10 }} // дефолт
             style={{ width: "100%" }}
             {...(textAreaProps || {})} // 👈 переопределяем тут
+            onKeyDown={async (e) => {
+              if (saving) return;
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                const outgoing = typeof onBeforeSave === "function" ? onBeforeSave(newValue) : (newValue ?? "").toString();
+                if (isNoop(outgoing, value)) {
+                  setIsEdit(false);
+                  return;
+                }
+                try {
+                  setSaving(true);
+                  await handlerUpdateTn?.(name, outgoing);
+                  setIsEdit(false);
+                } finally {
+                  setSaving(false);
+                }
+              }
+              if (e.key === "Escape") {
+                e.preventDefault();
+                setIsEdit(false);
+                setNewValue(value ?? "");
+              }
+            }}
           />
 
           <Flex gap={8} wrap>
@@ -44,7 +71,12 @@ export default function EditableField({
               onClick={async () => {
                 try {
                   setSaving(true);
-                  await handlerUpdateTn?.(name, (newValue ?? "").toString());
+                  const outgoing = typeof onBeforeSave === "function" ? onBeforeSave(newValue) : (newValue ?? "").toString();
+                  if (isNoop(outgoing, value)) {
+                    setIsEdit(false);
+                    return;
+                  }
+                  await handlerUpdateTn?.(name, outgoing);
                   setIsEdit(false);
                 } finally {
                   setSaving(false);
@@ -81,9 +113,12 @@ export default function EditableField({
         </Flex>
       ) : editable && canEdit ? (
         <>
-          <Typography.Text>{safeValue}</Typography.Text>
+          <Typography.Text>
+            {safeValue !== "" ? safeValue : placeholder}
+          </Typography.Text>
           <EditOutlined
             className={styles.editIcon}
+            title="Редактировать"
             onClick={() => {
               if (!canEdit) return;
               setNewValue(value ?? "");
@@ -92,7 +127,9 @@ export default function EditableField({
           />
         </>
       ) : (
-        <Typography.Text>{safeValue}</Typography.Text>
+        <Typography.Text>
+          {safeValue !== "" ? safeValue : placeholder}
+        </Typography.Text>
       )}
     </Flex>
   );
