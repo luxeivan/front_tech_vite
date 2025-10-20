@@ -32,6 +32,13 @@ export default function TNModal({ open, documentId, onClose }) {
     setOverrideDescription(null);
   }, [documentId]);
 
+  const [overridePesCount, setOverridePesCount] = useState(null);
+  const [overridePesPower, setOverridePesPower] = useState(null);
+  useEffect(() => {
+    setOverridePesCount(null);
+    setOverridePesPower(null);
+  }, [documentId]);
+
   const mergedJsonData = useMemo(() => {
     const base = tn?.data?.data ?? {};
     return { ...base, ...(overrideData || {}) };
@@ -43,17 +50,35 @@ export default function TNModal({ open, documentId, onClose }) {
     return typeof fromApi === "string" ? fromApi : "";
   }, [overrideDescription, tn]);
 
+  const pesCountEffective = useMemo(() => {
+    if (overridePesCount != null) return String(overridePesCount);
+    const top = tn?.data?.PES_COUNT ?? tn?.PES_COUNT;
+    return top != null ? String(top) : "0";
+  }, [overridePesCount, tn]);
+
+  const pesPowerEffective = useMemo(() => {
+    if (overridePesPower != null) return String(overridePesPower);
+    const top = tn?.data?.PES_POWER ?? tn?.PES_POWER;
+    return top != null ? String(top) : "0";
+  }, [overridePesPower, tn]);
+
   const tnEffective = useMemo(() => {
     if (!tn) return tn;
     return {
       ...tn,
+      // дублируем верхние значения, чтобы SendBlock подхватил без повторного запроса
       description: descriptionEffective,
+      PES_COUNT: pesCountEffective,
+      PES_POWER: pesPowerEffective,
       data: {
         ...(tn.data || {}),
+        description: descriptionEffective,
+        PES_COUNT: pesCountEffective,
+        PES_POWER: pesPowerEffective,
         data: mergedJsonData,
       },
     };
-  }, [tn, mergedJsonData, descriptionEffective]);
+  }, [tn, mergedJsonData, descriptionEffective, pesCountEffective, pesPowerEffective]);
   const handlerUpdateTn = async (name, value) => {
     const jwt = localStorage.getItem("jwt");
     if (!jwt) {
@@ -134,6 +159,43 @@ export default function TNModal({ open, documentId, onClose }) {
     }
   };
 
+  const handlerUpdatePesTop = async (field, value) => {
+    const jwt = localStorage.getItem("jwt");
+    if (!jwt) {
+      message.error("Нет JWT");
+      return;
+    }
+
+    // нормализуем до цифр
+    const safe = String(value ?? "").replace(/[^\d]/g, "");
+    const payload = safe === "" ? "0" : safe;
+
+    try {
+      setSaving(true);
+      if (field === "PES_COUNT") setOverridePesCount(payload);
+      if (field === "PES_POWER") setOverridePesPower(payload);
+
+      await axios.put(
+        `${URL}/api/teh-narusheniyas/${documentId}`,
+        { data: { [field]: payload } },
+        { headers: { Authorization: `Bearer ${jwt}` } }
+      );
+
+      await getTn(documentId);
+      setOverridePesCount(null);
+      setOverridePesPower(null);
+      message.success("Сохранено");
+    } catch (e) {
+      console.error("Ошибка сохранения ПЭС:", e);
+      message.error("Не удалось сохранить");
+      setOverridePesCount(null);
+      setOverridePesPower(null);
+      await getTn(documentId);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <Modal
       title={"Технологическое нарушение"}
@@ -157,67 +219,84 @@ export default function TNModal({ open, documentId, onClose }) {
         tn &&
         tn.data && (
           <>
-            {fieldsSetting?.length > 0 && (
-              <>
-                <Divider style={{ margin: "12px 0" }} />
+            <>
+              <Divider style={{ margin: "12px 0" }} />
 
-                <Spin spinning={saving}>
-                  <Descriptions
-                    column={1}
-                    labelStyle={{ width: 260 }}
-                    items={fieldsSetting
-                      .filter((it) => it.nameModus !== "REASON_OPER")
-                      .map((item) => ({
-                        key: item.nameModus || item.label,
-                        label: item.label,
-                        children: (
-                          <EditableField
-                            editable={item.editable}
-                            canEdit={canEdit}
-                            name={item.nameModus}
-                            value={mergedJsonData?.[item.nameModus]}
-                            handlerUpdateTn={handlerUpdateTn}
-                          />
-                        ),
-                      }))}
-                  />
+              <Spin spinning={saving}>
+                {/* === ПЭС: показываем только два целевых поля (верхний уровень) === */}
+                <Descriptions
+                  column={1}
+                  labelStyle={{ width: 260 }}
+                  items={[
+                    {
+                      key: "PES_COUNT",
+                      label: "ПЭС (шт.)",
+                      children: (
+                        <EditableField
+                          editable
+                          canEdit={canEdit}
+                          name="PES_COUNT"
+                          value={pesCountEffective}
+                          handlerUpdateTn={(_, v) => handlerUpdatePesTop("PES_COUNT", v)}
+                          inputProps={{ style: { width: 160 } }}
+                        />
+                      ),
+                    },
+                    {
+                      key: "PES_POWER",
+                      label: "Мощность ПЭС (кВт)",
+                      children: (
+                        <EditableField
+                          editable
+                          canEdit={canEdit}
+                          name="PES_POWER"
+                          value={pesPowerEffective}
+                          handlerUpdateTn={(_, v) => handlerUpdatePesTop("PES_POWER", v)}
+                          inputProps={{ style: { width: 160 } }}
+                        />
+                      ),
+                    },
+                  ]}
+                />
 
-                  {/* 2) Поле "Описание" — теперь редактируем верхнеуровневый `description`, а не REASON_OPER */}
-                  <Descriptions
-                    column={1}
-                    layout="vertical"
-                    style={{ marginTop: 12 }}
-                    items={[
-                      {
-                        key: "description",
-                        label: "Описание",
-                        contentStyle: { display: "block", width: "100%" },
-                        children: (
-                          <EditableField
-                            editable
-                            canEdit={canEdit}
-                            name="description"
-                            value={descriptionEffective}
-                            handlerUpdateTn={(_, v) =>
-                              handlerUpdateDescription(v)
-                            }
-                            templateBuilder={() =>
-                              buildDescriptionTemplate(tn?.data?.data || {})
-                            }
-                            textAreaProps={{
-                              autoSize: { minRows: 14, maxRows: 40 },
-                              style: { width: "100%", lineHeight: 1.5 },
-                            }}
-                          />
-                        ),
+                {/* === Поле "Описание" — верхнеуровневый `description` (широкое поле) === */}
+                <Descriptions
+                  column={1}
+                  layout="vertical"
+                  style={{ marginTop: 12 }}
+                  items={[
+                    {
+                      key: "description",
+                      label: "Описание",
+                      labelStyle: { width: 260 },
+                      contentStyle: {
+                        display: "block",
+                        width: "100%",
+                        whiteSpace: "pre-wrap",
                       },
-                    ]}
-                  />
-                </Spin>
+                      children: (
+                        <EditableField
+                          editable
+                          canEdit={canEdit}
+                          name="description"
+                          value={descriptionEffective}
+                          handlerUpdateTn={(_, v) => handlerUpdateDescription(v)}
+                          templateBuilder={() =>
+                            buildDescriptionTemplate(tn?.data?.data || {})
+                          }
+                          textAreaProps={{
+                            autoSize: { minRows: 18, maxRows: 60 },
+                            style: { width: "100%", minHeight: 320, lineHeight: 1.5 },
+                          }}
+                        />
+                      ),
+                    },
+                  ]}
+                />
+              </Spin>
 
-                <Divider style={{ margin: "12px 0" }} />
-              </>
-            )}
+              <Divider style={{ margin: "12px 0" }} />
+            </>
           </>
         )
       )}

@@ -162,6 +162,14 @@ export function buildEddsPayload(tn) {
 
   const description = clean(descriptionSrc);
 
+  // Приоритет ПЭС (шт.) как у description: сначала верхнеуровневые поля, затем data/raw
+  const pesCountSrcTop =
+    tn?.PES_COUNT ??
+    tn?.attributes?.PES_COUNT ??
+    obj?.PES_COUNT ??
+    raw?.PES_COUNT ??
+    null;
+
   const resources = Array.isArray(obj.resources) ? obj.resources : [5];
 
   const mkdAll = clean(raw.MKD_ALL);
@@ -188,7 +196,7 @@ export function buildEddsPayload(tn) {
     involved_brigades: clean(raw.BRIGADECOUNT),
     involved_workers: clean(raw.EMPLOYEECOUNT),
     involved_equipment: clean(raw.SPECIALTECHNIQUECOUNT),
-    involved_emergency_power_supply: clean(raw.PES_COUNT),
+    involved_emergency_power_supply: clean(pesCountSrcTop),
   };
 
   const required = {
