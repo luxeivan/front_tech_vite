@@ -259,6 +259,35 @@ export default function TNModal({ open, documentId, onClose }) {
                   ]}
                 />
 
+                {/* === Прочие поля из настроек (read-only) === */}
+                {Array.isArray(fieldsSetting) && fieldsSetting.length > 0 && (
+                  <Descriptions
+                    column={1}
+                    labelStyle={{ width: 260 }}
+                    style={{ marginTop: 12 }}
+                    items={fieldsSetting
+                      .filter(
+                        (it) =>
+                          it.nameModus !== "REASON_OPER" &&
+                          it.nameModus !== "PES_COUNT" &&
+                          it.nameModus !== "PES_POWER" &&
+                          it.nameModus !== "description"
+                      )
+                      .map((item) => ({
+                        key: item.nameModus || item.label,
+                        label: item.label,
+                        children: (
+                          <EditableField
+                            editable={false}
+                            canEdit={false}
+                            name={item.nameModus}
+                            value={mergedJsonData?.[item.nameModus]}
+                          />
+                        ),
+                      }))}
+                  />
+                )}
+
                 {/* === Поле "Описание" — верхнеуровневый `description` (широкое поле) === */}
                 <Descriptions
                   column={1}
