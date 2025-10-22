@@ -76,6 +76,25 @@ function collectSocialNames(arr) {
   );
 }
 
+function fmtCountDeclOnly(count, forms) {
+  const c = num(count);
+  if (!c) return null;
+  return `${c} ${dec(c, forms)}`;
+}
+
+// Согласования для категорий СЗО (ед., 2-4, 5+)
+const SZO_FORMS = {
+  polyclinic: ["Поликлиника", "Поликлиники", "Поликлиник"],
+  hospital: ["Больница", "Больницы", "Больниц"],
+  school: ["Школа", "Школы", "Школ"],
+  kindergarten: ["Детский сад", "Детских сада", "Детских садов"],
+  boiler: ["Котельная", "Котельные", "Котельных"],
+  ctp: ["ЦТП", "ЦТП", "ЦТП"],
+  kns: ["КНС", "КНС", "КНС"],
+  wells: ["ВЗУ", "ВЗУ", "ВЗУ"],
+  vns: ["ВНС", "ВНС", "ВНС"],
+};
+
 function fmtCountAndNames(count, noun, names) {
   const c = num(count);
   if (!c) return null;
@@ -91,7 +110,9 @@ export function buildDescriptionTemplate(raw = {}) {
   const sc = s(raw.SCNAME);
   const when = formatRusDateTime(raw.F81_060_EVENTDATETIME); // "03:54 20.10.2025"
   const enobj = s(raw.F81_041_ENERGOOBJECTNAME);
-  const volt = s(raw.VOLTAGECLASS);
+  const voltRaw = s(raw.VOLTAGECLASS);
+  const voltHasKv = /кв/i.test(voltRaw) || /kv/i.test(voltRaw);
+  const voltVal = voltRaw.replace(/\s*кв\s*$/i, "").replace(/\s*kv\s*$/i, "").trim();
   const switchName = s(raw.SWITCHDISPNAME || raw.SWITCHNAMEKEY || "");
   const ownSc = s(raw.OWN_SCNAME);
   const protect = s(raw.PROTECT_TYPE);
@@ -168,7 +189,7 @@ export function buildDescriptionTemplate(raw = {}) {
   parts.push(
     `АО «Мособлэнерго». ${when} ${q(ownSc)} ${q(sc)}. ${q(enobj)} ${q(
       protect
-    )} КЛ ${q(volt)} кВ в направлении ${q(switchName)}.`
+    )} КЛ ${q(voltVal)}${voltVal ? (voltHasKv ? "" : " кВ") : ""} в направлении ${q(switchName)}.`
       .replace(/\s+/g, " ")
       .replace(/\s\./g, ".")
   );
@@ -177,23 +198,64 @@ export function buildDescriptionTemplate(raw = {}) {
     `Без напряжения полностью ${tpAll} ТП, ${rpsnAll} РП, без напряжения по одной секции ${tpSection} ТП, ${rpsnSection} РП (${mkdAll} МКД, ${population} чел., ${abonents} абонентов).`
   );
 
-  if (fullParts.length) {
-    parts.push(`СЗО: полностью без напряжения ${fullParts.join(", ")}.`);
+  const fullCounts = [
+    fmtCountDeclOnly(raw.CLINICS_ALL, SZO_FORMS.polyclinic),
+    fmtCountDeclOnly(raw.HOSPITALS_ALL, SZO_FORMS.hospital),
+    fmtCountDeclOnly(raw.SCHOOLS_ALL, SZO_FORMS.school),
+    fmtCountDeclOnly(raw.KINDERGARTENS_ALL, SZO_FORMS.kindergarten),
+    fmtCountDeclOnly(raw.BOILER_ALL, SZO_FORMS.boiler),
+    fmtCountDeclOnly(raw.CTP_ALL, SZO_FORMS.ctp),
+    fmtCountDeclOnly(raw.KNS_ALL, SZO_FORMS.kns),
+    fmtCountDeclOnly(raw.WELLS_ALL, SZO_FORMS.wells),
+    fmtCountDeclOnly(raw.VNS_ALL, SZO_FORMS.vns),
+  ].filter(Boolean);
+  const sectCounts = [
+    fmtCountDeclOnly(raw.CLINICS_SECTION, SZO_FORMS.polyclinic),
+    fmtCountDeclOnly(raw.HOSPITALS_SECTION, SZO_FORMS.hospital),
+    fmtCountDeclOnly(raw.SCHOOLS_SECTION, SZO_FORMS.school),
+    fmtCountDeclOnly(raw.KINDERGARTENS_SECTION, SZO_FORMS.kindergarten),
+    fmtCountDeclOnly(raw.BOILER_SECTION, SZO_FORMS.boiler),
+    fmtCountDeclOnly(raw.CTP_SECTION, SZO_FORMS.ctp),
+    fmtCountDeclOnly(raw.KNS_SECTION, SZO_FORMS.kns),
+    fmtCountDeclOnly(raw.WELLS_SECTION, SZO_FORMS.wells),
+    fmtCountDeclOnly(raw.VNS_SECTION, SZO_FORMS.vns),
+  ].filter(Boolean);
+
+  if (fullCounts.length) {
+    parts.push(`СЗО: полностью без напряжения ${fullCounts.join(", ")}.`);
   }
-  if (sectParts.length) {
-    parts.push(`Отключены по одной секции ${sectParts.join(", ")}.`);
+  if (sectCounts.length) {
+    parts.push(`Отключены по одной секции ${sectCounts.join(", ")}.`);
   }
 
   // if (reserve) parts.push(`${reserve}.`);
 
-  parts.push(
-    `Направлена ${pesCount} ПЭС${pesPower ? ` ${pesPower} кВт` : ""} филиала.`
-  );
+  // --- Списки СЗО по именам, чтобы не слипалось ---
+  const sections = [];
+  const addSection = (title, arr) => {
+    const list = Array.isArray(arr) ? arr.filter(Boolean) : [];
+    if (list.length) {
+      sections.push(`${title}:\n${list.map((n) => `«${s(n)}»`).join("\n")}`);
+    }
+  };
+  addSection("Поликлиники", names.polyclinic);
+  addSection("Больницы", names.hospital);
+  addSection("Школы", names.school);
+  addSection("Детские сады", names.kindergarten);
+  addSection("Котельные", names.boiler);
+  addSection("ЦТП", names.ctp);
+  addSection("КНС", names.kns);
+  addSection("ВЗУ", names.wells);
+  addSection("ВНС", names.vns);
 
   const brigadeCount = num(raw.BRIGADECOUNT);
   const employeeCount = num(raw.EMPLOYEECOUNT);
+  const tail = [];
+  tail.push(
+    `Направлена ${pesCount} ПЭС${pesPower ? ` ${pesPower} кВт` : ""} филиала.`
+  );
   if (brigadeCount || employeeCount) {
-    parts.push(
+    tail.push(
       `Задействована ${brigadeCount} ${dec(brigadeCount, [
         "бригада",
         "бригады",
@@ -205,8 +267,9 @@ export function buildDescriptionTemplate(raw = {}) {
       ])}.`
     );
   }
+  tail.push("Прогнозируемое время включения 2 часа.");
 
-  parts.push("Прогнозируемое время включения 2 часа.");
-
-  return parts.filter(Boolean).join(" ");
+  return [parts.filter(Boolean).join(" "), sections.join("\n\n"), tail.join(" ")]
+    .filter(Boolean)
+    .join("\n\n");
 }
