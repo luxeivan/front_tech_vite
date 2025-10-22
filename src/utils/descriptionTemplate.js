@@ -42,6 +42,16 @@ function classifySocialType(t) {
   return null;
 }
 
+function normalizeNameForGrouping(name) {
+  let n = s(name);
+  if (!n) return n;
+  // Убираем хвосты вида «, ввод 1», «ввод 2», «Ввод № 3» (регистр/пробелы/знаки препинания не важны)
+  n = n.replace(/\s*[,(]?\s*ввод\s*№?\s*\d+\s*$/i, "");
+  // Чистим завершающую пунктуацию и лишние пробелы
+  n = n.replace(/\s*[.,;:]+$/g, "");
+  return n.trim();
+}
+
 function collectSocialNames(arr) {
   const buckets = {
     polyclinic: new Set(),
@@ -56,8 +66,8 @@ function collectSocialNames(arr) {
   };
   (Array.isArray(arr) ? arr : []).forEach((it) => {
     const key = classifySocialType(it?.SocialTyp);
-    const name = s(it?.Name);
-    if (key && name) buckets[key].add(name);
+    const base = normalizeNameForGrouping(it?.Name);
+    if (key && base) buckets[key].add(base);
   });
   return Object.fromEntries(
     Object.entries(buckets).map(([k, set]) => [k, Array.from(set)])
@@ -67,10 +77,7 @@ function collectSocialNames(arr) {
 function fmtCountAndNames(count, noun, names) {
   const c = num(count);
   if (!c) return null;
-  const list = Array.isArray(names) && names.length
-    ? ` ("${names.join('"; "')}")`
-    : "";
-  return `${c} ${noun}${list}`;
+  return `${c} ${noun}`;
 }
 
 export function buildDescriptionTemplate(raw = {}) {
@@ -145,7 +152,7 @@ export function buildDescriptionTemplate(raw = {}) {
 
   parts.push(
     `Полностью без напряжения ${tpAll} ТП, ${rpsnAll} РП, без напряжения по одной секции ${tpSection} ТП, ${rpsnSection} РП ` +
-      `(${addressList ? `"${addressList}", ` : ""}${mkdAll} МКД, ${population} чел., ${abonents} абонентов).`
+      `(${mkdAll} МКД, ${population} чел., ${abonents} абонентов).`
   );
 
   if (fullParts.length) {
@@ -163,5 +170,27 @@ export function buildDescriptionTemplate(raw = {}) {
 
   parts.push("Прогнозируемое время включения 2 часа.");
 
-  return parts.filter(Boolean).join(" ");
+  // 3) Подробные списки СЗО (кроме МКД) — по требованиям заказчика
+  const sections = [];
+  const addSection = (title, arr) => {
+    const list = Array.isArray(arr) ? arr.filter(Boolean) : [];
+    if (list.length) {
+      sections.push(`${title}:\n${list.join("\n")}`);
+    }
+  };
+
+  addSection("Поликлиники", names.polyclinic);
+  addSection("Больницы", names.hospital);
+  addSection("Школы", names.school);
+  addSection("Детские сады", names.kindergarten);
+  addSection("Котельные", names.boiler);
+  addSection("ЦТП", names.ctp);
+  addSection("КНС", names.kns);
+  addSection("ВЗУ", names.wells);
+  addSection("ВНС", names.vns);
+
+  // Итог: основной текст + блоки со списками
+  return [parts.filter(Boolean).join(" "), sections.join("\n\n")]
+    .filter(Boolean)
+    .join("\n\n");
 }
