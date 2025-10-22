@@ -16,6 +16,8 @@ import {
 import React, { useEffect, useState } from "react";
 import useData from "../../stores/useData";
 import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
 import { ReloadOutlined } from "@ant-design/icons";
 import useAuth from "../../stores/useAuth";
 import TableTNActionsBar from "./TableTNActionsBar";
@@ -25,6 +27,18 @@ import JournalOpenModal from "../journalOpen/JournalOpenModal";
 import ruRU from "antd/locale/ru_RU";
 import "dayjs/locale/ru";
 dayjs.locale("ru");
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+const MSK_TZ = "Europe/Moscow";
+const toMsk = (x) => (x ? dayjs.tz(x, MSK_TZ) : null);
+const isSameMskDay = (d, ref) => {
+  if (!ref) return true;
+  const a = toMsk(d);
+  const b = toMsk(ref.valueOf ? ref.valueOf() : ref);
+  return a && b ? a.isSame(b, "day") : false;
+};
 
 const getStatusName = (item) => {
   const a = item?.attributes;
@@ -363,7 +377,7 @@ export default function TableTN() {
     const list = Array.isArray(tns?.data) ? tns.data : [];
     const byDate = list.filter((i) => {
       const d = getCreateDate(i);
-      return date ? dayjs(d).isSame(date, "day") : true;
+      return isSameMskDay(d, date);
     });
     return byDate.filter((i) => isOpen(i)).length;
   }, [tns?.data, date]);
@@ -371,10 +385,7 @@ export default function TableTN() {
 
   const totalByDate = React.useMemo(() => {
     const list = Array.isArray(tns?.data) ? tns.data : [];
-    return list.filter((i) => {
-      const d = getCreateDate(i);
-      return date ? dayjs(d).isSame(date, "day") : true;
-    }).length;
+    return list.filter((i) => isSameMskDay(getCreateDate(i), date)).length;
   }, [tns?.data, date]);
 
   const headerTotal = React.useMemo(() => {
@@ -385,7 +396,7 @@ export default function TableTN() {
     const list = Array.isArray(tns?.data) ? tns.data : [];
     return list.filter((i) => {
       const d = getCreateDate(i);
-      if (date && !dayjs(d).isSame(date, "day")) return false;
+      if (date && !isSameMskDay(d, date)) return false;
       const s = getStatusName(i);
       return s ? selectedStatuses.includes(s) : false;
     }).length;
@@ -544,7 +555,7 @@ export default function TableTN() {
   const listRaw = Array.isArray(tns?.data) ? tns.data : [];
   const listByDate = listRaw.filter((item) => {
     const d = getCreateDate(item);
-    return date ? dayjs(d).isSame(date, "day") : true;
+    return isSameMskDay(d, date);
   });
   const listFiltered = listByDate.filter((item) => {
     // --- status filter ---
@@ -609,7 +620,7 @@ export default function TableTN() {
       item.VIOLATION_GUID_STR ||
       src.id;
     const resolvedGuid = extractGuid(item);
-    const ts = dayjs(getCreateDate(item)).valueOf();
+    const tsMsk = toMsk(getCreateDate(item));
 
     return {
       key: src.id ?? item.id,
@@ -618,8 +629,8 @@ export default function TableTN() {
       energoObject: src.energoObject,
       addressList: src.addressList,
       dispCenter: src.dispCenter,
-      createDateTime: dayjs(ts).format("DD.MM.YYYY HH:mm"),
-      createTs: ts,
+      createDateTime: tsMsk ? tsMsk.format("DD.MM.YYYY HH:mm") : "",
+      createTs: tsMsk ? tsMsk.valueOf() : 0,
       documentId: docId,
       szoTags,
       sendedEdds: (
