@@ -129,8 +129,10 @@ export function buildEddsPayload(tn) {
     toDate(raw.F81_060_EVENTDATETIME || obj.createDateTime, true) || null;
 
   const planDateClose =
-    toDate(raw.F81_070_RESTOR_SUPPLAYDATETIME || obj.recoveryPlanDateTime) ||
-    null;
+    toDate(
+      raw.F81_070_RESTOR_SUPPLAYDATETIME || obj.recoveryPlanDateTime,
+      true
+    ) || null;
 
   const districtName =
     raw.DISTRICT || raw.SCNAME || obj.district || obj.dispCenter || null;

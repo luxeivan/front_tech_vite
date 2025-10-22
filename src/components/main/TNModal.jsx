@@ -1,56 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Descriptions, Divider, Flex, Modal, Spin, message } from "antd";
 import axios from "axios";
-import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
-import timezone from "dayjs/plugin/timezone";
-import "dayjs/locale/ru";
 
 import useData from "../../stores/useData";
 import useAuth from "../../stores/useAuth";
 import EditableField from "./EditableField";
 import SendBlock from "./Send/SendBlock";
 import { buildDescriptionTemplate } from "../../utils/descriptionTemplate";
-
-dayjs.locale("ru");
-dayjs.extend(utc);
-dayjs.extend(timezone);
-
-const MSK_TZ = "Europe/Moscow";
-const toMsk = (x) => (x ? dayjs.tz(x, MSK_TZ) : null);
-const isIsoLike = (v) =>
-  typeof v === "string" && /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v);
-
-/** Отформатировать в московском времени `DD.MM.YYYY HH:mm` */
-const fmtMsk = (v) => {
-  if (v == null) return v;
-  const d = typeof v === "number" ? toMsk(v) : toMsk(String(v));
-  return d && d.isValid() ? d.format("DD.MM.YYYY HH:mm") : v;
-};
-
-/** Явный вайтлист ключей, которые точно являются датами */
-const DATE_KEYS = new Set([
-  "createDateTime",
-  "recoveryPlanDateTime",
-  "recoveryFactDateTime",
-  "updatedAt",
-  "createdAt",
-  "publishedAt",
-  "CREATE_DATETIME",
-  "F81_060_EVENTDATETIME",
-  "F81_290_RECOVERYDATETIME",
-  "F81_070_RESTOR_SUPPLAYDATETIME",
-]);
-
-/** Проверка: форматировать ли поле как дату/время */
-const shouldFormatDateField = (item, value) => {
-  const key = String(item?.nameModus || "");
-  const label = String(item?.label || "");
-  if (DATE_KEYS.has(key)) return true;
-  if (isIsoLike(value)) return true;
-  if (/(дата|время)/i.test(label)) return true;
-  return false;
-};
 
 const URL = import.meta.env.VITE_URL_BACKEND;
 
@@ -317,22 +273,18 @@ export default function TNModal({ open, documentId, onClose }) {
                           it.nameModus !== "PES_POWER" &&
                           it.nameModus !== "description"
                       )
-                      .map((item) => {
-                        const raw = mergedJsonData?.[item.nameModus];
-                        const pretty = shouldFormatDateField(item, raw) ? fmtMsk(raw) : raw;
-                        return {
-                          key: item.nameModus || item.label,
-                          label: item.label,
-                          children: (
-                            <EditableField
-                              editable={false}
-                              canEdit={false}
-                              name={item.nameModus}
-                              value={pretty}
-                            />
-                          ),
-                        };
-                      })}
+                      .map((item) => ({
+                        key: item.nameModus || item.label,
+                        label: item.label,
+                        children: (
+                          <EditableField
+                            editable={false}
+                            canEdit={false}
+                            name={item.nameModus}
+                            value={mergedJsonData?.[item.nameModus]}
+                          />
+                        ),
+                      }))}
                   />
                 )}
 
