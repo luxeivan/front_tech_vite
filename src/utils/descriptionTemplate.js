@@ -10,15 +10,6 @@ function dec(n, [one, few, many]) {
   return many;
 }
 
-function listNonZero(obj, suffix = "") {
-  // obj: { 'поликлиник': 2, 'больниц': 0, ... }
-  return Object.entries(obj)
-    .filter(([, v]) => num(v) > 0)
-    .map(([k, v]) => `${num(v)} ${k}${suffix}`)
-    .join(", ");
-}
-
-// --- helpers for new template ---
 const pad2 = (n) => String(n).padStart(2, "0");
 function formatRusDateTime(v) {
   if (!v) return "";
@@ -29,7 +20,6 @@ function formatRusDateTime(v) {
   )}.${pad2(d.getMonth() + 1)}.${d.getFullYear()}`;
 }
 
-// Классификация соц. объектов по типу из SocialObjects[].SocialTyp
 function classifySocialType(t) {
   const x = String(t || "").toLowerCase();
   if (x.includes("поликлин")) return "polyclinic";
@@ -47,9 +37,7 @@ function classifySocialType(t) {
 function normalizeNameForGrouping(name) {
   let n = s(name);
   if (!n) return n;
-  // Убираем хвосты вида «, ввод 1», «ввод 2», «Ввод № 3» (регистр/пробелы/знаки препинания не важны)
   n = n.replace(/\s*[,(]?\s*ввод\s*№?\s*\d+\s*$/i, "");
-  // Чистим завершающую пунктуацию и лишние пробелы
   n = n.replace(/\s*[.,;:]+$/g, "");
   return n.trim();
 }
@@ -82,7 +70,6 @@ function fmtCountDeclOnly(count, forms) {
   return `${c} ${dec(c, forms)}`;
 }
 
-// Согласования для категорий СЗО (ед., 2-4, 5+)
 const SZO_FORMS = {
   polyclinic: ["Поликлиника", "Поликлиники", "Поликлиник"],
   hospital: ["Больница", "Больницы", "Больниц"],
@@ -95,24 +82,16 @@ const SZO_FORMS = {
   vns: ["ВНС", "ВНС", "ВНС"],
 };
 
-function fmtCountAndNames(count, noun, names) {
-  const c = num(count);
-  if (!c) return null;
-  const list =
-    Array.isArray(names) && names.length
-      ? ` (${names.map((n) => `«${s(n)}»`).join(", ")})`
-      : "";
-  return `${c} ${noun}${list}`;
-}
-
 export function buildDescriptionTemplate(raw = {}) {
-  // 1) Поля по ТЗ заказчика
   const sc = s(raw.SCNAME);
   const when = formatRusDateTime(raw.F81_060_EVENTDATETIME); // "03:54 20.10.2025"
   const enobj = s(raw.F81_041_ENERGOOBJECTNAME);
   const voltRaw = s(raw.VOLTAGECLASS);
   const voltHasKv = /кв/i.test(voltRaw) || /kv/i.test(voltRaw);
-  const voltVal = voltRaw.replace(/\s*кв\s*$/i, "").replace(/\s*kv\s*$/i, "").trim();
+  const voltVal = voltRaw
+    .replace(/\s*кв\s*$/i, "")
+    .replace(/\s*kv\s*$/i, "")
+    .trim();
   const switchName = s(raw.SWITCHDISPNAME || raw.SWITCHNAMEKEY || "");
   const ownSc = s(raw.OWN_SCNAME);
   const protect = s(raw.PROTECT_TYPE);
@@ -124,72 +103,23 @@ export function buildDescriptionTemplate(raw = {}) {
 
   const mkdAll = num(raw.MKD_ALL);
   const population = num(raw.POPULATION_COUNT);
-  const abonents = num(raw.POINTALL || raw.ENOBJ_COUNT); // POINTALL по ТЗ, fallback на ENOBJ_COUNT
-
-  // Соц. объекты: имена из SocialObjects (если есть)
+  const abonents = num(raw.POINTALL || raw.ENOBJ_COUNT);
   const names = collectSocialNames(raw.SocialObjects);
-  const nouns = {
-    polyclinic: "Поликлиник",
-    hospital: "Больниц",
-    school: "Школ",
-    kindergarten: "Детских садов",
-    boiler: "Котельных",
-    ctp: "ЦТП",
-    kns: "КНС",
-    wells: "ВЗУ",
-    vns: "ВНС",
-  };
-
-  const fullParts = [
-    fmtCountAndNames(raw.CLINICS_ALL, nouns.polyclinic, names.polyclinic),
-    fmtCountAndNames(raw.HOSPITALS_ALL, nouns.hospital, names.hospital),
-    fmtCountAndNames(raw.SCHOOLS_ALL, nouns.school, names.school),
-    fmtCountAndNames(
-      raw.KINDERGARTENS_ALL,
-      nouns.kindergarten,
-      names.kindergarten
-    ),
-    fmtCountAndNames(raw.BOILER_ALL, nouns.boiler, names.boiler),
-    fmtCountAndNames(raw.CTP_ALL, nouns.ctp, names.ctp),
-    fmtCountAndNames(raw.KNS_ALL, nouns.kns, names.kns),
-    fmtCountAndNames(raw.WELLS_ALL, nouns.wells, names.wells),
-    fmtCountAndNames(raw.VNS_ALL, nouns.vns, names.vns),
-  ].filter(Boolean);
-
-  const sectParts = [
-    fmtCountAndNames(raw.CLINICS_SECTION, nouns.polyclinic, names.polyclinic),
-    fmtCountAndNames(raw.HOSPITALS_SECTION, nouns.hospital, names.hospital),
-    fmtCountAndNames(raw.SCHOOLS_SECTION, nouns.school, names.school),
-    fmtCountAndNames(
-      raw.KINDERGARTENS_SECTION,
-      nouns.kindergarten,
-      names.kindergarten
-    ),
-    fmtCountAndNames(raw.BOILER_SECTION, nouns.boiler, names.boiler),
-    fmtCountAndNames(raw.CTP_SECTION, nouns.ctp, names.ctp),
-    fmtCountAndNames(raw.KNS_SECTION, nouns.kns, names.kns),
-    fmtCountAndNames(raw.WELLS_SECTION, nouns.wells, names.wells),
-    fmtCountAndNames(raw.VNS_SECTION, nouns.vns, names.vns),
-  ].filter(Boolean);
-
-  // ПЭС – берём из raw (ожидается, что в вызове уже подставлены верхнеуровневые значения)
   const pesCount = num(raw.PES_COUNT);
   const pesPower = s(raw.PES_POWER);
-
-  // const reserve = s(raw.POWER_RESERVE);
-
-  // 2) Сборка фразы строго по шаблону заказчика
   const parts = [];
 
   const q = (x) => {
     const t = s(x);
-    return t ? `«${t}»` : "";
+    return t ? `${t}` : "";
   };
 
   parts.push(
     `АО «Мособлэнерго». ${when} ${q(ownSc)} ${q(sc)}. ${q(enobj)} ${q(
       protect
-    )} КЛ ${q(voltVal)}${voltVal ? (voltHasKv ? "" : " кВ") : ""} в направлении ${q(switchName)}.`
+    )} КЛ ${q(voltVal)}${
+      voltVal ? (voltHasKv ? "" : " кВ") : ""
+    } в направлении ${q(switchName)}.`
       .replace(/\s+/g, " ")
       .replace(/\s\./g, ".")
   );
@@ -227,10 +157,6 @@ export function buildDescriptionTemplate(raw = {}) {
   if (sectCounts.length) {
     parts.push(`Отключены по одной секции ${sectCounts.join(", ")}.`);
   }
-
-  // if (reserve) parts.push(`${reserve}.`);
-
-  // --- Списки СЗО по именам, чтобы не слипалось ---
   const sections = [];
   const addSection = (title, arr) => {
     const list = Array.isArray(arr) ? arr.filter(Boolean) : [];
@@ -269,7 +195,11 @@ export function buildDescriptionTemplate(raw = {}) {
   }
   tail.push("Прогнозируемое время включения 2 часа.");
 
-  return [parts.filter(Boolean).join(" "), sections.join("\n\n"), tail.join(" ")]
+  return [
+    parts.filter(Boolean).join(" "),
+    sections.join("\n\n"),
+    tail.join(" "),
+  ]
     .filter(Boolean)
     .join("\n\n");
 }
