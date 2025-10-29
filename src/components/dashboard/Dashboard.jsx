@@ -4,7 +4,6 @@ import {
   Row,
   Col,
   Card,
-  Statistic,
   Space,
   Spin,
   Skeleton,
@@ -39,9 +38,7 @@ const { Title, Text } = Typography;
 const URL = import.meta.env.VITE_URL_BACKEND;
 const FIAS_COLLECTION = import.meta.env.VITE_STRAPI_FIAS_COLLECTION || "adress";
 
-const FIAS_BATCH_SIZE = 100; // Strapi page size cap
-const FIAS_CONCURRENCY = 4; // parallel requests (be gentle)
-const MAP_MAX_POINTS = 50000; // safety limit for client-side rendering
+const MAP_SCALE = 0.58; // коэффициент высоты карты относительно доступного места
 
 // Try to extract an array of FIAS codes from different shapes of a row (strict)
 
@@ -79,55 +76,12 @@ const extractFiasFromRow = (row) => {
 };
 
 // Chunk helper
-const chunk = (arr, n) => {
-  const out = [];
-  for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n));
-  return out;
-};
+// const chunk = (arr, n) => {
+//   const out = [];
+//   for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n));
+//   return out;
+// };
 
-// Build Strapi $in filter for arrays using bracket notation (qs will encode properly)
-const buildInParams = (field, values) => {
-  const params = {};
-  params[`filters[${field}][$in]`] = values; // qs encodes arrays as [0],[1],...
-  return params;
-};
-
-// Safely extract lat/lon from various attribute shapes
-const pickLatLon = (obj) => {
-  if (!obj) return null;
-  const a = obj.attributes ? obj.attributes : obj;
-  const latRaw =
-    a.lat ??
-    a.latitude ??
-    a.geo_lat ??
-    a.geoLat ??
-    (Array.isArray(a?.coords) ? a.coords[0] : undefined);
-  const lonRaw =
-    a.lon ??
-    a.longitude ??
-    a.geo_lon ??
-    a.geoLon ??
-    (Array.isArray(a?.coords) ? a.coords[1] : undefined);
-  const lat = typeof latRaw === "number" ? latRaw : parseFloat(latRaw);
-  const lon = typeof lonRaw === "number" ? lonRaw : parseFloat(lonRaw);
-  if (Number.isFinite(lat) && Number.isFinite(lon)) return { lat, lon };
-  return null;
-};
-
-// Encode params for Strapi (supports bracket-notation arrays like fields[0]=...)
-const encodeStrapiQuery = (params) => {
-  const parts = [];
-  const push = (k, v) =>
-    parts.push(`${encodeURIComponent(k)}=${encodeURIComponent(v)}`);
-  for (const [key, value] of Object.entries(params)) {
-    if (Array.isArray(value)) {
-      value.forEach((v, i) => push(`${key}[${i}]`, v));
-    } else {
-      push(key, value);
-    }
-  }
-  return parts.join("&");
-};
 
 /* ---------------- helpers ---------------- */
 const toNumber = (v) => {
@@ -163,7 +117,7 @@ const guidOf = (row) =>
   row?.VIOLATION_GUID_STR ||
   null;
 
-// номер ТН и время начала (создания)
+
 const tnNumber = (row) => pick(row, "number") ?? row?.number ?? null;
 const startDate = (row) =>
   pick(row, "createDateTime") ?? pick(row, "F81_060_EVENTDATETIME") ?? null;
@@ -287,7 +241,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const headerRef = useRef(null);
   const [mapHeight, setMapHeight] = useState(420);
-  const MAP_SCALE = 0.6; // делаем карту чуть выше ( ~60% доступной высоты )
+  // const MAP_SCALE = 0.6;
   const CARD_SCALE = 0.7; // уменьшаем высоту карточек ~на 30%
 
   // density / compact mode by window size (to always fit one screen)
@@ -313,11 +267,11 @@ export default function Dashboard() {
   }, []);
 
   // small, modern “chip” (card height ~30% ниже)
-  const Chip = ({ icon, title, value, color, tooltip }) => (
+  const Chip = React.memo(({ icon, title, value, color, tooltip }) => (
     <Tooltip
       placement="bottom"
       title={tooltip}
-      overlayStyle={{ maxWidth: 560 }}
+      overlayStyle={{ maxWidth: 420 }}
     >
       <Card
         hoverable
@@ -367,7 +321,7 @@ export default function Dashboard() {
         </div>
       </Card>
     </Tooltip>
-  );
+  ));
 
   const [now, setNow] = useState(dayjs().format("DD.MM.YYYY, HH:mm:ss"));
   const [loading, setLoading] = useState(false);
@@ -403,150 +357,6 @@ export default function Dashboard() {
     return obj;
   }, [rows]);
 
-  const fiasCacheRef = useRef(new Map()); // fias -> {lat, lon}
-  const abortRef = useRef(null);
-  const [loadProgress, setLoadProgress] = useState({ loaded: 0, total: 0 });
-
-  // Points for the map (variant #2: clusterized markers). Fill later with real data.
-  const [mapPoints, setMapPoints] = useState([]);
-  // Derive FIAS codes from open TNs and resolve to coordinates via Strapi special collection
-  useEffect(() => {
-    // Cleanup previous run
-    if (abortRef.current) {
-      abortRef.current.abort();
-      abortRef.current = null;
-    }
-
-    // Gather unique FIAS codes from rows
-    const allCodes = Array.from(
-      new Set(rows.flatMap((r) => extractFiasFromRow(r)).filter(Boolean))
-    );
-
-    if (!allCodes.length) {
-      setMapPoints([]);
-      setLoadProgress({ loaded: 0, total: 0 });
-      return;
-    }
-
-    // If too many, we will sample uniformly to keep UI responsive
-    const limit = Math.max(1000, MAP_MAX_POINTS * 2); // fetch more than we render (cluster quality)
-    const codes =
-      allCodes.length > limit
-        ? allCodes.filter(
-            (_, i) => i % Math.ceil(allCodes.length / limit) === 0
-          )
-        : allCodes;
-
-    const ac = new AbortController();
-    abortRef.current = ac;
-
-    // Prepare queues
-    const cache = fiasCacheRef.current;
-    const toResolve = codes.filter((c) => !cache.has(c));
-    const resolvedFromCache = codes
-      .filter((c) => cache.has(c))
-      .map((c) => ({ fias: c, ...cache.get(c) }));
-
-    // Set initial points from cache
-    const initialPoints = resolvedFromCache.map(({ fias, lat, lon }) => ({
-      id: fias,
-      lat,
-      lon,
-    }));
-    setMapPoints(initialPoints.slice(0, MAP_MAX_POINTS));
-    setLoadProgress({ loaded: initialPoints.length, total: codes.length });
-
-    const BASE = String(URL).replace(/\/$/, "");
-    const MAX_URL_LEN = 1800;
-
-    const buildQuery = (ids) =>
-      encodeStrapiQuery({
-        ...buildInParams("fiasId", ids),
-        "pagination[page]": 1,
-        "pagination[pageSize]": Math.min(ids.length, FIAS_BATCH_SIZE),
-        fields: ["fiasId", "lat", "lon"],
-      });
-    const buildUrl = (ids) =>
-      `${BASE}/api/${FIAS_COLLECTION}?${buildQuery(ids)}`;
-
-    let inner = Math.min(50, toResolve.length || 50);
-    while (
-      inner > 1 &&
-      buildUrl(toResolve.slice(0, inner)).length > MAX_URL_LEN
-    ) {
-      inner = Math.max(1, Math.floor(inner * 0.7));
-    }
-
-    const batches = [];
-    for (let i = 0; i < toResolve.length; i += inner) {
-      batches.push(toResolve.slice(i, i + inner));
-    }
-
-    // Helper to load one batch
-    const loadBatch = async (batch) => {
-      if (!batch.length) return [];
-
-      const urlStr = buildUrl(batch);
-      const resp = await fetch(urlStr, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("jwt") || ""}`,
-        },
-        signal: ac.signal,
-      });
-      if (!resp.ok) throw new Error(`FIAS lookup failed: ${resp.status}`);
-      const json = await resp.json();
-      const arr = Array.isArray(json?.data) ? json.data : [];
-
-      const results = [];
-      for (const item of arr) {
-        const a = item?.attributes ? item.attributes : item;
-        const fias = a.fiasId || a.fias || a.FIAS || a.fias_code || a.FIAS_CODE;
-        const ll = pickLatLon(a);
-        if (fias && ll) {
-          cache.set(fias, ll);
-          results.push({ fias, ...ll });
-        }
-      }
-      return results;
-    };
-
-    // Run with limited concurrency
-    const batchesList = batches;
-    let idx = 0;
-    let active = 0;
-    const collected = [...initialPoints];
-
-    const next = () => {
-      if (ac.signal.aborted) return;
-      while (active < FIAS_CONCURRENCY && idx < batchesList.length) {
-        const b = batchesList[idx++];
-        active++;
-        loadBatch(b)
-          .then((res) => {
-            if (ac.signal.aborted) return;
-            res.forEach(({ fias, lat, lon }) =>
-              collected.push({ id: fias, lat, lon })
-            );
-            setLoadProgress({
-              loaded: Math.min(collected.length, codes.length),
-              total: codes.length,
-            });
-            setMapPoints(collected.slice(0, MAP_MAX_POINTS));
-          })
-          .catch(() => {})
-          .finally(() => {
-            active--;
-            if (idx < batchesList.length) next();
-          });
-      }
-    };
-
-    next();
-
-    return () => {
-      ac.abort();
-    };
-  }, [rows]);
 
   // header ticker
   useEffect(() => {
@@ -994,27 +804,6 @@ export default function Dashboard() {
                   fiasCollection={FIAS_COLLECTION}
                   fiasOwners={fiasOwners}
                 />
-                {loadProgress.total > 0 && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      bottom: 8,
-                      right: 12,
-                      background: "rgba(255,255,255,0.85)",
-                      padding: "4px 8px",
-                      borderRadius: 8,
-                      fontSize: 12,
-                    }}
-                  >
-                    Точек на карте:{" "}
-                    {Math.min(
-                      loadProgress.loaded,
-                      MAP_MAX_POINTS
-                    ).toLocaleString("ru-RU")}{" "}
-                    из {loadProgress.total.toLocaleString("ru-RU")}
-                    {loadProgress.loaded > MAP_MAX_POINTS && " (ограничено)"}
-                  </div>
-                )}
               </div>
             </Card>
           </div>
