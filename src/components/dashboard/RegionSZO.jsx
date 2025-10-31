@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Card, Spin, Typography } from "antd";
+import { Card, Spin } from "antd";
 import axios from "axios";
 const URL = import.meta.env.VITE_URL_BACKEND;
 
@@ -99,9 +99,11 @@ const getRowSzoCounts = (row) => {
 };
 
 /* -------- Компонент блока 5 -------- */
-export default function RegionSZO() {
+export default function RegionSZO({ rowsOpen, loadingExternal }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  const useExternal = Array.isArray(rowsOpen);
 
   const loadOpen = async () => {
     try {
@@ -135,13 +137,15 @@ export default function RegionSZO() {
 
   // initial load
   useEffect(() => {
-    loadOpen();
-  }, []);
+    if (!useExternal) {
+      loadOpen();
+    }
+  }, [useExternal]);
 
   // SSE автообновление
   const esRef = useRef(null);
   useEffect(() => {
-    if (!URL) return;
+    if (useExternal || !URL) return;
     try {
       const es = new EventSource(`${URL}/services/event`);
       esRef.current = es;
@@ -156,12 +160,15 @@ export default function RegionSZO() {
         esRef.current = null;
       };
     } catch {}
-  }, []);
+  }, [useExternal]);
+
+  const effectiveRows = useExternal ? rowsOpen : rows;
+  const effectiveLoading = useExternal ? !!loadingExternal : loading;
 
   // агрегируем по округам
   const rowsView = useMemo(() => {
     const acc = new Map(); // district -> sums
-    rows.forEach((r) => {
+    effectiveRows.forEach((r) => {
       const d = districtName(r);
       const z = getRowSzoCounts(r);
       if (!acc.has(d))
@@ -189,7 +196,7 @@ export default function RegionSZO() {
     return Array.from(acc.entries()).sort((a, b) =>
       String(a[0]).localeCompare(String(b[0]), "ru")
     );
-  }, [rows]);
+  }, [effectiveRows]);
 
   const th = {
     padding: "6px 8px",
@@ -217,7 +224,7 @@ export default function RegionSZO() {
       }
       styles={{ body: { padding: 10 } }}
     >
-      {loading && rows.length === 0 ? (
+      {effectiveLoading && effectiveRows.length === 0 ? (
         <div style={{ display: "flex", justifyContent: "center", padding: 20 }}>
           <Spin />
         </div>

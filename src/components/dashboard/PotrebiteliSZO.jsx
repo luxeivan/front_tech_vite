@@ -167,7 +167,7 @@ const Chip = React.memo(function Chip({ icon, title, value, color, compact }) {
 });
 
 /* ---------------- компонент: только Блок 2 ---------------- */
-export default function PotrebiteliSZO() {
+export default function PotrebiteliSZO({ rowsOpen, loadingExternal }) {
   const [compact, setCompact] = useState(false);
   useEffect(() => {
     const onResize = () => {
@@ -179,6 +179,9 @@ export default function PotrebiteliSZO() {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
+
+  // --- external data mode ---
+  const useExternal = Array.isArray(rowsOpen);
 
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState([]);
@@ -210,7 +213,6 @@ export default function PotrebiteliSZO() {
 
       setRows(listOpen.filter(isOpenTN));
     } catch (e) {
-      // молча, чтобы блок не шумел
       console.warn("[PotrebiteliSZO] load error:", e?.message || e);
     } finally {
       setLoading(false);
@@ -218,12 +220,14 @@ export default function PotrebiteliSZO() {
   };
 
   useEffect(() => {
-    loadOpen();
-  }, []);
+    if (!useExternal) {
+      loadOpen();
+    }
+  }, [useExternal]);
 
   // SSE автообновление
   useEffect(() => {
-    if (!URL) return;
+    if (useExternal || !URL) return;
     try {
       const es = new EventSource(`${URL}/services/event`);
       esRef.current = es;
@@ -238,7 +242,11 @@ export default function PotrebiteliSZO() {
         esRef.current = null;
       };
     } catch {}
-  }, []);
+  }, [useExternal]);
+
+  // prefer external data if provided
+  const effectiveRows = useExternal ? rowsOpen : rows;
+  const effectiveLoading = useExternal ? !!loadingExternal : loading;
 
   const szoTotals = useMemo(() => {
     const acc = {
@@ -254,12 +262,12 @@ export default function PotrebiteliSZO() {
       izhs: 0,
       snt: 0,
     };
-    rows.forEach((r) => {
+    effectiveRows.forEach((r) => {
       const z = getRowSzoCounts(r);
       Object.keys(acc).forEach((k) => (acc[k] += z[k] || 0));
     });
     return acc;
-  }, [rows]);
+  }, [effectiveRows]);
 
   const items = [
     { key: "boilers", icon: <FireOutlined />, title: "Котельные", color: "#eb2f96" },
@@ -281,7 +289,7 @@ export default function PotrebiteliSZO() {
       title={<div style={{ fontWeight: 700, color: "#1575bc" }}>Потребители и СЗО</div>}
       styles={{ body: { padding: compact ? 8 : 10 } }}
     >
-      {loading ? (
+      {effectiveLoading ? (
         <Space style={{ width: "100%", justifyContent: "center", padding: 12 }}>
           <Spin />
         </Space>
