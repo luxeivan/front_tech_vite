@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from "react";
-import { Typography, Card, Space, Spin, Button, message, Tooltip } from "antd";
+import React, { useEffect, useState } from "react";
+import { Typography, Card, Button, message, Tooltip } from "antd";
 import {
   ThunderboltOutlined,
   EnvironmentOutlined,
@@ -7,7 +7,6 @@ import {
   DashboardOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
-import axios from "axios";
 
 /**
  * InfoTN — БЛОК 1: "Информация о ТН"
@@ -18,7 +17,6 @@ import axios from "axios";
  */
 
 const { Title } = Typography;
-const URL = import.meta.env.VITE_URL_BACKEND;
 
 /* ---------------- helpers ---------------- */
 const toNumber = (v) => {
@@ -72,7 +70,7 @@ const recoveryDate = (row) =>
   null;
 
 /* ---------------- компонент ---------------- */
-export default function InfoTN() {
+export default function InfoTN({ rows = [], rows7d = [] }) {
   const [compact, setCompact] = useState(false);
   useEffect(() => {
     const onResize = () => {
@@ -151,11 +149,6 @@ export default function InfoTN() {
     );
   });
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [rows, setRows] = useState([]); // открытые ТН (для метрик)
-  const [rows7d, setRows7d] = useState([]); // все ТН за 7 дней (для доната)
-  const esRef = useRef(null);
 
   // sums a field, accepting either a single key or an array of fallback keys
   const sumField = (fieldOrFields) =>
@@ -341,80 +334,6 @@ export default function InfoTN() {
     );
   };
 
-  // загрузка открытых ТН и всех ТН за 7 дней
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const jwt = localStorage.getItem("jwt");
-      if (!jwt) throw new Error("Нет JWT: авторизуйтесь");
-
-      const since7d = dayjs().startOf("day").subtract(6, "day").toISOString();
-
-      const qsOpen = [
-        "pagination[page]=1",
-        "pagination[pageSize]=500",
-        "sort[0]=createDateTime:DESC",
-        "filters[isActive][$eq]=true",
-      ].join("&");
-
-      const qsAll7d = [
-        "pagination[page]=1",
-        "pagination[pageSize]=1000",
-        "sort[0]=createDateTime:DESC",
-        `filters[createDateTime][$gte]=${encodeURIComponent(since7d)}`,
-      ].join("&");
-
-      const headers = { Authorization: `Bearer ${jwt}` };
-
-      const [respOpen, respAll] = await Promise.all([
-        axios.get(`${URL}/api/teh-narusheniyas?${qsOpen}`, { headers }),
-        axios.get(`${URL}/api/teh-narusheniyas?${qsAll7d}`, { headers }),
-      ]);
-
-      const listOpen = Array.isArray(respOpen?.data?.data)
-        ? respOpen.data.data.map((x) =>
-            x?.attributes ? { id: x.id, ...x.attributes } : x
-          )
-        : [];
-
-      const listAll7d = Array.isArray(respAll?.data?.data)
-        ? respAll.data.data.map((x) =>
-            x?.attributes ? { id: x.id, ...x.attributes } : x
-          )
-        : [];
-
-      setRows(listOpen.filter(isOpenTN));
-      setRows7d(listAll7d);
-    } catch (e) {
-      setError(e?.message || "Ошибка загрузки данных");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  // SSE автообновление
-  useEffect(() => {
-    if (!URL) return;
-    try {
-      const es = new EventSource(`${URL}/services/event`);
-      esRef.current = es;
-      es.onmessage = () => setTimeout(loadData, 350);
-      es.onerror = () => {
-        es.close();
-        esRef.current = null;
-        setTimeout(loadData, 5000);
-      };
-      return () => {
-        es.close();
-        esRef.current = null;
-      };
-    } catch {}
-  }, []);
 
   // copy GUIDs
   const handleCopyGuids = async () => {
@@ -451,123 +370,105 @@ export default function InfoTN() {
       }
       styles={{ body: { padding: compact ? 8 : 10 } }}
     >
-      {loading && !error && (
-        <Space
-          style={{ width: "100%", justifyContent: "center", margin: "12px 0" }}
-        >
-          <Spin />
-        </Space>
-      )}
-      {error && (
-        <Title
-          level={5}
-          type="danger"
-          style={{ textAlign: "center", margin: 0 }}
-        >
-          {error}
-        </Title>
-      )}
-      {!loading && !error && (
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: compact ? "1fr" : "1.4fr 1fr",
+          gap: 12,
+          alignItems: "stretch",
+        }}
+      >
+        {/* левая колонка — компактные карточки */}
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: compact ? "1fr" : "1.4fr 1fr",
-            gap: 12,
+            gridTemplateColumns: `repeat(auto-fill, minmax(${
+              compact ? 150 : 180
+            }px, 1fr))`,
+            gap: compact ? 10 : 12,
             alignItems: "stretch",
           }}
         >
-          {/* левая колонка — компактные карточки */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: `repeat(auto-fill, minmax(${
-                compact ? 150 : 180
-              }px, 1fr))`,
-              gap: compact ? 10 : 12,
-              alignItems: "stretch",
-            }}
-          >
-            {[
-              {
-                icon: <ThunderboltOutlined />,
-                title: "Всего открытых ТН",
-                value: totals.totalOpen,
-                color: "#1575bc",
-              },
-              {
-                icon: <DashboardOutlined />,
-                title: "Отключенных ТП полностью",
-                value: totals.tpFull,
-                color: "#faad14",
-              },
-              {
-                icon: <DashboardOutlined />,
-                title: "Отключенных ТП по 1 сек",
-                value: totals.tp1sec,
-                color: "#13c2c2",
-              },
-              {
-                icon: <ThunderboltOutlined />,
-                title: "Отключено ЛЭП 6–20 кВ",
-                value: totals.lines,
-                color: "#ff4d4f",
-              },
-              {
-                icon: <TeamOutlined />,
-                title: "Население",
-                value: totals.population,
-                color: "#13c2c2",
-              },
-              {
-                icon: <EnvironmentOutlined />,
-                title: "Городские округа",
-                value: totals.go,
-                color: "#722ed1",
-              },
-            ].map(({ icon, title, value, color }) => (
-              <Chip
-                key={title}
-                icon={icon}
-                title={title}
-                value={value}
-                color={color}
-              />
-            ))}
+          {[
+            {
+              icon: <ThunderboltOutlined />,
+              title: "Всего открытых ТН",
+              value: totals.totalOpen,
+              color: "#1575bc",
+            },
+            {
+              icon: <DashboardOutlined />,
+              title: "Отключенных ТП полностью",
+              value: totals.tpFull,
+              color: "#faad14",
+            },
+            {
+              icon: <DashboardOutlined />,
+              title: "Отключенных ТП по 1 сек",
+              value: totals.tp1sec,
+              color: "#13c2c2",
+            },
+            {
+              icon: <ThunderboltOutlined />,
+              title: "Отключено ЛЭП 6–20 кВ",
+              value: totals.lines,
+              color: "#ff4d4f",
+            },
+            {
+              icon: <TeamOutlined />,
+              title: "Население",
+              value: totals.population,
+              color: "#13c2c2",
+            },
+            {
+              icon: <EnvironmentOutlined />,
+              title: "Городские округа",
+              value: totals.go,
+              color: "#722ed1",
+            },
+          ].map(({ icon, title, value, color }) => (
+            <Chip
+              key={title}
+              icon={icon}
+              title={title}
+              value={value}
+              color={color}
+            />
+          ))}
 
-            {/* GUID — кнопка в том же визуальном размере */}
-            <Card
-              size="small"
-              bordered
-              styles={{ body: { padding: compact ? 6 : 8 } }}
-              style={{
-                borderRadius: 12,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Button
-                onClick={handleCopyGuids}
-                disabled={!rows?.length}
-                style={{ borderRadius: 10, width: "100%" }}
-              >
-                GUID
-              </Button>
-            </Card>
-          </div>
-
-          {/* правая колонка — круговая диаграмма */}
-          <div
+          {/* GUID — кнопка в том же визуальном размере */}
+          <Card
+            size="small"
+            bordered
+            styles={{ body: { padding: compact ? 6 : 8 } }}
             style={{
+              borderRadius: 12,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            <DonutToday />
-          </div>
+            <Button
+              onClick={handleCopyGuids}
+              disabled={!rows?.length}
+              style={{ borderRadius: 10, width: "100%" }}
+            >
+              GUID
+            </Button>
+          </Card>
         </div>
-      )}
+
+        {/* правая колонка — круговая диаграмма */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <DonutToday />
+        </div>
+      </div>
     </Card>
   );
 }
