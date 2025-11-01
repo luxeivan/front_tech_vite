@@ -50,8 +50,21 @@ const isOpenTN = (row) => {
   return v === true || v === 1 || v === "true";
 };
 
+/* ------------ unique sorted lists helpers ------------ */
+const uniqueSorted = (arr) =>
+  Array.from(new Set(arr.filter(Boolean).map((s) => String(s).replace(/\s+/g, " ").trim()))).sort((a,b) => a.localeCompare(b, "ru", { sensitivity: "base" }));
+
+const renderList = (items, heading) => (
+  <div style={{ maxHeight: 260, overflow: "auto", paddingRight: 8 }}>
+    <div style={{ fontWeight: 600, marginBottom: 6 }}>{heading}</div>
+    {items.length ? items.map((name, i) => (
+      <div key={name + i}>{i + 1}. {name}</div>
+    )) : "Нет данных"}
+  </div>
+);
+
 /* ------------ компактная карточка ------------ */
-const Chip = React.memo(function Chip({ icon, title, value, color, compact }) {
+const Chip = React.memo(function Chip({ icon, title, value, color, compact, tooltip }) {
   const v = Number(value || 0);
   const active = v > 0;
   const tone = active ? color : "#bfbfbf";
@@ -59,7 +72,7 @@ const Chip = React.memo(function Chip({ icon, title, value, color, compact }) {
   const CARD_SCALE = 0.42;
 
   return (
-    <Tooltip placement="bottom" title={title}>
+    <Tooltip placement="bottom" title={tooltip ?? title} overlayStyle={{ maxWidth: 420 }}>
       <Card
         hoverable
         size="small"
@@ -137,17 +150,17 @@ export default function PowerMosOblEnergo() {
   const sumField = (fieldOrFields) =>
     rows.reduce((sum, it) => sum + toNumber(pickAny(it, fieldOrFields)), 0);
 
-const norm = (v) =>
-  typeof v === "string" ? v.replace(/\s+/g, " ").trim().toLowerCase() : "";
-const uniqCountBy = (resolver) => {
-  const set = new Set();
-  rows.forEach((r) => {
-    const raw = resolver(r);
-    const val = norm(raw);
-    if (val) set.add(val);
-  });
-  return set.size;
-};
+  const norm = (v) =>
+    typeof v === "string" ? v.replace(/\s+/g, " ").trim().toLowerCase() : "";
+  const uniqCountBy = (resolver) => {
+    const set = new Set();
+    rows.forEach((r) => {
+      const raw = resolver(r);
+      const val = norm(raw);
+      if (val) set.add(val);
+    });
+    return set.size;
+  };
 
   const totals = useMemo(
     () => ({
@@ -163,6 +176,11 @@ const uniqCountBy = (resolver) => {
     }),
     [rows]
   );
+
+  const lists = useMemo(() => ({
+    filials: uniqueSorted(rows.map((r) => pickAny(r, "OWN_SCNAME"))),
+    pos: uniqueSorted(rows.map((r) => pickAny(r, "SCNAME"))),
+  }), [rows]);
 
   // загрузка только открытых ТН
   useEffect(() => {
@@ -246,6 +264,7 @@ const uniqCountBy = (resolver) => {
           value={totals.filials}
           color="#1575bc"
           compact={compact}
+          tooltip={renderList(lists.filials, "Филиалы")}
         />
         <Chip
           icon={<EnvironmentOutlined />}
@@ -253,6 +272,7 @@ const uniqCountBy = (resolver) => {
           value={totals.pos}
           color="#1575bc"
           compact={compact}
+          tooltip={renderList(lists.pos, "ПО")}
         />
         <Chip
           icon={<TeamOutlined />}
