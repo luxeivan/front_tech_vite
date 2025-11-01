@@ -69,6 +69,10 @@ const recoveryDate = (row) =>
   pick(row, "F81_070_RESTOR_SUPPLAYDATETIME") ??
   null;
 
+// Рабочие сутки 08:00→08:00: приводим дату к ключу суток со сдвигом -8ч
+const dayKey0808 = (v) =>
+  v ? dayjs(v).subtract(8, "hour").format("YYYY-MM-DD") : null;
+
 /* ---------------- компонент ---------------- */
 export default function InfoTN({ rows = [], rows7d = [] }) {
   const [compact, setCompact] = useState(false);
@@ -182,11 +186,9 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
 
   // Донат "за сегодня" (без двойного учёта)
   const DonutToday = () => {
-    const createdToday = rows7d.filter((r) =>
-      dayjs(startDate(r)).isSame(dayjs(), "day")
-    );
-
-    const sameDay = (v) => (v ? dayjs(v).isSame(dayjs(), "day") : false);
+    const todayKey = dayKey0808(dayjs());
+    const sameWorkday = (v) => (v ? dayKey0808(v) === todayKey : false);
+    const createdToday = rows7d.filter((r) => sameWorkday(startDate(r)));
 
     const isDeletedRow = (r) => {
       const st = String(
@@ -194,14 +196,14 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
       ).toLowerCase();
       const upd = pick(r, "updatedAt") ?? r?.updatedAt ?? null;
       const del = pick(r, "deletedAt") ?? r?.deletedAt ?? null;
-      return st.includes("удален") || st.includes("delete") || sameDay(del);
+      return st.includes("удален") || st.includes("delete") || sameWorkday(del);
     };
 
     const isClosedRow = (r) => {
       if (isOpenTN(r) || isDeletedRow(r)) return false;
       const upd = pick(r, "updatedAt") ?? r?.updatedAt ?? null;
       const rec = recoveryDate(r);
-      return sameDay(upd) || sameDay(rec);
+      return sameWorkday(upd) || sameWorkday(rec);
     };
 
     const openList = [];
