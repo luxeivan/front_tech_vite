@@ -204,17 +204,16 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
 
     const openList = [];
     const closedList = [];
-    const deletedList = [];
     createdToday.forEach((r) => {
-      if (isDeletedRow(r)) deletedList.push(r);
-      else if (isClosedRow(r)) closedList.push(r);
+      if (isDeletedRow(r)) return; // игнорируем удалённые
+      if (isClosedRow(r)) closedList.push(r);
       else openList.push(r);
     });
 
     const opened = openList.length;
     const closed = closedList.length;
-    const deleted = deletedList.length;
-    const total = createdToday.length;
+    // не учитываем удалённые в сумме
+    const total = opened + closed;
 
     const deg = (n) => (total ? (n / total) * 360 : 0);
     const dOpen = deg(opened);
@@ -225,9 +224,7 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
       width: size,
       height: size,
       borderRadius: "50%",
-      background: `conic-gradient(#ff7875 0 ${dOpen}deg, #52c41a ${dOpen}deg ${
-        dOpen + dClosed
-      }deg, #8c8c8c ${dOpen + dClosed}deg 360deg)`,
+      background: `conic-gradient(#ff7875 0 ${dOpen}deg, #52c41a ${dOpen}deg 360deg)`,
       position: "relative",
     };
     const innerStyle = {
@@ -291,7 +288,7 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <div>
           <div style={{ fontWeight: 700, color: "#1575bc", marginBottom: 6 }}>
-            За сегодня: открыто / закрыто / удалено
+            За сегодня: открыто / закрыто
           </div>
           <div style={ringStyle}>
             <div style={innerStyle}>
@@ -322,12 +319,6 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
             label="Закрыто"
             count={closed}
             list={closedList}
-          />
-          <LegendRow
-            color="#8c8c8c"
-            label="Удалено"
-            count={deleted}
-            list={deletedList}
           />
         </div>
       </div>

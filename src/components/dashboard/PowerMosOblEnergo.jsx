@@ -137,12 +137,24 @@ export default function PowerMosOblEnergo() {
   const sumField = (fieldOrFields) =>
     rows.reduce((sum, it) => sum + toNumber(pickAny(it, fieldOrFields)), 0);
 
-  const uniqCount = (getter) => new Set(rows.map(getter).filter(Boolean)).size;
+const norm = (v) =>
+  typeof v === "string" ? v.replace(/\s+/g, " ").trim().toLowerCase() : "";
+const uniqCountBy = (resolver) => {
+  const set = new Set();
+  rows.forEach((r) => {
+    const raw = resolver(r);
+    const val = norm(raw);
+    if (val) set.add(val);
+  });
+  return set.size;
+};
 
   const totals = useMemo(
     () => ({
-      filials: uniqCount((r) => pick(r, "OWN_SCNAME") || r?.OWN_SCNAME),
-      pos: uniqCount((r) => pick(r, "SCNAME") || r?.SCNAME),
+      // Филиалы считаем строго по OWN_SCNAME (уникальные значения)
+      filials: uniqCountBy((r) => pickAny(r, "OWN_SCNAME")),
+      // ПО считаем строго по SCNAME (уникальные значения)
+      pos: uniqCountBy((r) => pickAny(r, "SCNAME")),
       brigades: sumField("BRIGADECOUNT"),
       employees: sumField("EMPLOYEECOUNT"),
       tech: sumField("SPECIALTECHNIQUECOUNT"),
