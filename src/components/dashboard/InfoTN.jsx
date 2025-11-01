@@ -160,6 +160,7 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
     totalOpen: rows.length,
     tp: sumField("TP_ALL"),
     tpFull: sumField([
+      "TP_ALL",
       "TP_FULL_ALL",
       "TP_OFF_FULL_ALL",
       "TPFULL_ALL",
@@ -167,6 +168,7 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
       "TP_PL_FULL_ALL",
     ]),
     tp1sec: sumField([
+      "TP_SECTION",
       "TP_1SEC_ALL",
       "TP1SEC_ALL",
       "TP_1_SECTION_ALL",
