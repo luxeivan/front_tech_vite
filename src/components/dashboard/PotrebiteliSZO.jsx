@@ -269,18 +269,28 @@ export default function PotrebiteliSZO({ rowsOpen, loadingExternal }) {
     return acc;
   }, [effectiveRows]);
 
-  const items = [
-    { key: "boilers", icon: <FireOutlined />, title: "Котельные", color: "#eb2f96" },
-    { key: "ctp", icon: <DashboardOutlined />, title: "ЦТП", color: "#13c2c2" },
-    { key: "hosp", icon: <MedicineBoxOutlined />, title: "Больницы", color: "#1890ff" },
-    { key: "clinics", icon: <MedicineBoxOutlined />, title: "Поликлиники", color: "#722ed1" },
-    { key: "vzu", icon: <ExperimentOutlined />, title: "ВЗУ", color: "#722ed1" },
-    { key: "vns", icon: <BuildOutlined />, title: "ВНС", color: "#faad14" },
-    { key: "schools", icon: <ReadOutlined />, title: "Школы", color: "#52c41a" },
-    { key: "kindergartens", icon: <SmileOutlined />, title: "Д/С", color: "#fa541c" },
-    { key: "mkd", icon: <ApartmentOutlined />, title: "МКД", color: "#fa541c" },
-    { key: "izhs", icon: <BankOutlined />, title: "ИЖС", color: "#fa8c16" },
-    { key: "snt", icon: <ShopOutlined />, title: "СНТ", color: "#52c41a" },
+  const meta = {
+    boilers: { icon: <FireOutlined />, title: "Котельные", color: "#eb2f96" },
+    ctp: { icon: <DashboardOutlined />, title: "ЦТП", color: "#13c2c2" },
+    hosp: { icon: <MedicineBoxOutlined />, title: "Больницы", color: "#1890ff" },
+    clinics: { icon: <MedicineBoxOutlined />, title: "Поликлиники", color: "#722ed1" },
+    vzu: { icon: <ExperimentOutlined />, title: "ВЗУ", color: "#722ed1" },
+    vns: { icon: <BuildOutlined />, title: "ВНС", color: "#faad14" },
+    schools: { icon: <ReadOutlined />, title: "Школы", color: "#52c41a" },
+    kindergartens: { icon: <SmileOutlined />, title: "Д/С", color: "#fa541c" },
+    mkd: { icon: <ApartmentOutlined />, title: "МКД", color: "#fa541c" },
+    izhs: { icon: <BankOutlined />, title: "ИЖС", color: "#fa8c16" },
+    snt: { icon: <ShopOutlined />, title: "СНТ", color: "#52c41a" },
+  };
+
+  // Пары как в макете Миро: верх/низ в одной колонке
+  const PAIRS = [
+    ["boilers", "ctp"],
+    ["hosp", "clinics"],
+    ["vzu", "vns"],
+    ["schools", "kindergartens"],
+    ["mkd", "izhs"],
+    ["snt", null],
   ];
 
   return (
@@ -297,28 +307,43 @@ export default function PotrebiteliSZO({ rowsOpen, loadingExternal }) {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: `repeat(auto-fill, minmax(${compact ? 150 : 180}px, 1fr))`,
+            gridTemplateColumns: `repeat(auto-fit, minmax(${compact ? 150 : 180}px, 1fr))`,
             gap: compact ? 10 : 12,
             alignItems: "stretch",
           }}
         >
-          {items.map(({ key, icon, title, color }) => (
-            <Tooltip
-              key={key}
-              placement="bottom"
-              title={`${title}: ${Number(szoTotals[key] || 0).toLocaleString("ru-RU")}`}
-              overlayStyle={{ maxWidth: 420 }}
+          {PAIRS.map((pair, colIdx) => (
+            <div
+              key={colIdx}
+              style={{
+                display: "grid",
+                gridTemplateRows: "1fr 1fr",
+                gap: compact ? 8 : 10,
+              }}
             >
-              <div>
-                <Chip
-                  icon={icon}
-                  title={title}
-                  value={szoTotals[key]}
-                  color={color}
-                  compact={compact}
-                />
-              </div>
-            </Tooltip>
+              {pair.map((k, i) =>
+                k ? (
+                  <Tooltip
+                    key={k}
+                    placement="bottom"
+                    title={`${meta[k].title}: ${Number(szoTotals[k] || 0).toLocaleString("ru-RU")}`}
+                    overlayStyle={{ maxWidth: 420 }}
+                  >
+                    <div>
+                      <Chip
+                        icon={meta[k].icon}
+                        title={meta[k].title}
+                        value={szoTotals[k]}
+                        color={meta[k].color}
+                        compact={compact}
+                      />
+                    </div>
+                  </Tooltip>
+                ) : (
+                  <div key={`sp-${i}`} />
+                )
+              )}
+            </div>
           ))}
         </div>
       )}
