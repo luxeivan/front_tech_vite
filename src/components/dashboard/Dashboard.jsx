@@ -25,7 +25,7 @@ const { Title, Text } = Typography;
 const URL = import.meta.env.VITE_URL_BACKEND;
 const FIAS_COLLECTION = import.meta.env.VITE_STRAPI_FIAS_COLLECTION || "adress";
 
-const MAP_SCALE = 0.42;
+const MAP_SCALE = 0.55; // increase map height relative to viewport
 
 const isFiasGuid = (s) => {
   if (!s && s !== 0) return false;
@@ -250,7 +250,7 @@ export default function Dashboard() {
             maxWidth: "min(100vw, 2400px)",
             width: "100%",
             margin: "0 auto",
-            padding: "14px 24px",
+            padding: "12px 16px",
           }}
         >
           <Row align="middle" justify="start">
@@ -295,7 +295,7 @@ export default function Dashboard() {
           maxWidth: "min(100vw, 2400px)",
           width: "100%",
           margin: "0 auto",
-          padding: "12px 24px 24px",
+          padding: "12px 16px 20px",
         }}
       >
         <div
@@ -303,8 +303,8 @@ export default function Dashboard() {
             display: "grid",
             gridTemplateColumns: compact
               ? "1fr"
-              : "minmax(820px, 2.2fr) minmax(460px, 1fr)",
-            gap: compact ? 10 : 14,
+              : "minmax(700px, 1.4fr) minmax(560px, 1.6fr)", // give more room to the map (right column)
+            gap: compact ? 8 : 12,
             alignItems: "start",
           }}
         >

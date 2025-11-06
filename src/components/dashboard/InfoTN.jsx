@@ -7,6 +7,8 @@ import {
   DashboardOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
+import axios from "axios";
+const URL = import.meta.env.VITE_URL_BACKEND;
 
 /**
  * InfoTN — БЛОК 1: "Информация о ТН"
@@ -75,6 +77,10 @@ const dayKey0808 = (v) =>
 
 /* ---------------- компонент ---------------- */
 export default function InfoTN({ rows = [], rows7d = [] }) {
+  // локальный фолбэк на случай, если rows7d не передан сверху
+  const [rows7dLocal, setRows7dLocal] = useState([]);
+  const [loading7d, setLoading7d] = useState(false);
+
   const [compact, setCompact] = useState(false);
   useEffect(() => {
     const onResize = () => {
@@ -86,6 +92,47 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
+
+  // Подгружаем все ТН за 7 суток (08→08) если сверху не передали rows7d
+  useEffect(() => {
+    const needFetch = !Array.isArray(rows7d) || rows7d.length === 0;
+    if (!needFetch) return;
+
+    const load7d = async () => {
+      try {
+        setLoading7d(true);
+        const jwt = localStorage.getItem("jwt");
+        if (!jwt) throw new Error("Нет JWT");
+
+        const since7d = dayjs().startOf("day").subtract(6, "day").toISOString();
+        const qsAll7d = [
+          "pagination[page]=1",
+          "pagination[pageSize]=1000",
+          "sort[0]=createDateTime:DESC",
+          `filters[createDateTime][$gte]=${encodeURIComponent(since7d)}`,
+        ].join("&");
+
+        const resp = await axios.get(`${URL}/api/teh-narusheniyas?${qsAll7d}`, {
+          headers: { Authorization: `Bearer ${jwt}` },
+        });
+
+        const listAll7d = Array.isArray(resp?.data?.data)
+          ? resp.data.data.map((x) =>
+              x?.attributes ? { id: x.id, ...x.attributes } : x
+            )
+          : [];
+
+        setRows7dLocal(listAll7d);
+      } catch (e) {
+        console.warn("[InfoTN] 7d fetch error:", e?.message || e);
+        setRows7dLocal([]);
+      } finally {
+        setLoading7d(false);
+      }
+    };
+
+    load7d();
+  }, [rows7d]);
 
   // компактный Chip
   const Chip = React.memo(({ icon, title, value, color, tooltip }) => {
@@ -107,12 +154,15 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
             borderRadius: 14,
             backdropFilter: "saturate(130%) blur(2px)",
             boxShadow: "0 3px 10px rgba(18, 31, 53, .05)",
+            width: "100%",
+            minWidth: 0,
             height: "100%",
             opacity: active ? 1 : 0.9,
           }}
           styles={{
             body: {
-              padding: compact ? "6px 8px" : "8px 10px",
+              padding: compact ? "6px 10px" : "8px 12px",
+              whiteSpace: "normal",
             },
           }}
         >
@@ -121,9 +171,8 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
               display: "grid",
               gridTemplateColumns: `${compact ? 18 : 20}px 1fr auto`,
               alignItems: "center",
-              gap: compact ? 4 : 6,
-              minHeight: compact ? 46 : 54,
-              height: "100%",
+              gap: compact ? 6 : 8,
+              minHeight: compact ? 38 : 44,
             }}
           >
             <span style={{ fontSize: compact ? 14 : 16, color: tone }}>
@@ -133,14 +182,14 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
               style={{
                 lineHeight: 1.1,
                 color: labelColor,
-                fontSize: compact ? 9 : 10,
+                fontSize: compact ? 11 : 12,
               }}
             >
               {title}
             </div>
             <div
               style={{
-                fontSize: compact ? 14 : 18,
+                fontSize: compact ? 14 : 17,
                 fontWeight: 800,
                 color: tone,
               }}
@@ -152,7 +201,6 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
       </Tooltip>
     );
   });
-
 
   // sums a field, accepting either a single key or an array of fallback keys
   const sumField = (fieldOrFields) =>
@@ -184,11 +232,16 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
     go: uniqCount(districtName),
   };
 
+  const effectiveRows7d =
+    Array.isArray(rows7d) && rows7d.length ? rows7d : rows7dLocal;
+
   // Донат "за сегодня" (без двойного учёта)
   const DonutToday = () => {
     const todayKey = dayKey0808(dayjs());
     const sameWorkday = (v) => (v ? dayKey0808(v) === todayKey : false);
-    const createdToday = rows7d.filter((r) => sameWorkday(startDate(r)));
+    const createdToday = effectiveRows7d.filter((r) =>
+      sameWorkday(startDate(r))
+    );
 
     const isDeletedRow = (r) => {
       const st = String(
@@ -223,7 +276,7 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
     const dOpen = deg(opened);
     const dClosed = deg(closed);
 
-    const size = compact ? 110 : 135;
+    const size = compact ? 96 : 112;
     const ringStyle = {
       width: size,
       height: size,
@@ -270,7 +323,7 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 4,
+          gap: 2,
           cursor: list?.length ? "copy" : "default",
         }}
         onClick={() => list?.length && copyList(list, label)}
@@ -283,7 +336,7 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
             background: color,
           }}
         />
-        <span style={{ fontSize: 11, color: "#6b778c" }}>{label}</span>
+        <span style={{ fontSize: 10.5, color: "#6b778c" }}>{label}</span>
         <strong style={{ marginLeft: 4 }}>{count}</strong>
       </div>
     );
@@ -292,7 +345,7 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <div>
           <div style={{ fontWeight: 700, color: "#1575bc", marginBottom: 6 }}>
-            За сегодня: открыто / закрыто
+            За сегодня:
           </div>
           <div style={ringStyle}>
             <div style={innerStyle}>
@@ -314,7 +367,7 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           <LegendRow
             color="#ff7875"
-            label="Открыто (остаются)"
+            label="Открыты"
             count={opened}
             list={openList}
           />
@@ -328,7 +381,6 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
       </div>
     );
   };
-
 
   // copy GUIDs
   const handleCopyGuids = async () => {
@@ -363,14 +415,17 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
       title={
         <div style={{ fontWeight: 700, color: "#1575bc" }}>Информация о ТН</div>
       }
-      styles={{ body: { padding: compact ? 8 : 10 } }}
+      styles={{ body: { padding: compact ? 6 : 8 } }}
     >
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: compact ? "1fr" : "1.4fr 1fr",
-          gap: 12,
-          alignItems: "stretch",
+          gridTemplateColumns: compact
+            ? "1fr"
+            : "minmax(520px,1.2fr) minmax(300px,0.8fr)",
+          columnGap: 16,
+          rowGap: 6,
+          alignItems: "start",
         }}
       >
         {/* левая колонка — компактные карточки */}
@@ -378,10 +433,14 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
           style={{
             display: "grid",
             gridTemplateColumns: `repeat(auto-fill, minmax(${
-              compact ? 150 : 180
+              compact ? 150 : 168
             }px, 1fr))`,
-            gap: compact ? 10 : 12,
+            columnGap: compact ? 10 : 12,
+            rowGap: compact ? 10 : 12,
+            gridAutoRows: "minmax(44px, auto)",
+            justifyItems: "stretch",
             alignItems: "stretch",
+            alignContent: "start",
           }}
         >
           {[
@@ -435,9 +494,9 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
           <Card
             size="small"
             bordered
-            styles={{ body: { padding: compact ? 6 : 8 } }}
+            styles={{ body: { padding: compact ? 3 : 5 } }}
             style={{
-              borderRadius: 12,
+              borderRadius: 10,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -446,7 +505,7 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
             <Button
               onClick={handleCopyGuids}
               disabled={!rows?.length}
-              style={{ borderRadius: 10, width: "100%" }}
+              style={{ borderRadius: 8, width: "100%" }}
             >
               GUID
             </Button>
@@ -458,7 +517,8 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
           style={{
             display: "flex",
             alignItems: "center",
-            justifyContent: "center",
+            justifyContent: "flex-start",
+            paddingLeft: compact ? 12 : 16,
           }}
         >
           <DonutToday />

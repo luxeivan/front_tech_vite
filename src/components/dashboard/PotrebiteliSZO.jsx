@@ -15,7 +15,7 @@ import {
 import axios from "axios";
 
 const URL = import.meta.env.VITE_URL_BACKEND;
-const CARD_SCALE = 0.42;
+const CARD_SCALE = 0.36;
 
 /* ---------------- helpers ---------------- */
 const s = (v) =>
@@ -121,40 +121,39 @@ const Chip = React.memo(function Chip({ icon, title, value, color, compact }) {
         borderRadius: 14,
         backdropFilter: "saturate(130%) blur(2px)",
         boxShadow: "0 3px 10px rgba(18, 31, 53, .05)",
-        height: "100%",
+        width: "max-content",
         opacity: active ? 1 : 0.9,
+        minWidth: 112,
       }}
       styles={{
         body: {
-          padding: compact
-            ? `${Math.round(6 * CARD_SCALE)}px ${Math.round(8 * CARD_SCALE)}px`
-            : `${Math.round(8 * CARD_SCALE)}px ${Math.round(10 * CARD_SCALE)}px`,
+          padding: compact ? "3px 8px" : "5px 10px",
+          whiteSpace: "nowrap",
         },
       }}
     >
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: `${compact ? 18 : 20}px 1fr auto`,
+          gridTemplateColumns: `${compact ? 18 : 20}px auto auto`,
           alignItems: "center",
-          gap: compact ? 4 : 6,
-          minHeight: Math.round((compact ? 50 : 56) * CARD_SCALE),
-          height: "100%",
+          gap: compact ? 3 : 5,
+          minHeight: compact ? 28 : 32,
         }}
       >
-        <span style={{ fontSize: compact ? 14 : 16, color: tone }}>{icon}</span>
+        <span style={{ fontSize: compact ? 12 : 14, color: tone }}>{icon}</span>
         <div
           style={{
             lineHeight: 1.1,
             color: labelColor,
-            fontSize: compact ? 9 : 10,
+            fontSize: compact ? 8.5 : 9.5,
           }}
         >
           {title}
         </div>
         <div
           style={{
-            fontSize: compact ? 14 : 18,
+            fontSize: compact ? 12.5 : 15,
             fontWeight: 800,
             color: tone,
           }}
@@ -297,7 +296,7 @@ export default function PotrebiteliSZO({ rowsOpen, loadingExternal }) {
     <Card
       style={{ borderRadius: 20, marginBottom: 8 }}
       title={<div style={{ fontWeight: 700, color: "#1575bc" }}>Потребители и СЗО</div>}
-      styles={{ body: { padding: compact ? 8 : 10 } }}
+      styles={{ body: { padding: compact ? 6 : 8 } }}
     >
       {effectiveLoading ? (
         <Space style={{ width: "100%", justifyContent: "center", padding: 12 }}>
@@ -307,9 +306,11 @@ export default function PotrebiteliSZO({ rowsOpen, loadingExternal }) {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: `repeat(auto-fit, minmax(${compact ? 150 : 180}px, 1fr))`,
-            gap: compact ? 10 : 12,
-            alignItems: "stretch",
+            gridTemplateColumns: `repeat(auto-fit, minmax(${compact ? 112 : 128}px, max-content))`,
+            justifyContent: "start",
+            columnGap: compact ? 8 : 10,
+            rowGap: compact ? 6 : 8,
+            alignItems: "start",
           }}
         >
           {PAIRS.map((pair, colIdx) => (
@@ -317,8 +318,10 @@ export default function PotrebiteliSZO({ rowsOpen, loadingExternal }) {
               key={colIdx}
               style={{
                 display: "grid",
-                gridTemplateRows: "1fr 1fr",
-                gap: compact ? 8 : 10,
+                gridTemplateRows: "auto auto",
+                gap: compact ? 5 : 7,
+                width: "max-content",
+                marginBottom: 0,
               }}
             >
               {pair.map((k, i) =>
