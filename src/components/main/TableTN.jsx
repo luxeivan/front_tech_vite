@@ -327,6 +327,107 @@ function SzoCell({ tags }) {
   );
 }
 
+// === Journal send-status helpers ===
+function parseDateFromJournalLine(line) {
+  if (!line || typeof line !== "string") return 0;
+  const m = line.match(/-\s(\d{2}\.\d{2}\.\d{4}\s\d{2}:\d{2}:\d{2})\s-/);
+  if (!m) return 0;
+  const [dd, mm, yyyy, hh, min, ss] = m[1]
+    .replace(/\./g, " ")
+    .replace(/:/g, " ")
+    .split(" ")
+    .map(Number);
+  return new Date(yyyy, mm - 1, dd, hh, min, ss).getTime();
+}
+
+function normalizeChannelName(raw) {
+  const x = String(raw || "").toLowerCase();
+  if (x.includes("едд")) return "edds"; // ЕДДС
+  if (x.includes("мэс")) return "mes";  
+  if (x.includes("мин") && x.includes("энерг")) return "minenergo"; 
+  if (x.includes("сбыт") || x.includes("мосэнергосб")) return "mosenergosbyt"; 
+  return null;
+}
+
+function parseJournalStatuses(lines) {
+  // returns { byGuid: {guid: {edds?:boolean,mes?:boolean,minenergo?:boolean,mosenergosbyt?:boolean}}, byNumber: {num: same} }
+  const byGuid = {};
+  const byNumber = {};
+  const upsert = (dict, key, ch, ok, ts) => {
+    if (!key) return;
+    const prev = dict[key] || {};
+    const prevTs = prev.__ts?.[ch] || 0;
+    if (!prev.__ts) prev.__ts = {};
+    if (ts >= prevTs) {
+      prev[ch] = ok;
+      prev.__ts[ch] = ts;
+    }
+    dict[key] = prev;
+  };
+
+  (Array.isArray(lines) ? lines : []).forEach((line) => {
+    if (typeof line !== "string" || !line.trim()) return;
+    const ts = parseDateFromJournalLine(line);
+    const num = (line.match(/№\s*(\d+)/i) || [])[1] || null;
+    const guid = (line.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i) || [])[0] || null;
+    const ch = normalizeChannelName((line.match(/-\s*\d{2}\.\d{2}\.\d{4}\s\d{2}:\d{2}:\d{2}\s*-\s*([^\-\n\r:]+?)\s*-/) || [])[1]);
+    if (!ch) return;
+    const isError = /(ошиб|error|fail|не\s*отправ)/i.test(line);
+    const ok = !isError; // если есть запись и нет явной ошибки — считаем отправленным
+    if (guid) upsert(byGuid, String(guid), ch, ok, ts);
+    if (num) upsert(byNumber, String(num), ch, ok, ts);
+  });
+
+  // удаляем служебные таймстампы перед возвратом
+  const strip = (obj) => {
+    const out = {};
+    Object.entries(obj).forEach(([k, v]) => {
+      const c = { ...v };
+      delete c.__ts;
+      out[k] = c;
+    });
+    return out;
+  };
+
+  return { byGuid: strip(byGuid), byNumber: strip(byNumber) };
+}
+
+const SEND_CHANNELS = [
+  { key: "edds", label: "ЕДДС" },
+  { key: "mes", label: "МЭС" },
+  { key: "minenergo", label: "МинЭ" },
+  { key: "mosenergosbyt", label: "МосЭсб" },
+];
+
+function StatusDot({ ok, label }) {
+  const color = ok === true ? "#52c41a" : ok === false ? "#ff4d4f" : "#d9d9d9";
+  return (
+    <Tooltip title={`${label}: ${ok === true ? "отправлено" : ok === false ? "не отправлено" : "нет данных"}`}>
+      <span
+        style={{
+          display: "inline-block",
+          width: 10,
+          height: 10,
+          borderRadius: "50%",
+          background: color,
+        }}
+      />
+    </Tooltip>
+  );
+}
+
+function SendDots({ st }) {
+  const s = st || {};
+  return (
+    <Space size={8}>
+      {SEND_CHANNELS.map((c) => (
+        <StatusDot key={c.key} ok={s[c.key]} label={c.label} />
+      ))}
+    </Space>
+  );
+}
+// === /Journal send-status helpers ===
+
 const defaultPageSize = 10;
 const defaultPage = 1;
 
@@ -352,6 +453,34 @@ export default function TableTN() {
   const audioRef = React.useRef(null);
   const prevOpenGuidsRef = React.useRef(new Set());
   const firstScanDoneRef = React.useRef(false);
+
+  // === Journal send status state ===
+  const { getJwt, getUserMe } = useAuth((s) => s);
+  const [sendStatus, setSendStatus] = useState({ byGuid: {}, byNumber: {} });
+  const loadSendStatus = React.useCallback(async () => {
+    try {
+      await getUserMe?.();
+      const jwt = getJwt?.();
+      const base = import.meta.env.VITE_URL_BACKEND;
+      const url = `${base}/api/zhurnal-otpravkis?pagination[page]=1&pagination[pageSize]=1&sort[0]=updatedAt:desc`;
+      const r = await fetch(url, {
+        headers: {
+          "Content-Type": "application/json",
+          ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
+        },
+      });
+      const data = await r.json().catch(() => ({}));
+      const arr = Array.isArray(data?.data) && data.data.length > 0 ? data.data[0]?.data : [];
+      setSendStatus(parseJournalStatuses(arr));
+    } catch (e) {
+      // молча игнорируем сбой журнала, чтобы таблица не падала
+      setSendStatus({ byGuid: {}, byNumber: {} });
+    }
+  }, [getJwt, getUserMe]);
+
+  React.useEffect(() => {
+    loadSendStatus();
+  }, [loadSendStatus]);
 
   const handleStatusChange = (vals) => {
     setSelectedStatuses(vals || []);
@@ -444,13 +573,12 @@ export default function TableTN() {
 
     const scheduleRefresh = (delay = 800) => {
       clearTimeout(timer);
-      // timer = setTimeout(() => {
-      //   getTns();
-      // }, delay);
-
       if (refreshLocked) return;
       timer = setTimeout(() => {
-        if (!refreshLocked) getTns();
+        if (!refreshLocked) {
+          getTns();
+          loadSendStatus();
+        }
       }, delay);
     };
 
@@ -483,7 +611,7 @@ export default function TableTN() {
         es?.close();
       } catch {}
     };
-  }, [getTns]);
+  }, [getTns, loadSendStatus]);
 
   // === /LIVE ПОДПИСКА ===
 
@@ -610,6 +738,9 @@ export default function TableTN() {
       src.id;
     const resolvedGuid = extractGuid(item);
     const ts = dayjs(getCreateDate(item)).valueOf();
+    const send = (resolvedGuid && sendStatus.byGuid[resolvedGuid]) ||
+                 (src.number != null && sendStatus.byNumber[String(src.number)]) ||
+                 null;
 
     return {
       key: src.id ?? item.id,
@@ -622,6 +753,7 @@ export default function TableTN() {
       createTs: ts,
       documentId: docId,
       szoTags,
+      send,
       sendedEdds: (
         <Button
           disabled={src.sendedEdds}
@@ -711,6 +843,14 @@ export default function TableTN() {
       ellipsis: true,
     },
     {
+      title: "Отправки",
+      dataIndex: "send",
+      key: "send",
+      width: 150,
+      render: (st) => <SendDots st={st} />,
+      ellipsis: true,
+    },
+    {
       title: "Дата/время возникновения",
       dataIndex: "createDateTime",
       key: "createDateTime",
@@ -797,6 +937,7 @@ export default function TableTN() {
             disabled={isLoadingTns}
             onClick={() => {
               getTns();
+              loadSendStatus();
             }}
           >
             <ReloadOutlined />
