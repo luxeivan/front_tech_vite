@@ -245,7 +245,7 @@ export default function RegionSZO({ rowsOpen, loadingExternal }) {
                 <th style={th}>МКД</th>
                 <th style={th}>ИЖС</th>
                 <th style={th}>СНТ</th>
-                <th style={th}>Объекты связи</th>
+                <th style={th}>ОС</th>
               </tr>
             </thead>
             <tbody>

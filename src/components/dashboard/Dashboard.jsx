@@ -335,8 +335,6 @@ export default function Dashboard() {
                 <PotrebiteliSZO />
                 {/* ===== Блок 3: Задействовано сил и средств Мособлэнерго ===== */}
                 <PowerMosOblEnergo />
-                {/* ===== Блок 4: Динамика ТН за 7 дней ===== */}
-                <Dinamica7Days />
                 {/* ===== Блок 5: СЗО по округам ===== */}
                 <RegionSZO />
               </>
@@ -381,6 +379,9 @@ export default function Dashboard() {
                 />
               </div>
             </Card>
+            <div style={{ marginTop: 12 }}>
+              <Dinamica7Days />
+            </div>
           </div>
         </div>
       </div>
