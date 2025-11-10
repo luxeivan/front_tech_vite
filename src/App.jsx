@@ -14,13 +14,12 @@ function App() {
     useAuth((store) => store);
   useEffect(() => {
     getJwt();
-    getFieldsSetting();
   }, []);
   useEffect(() => {
     getFieldsSetting();
   }, [isAuth]);
 
-  const authOk = isAuth || !!localStorage.getItem("jwt");
+  const authOk = isAuth;
 
   return (
     <BrowserRouter>
