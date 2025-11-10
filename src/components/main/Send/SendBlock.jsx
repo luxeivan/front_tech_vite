@@ -75,39 +75,39 @@ export default function SendBlock({ tn, documentId, refresh }) {
     );
   };
 
-  const handleTestEdds = () => {
-    try {
-      if (!eddsPayload) {
-        showAlert("warning", "Нет данных для теста ЕДДС");
-        return;
-      }
-      console.log(
-        "ЕДДС: тестовый JSON без отправки →\n" +
-          JSON.stringify(eddsPayload, null, 2)
-      );
-      showAlert("success", "Тест ЕДДС: JSON выведен в консоль");
-    } catch (e) {
-      console.error("Тест ЕДДС: ошибка подготовки JSON:", e);
-      showAlert("error", "Тест ЕДДС: ошибка подготовки JSON");
-    }
-  };
+  // const handleTestEdds = () => {
+  //   try {
+  //     if (!eddsPayload) {
+  //       showAlert("warning", "Нет данных для теста ЕДДС");
+  //       return;
+  //     }
+  //     console.log(
+  //       "ЕДДС: тестовый JSON без отправки →\n" +
+  //         JSON.stringify(eddsPayload, null, 2)
+  //     );
+  //     showAlert("success", "Тест ЕДДС: JSON выведен в консоль");
+  //   } catch (e) {
+  //     console.error("Тест ЕДДС: ошибка подготовки JSON:", e);
+  //     showAlert("error", "Тест ЕДДС: ошибка подготовки JSON");
+  //   }
+  // };
 
-  const handleTestMes = () => {
-    try {
-      if (!mesPayload) {
-        showAlert("warning", "Нет данных для теста МосЭнергоСбыта");
-        return;
-      }
-      console.log(
-        "МосЭнергоСбыт: тестовый JSON без отправки →\n" +
-          JSON.stringify(mesPayload, null, 2)
-      );
-      showAlert("success", "Тест МосЭнергоСбыт: JSON выведен в консоль");
-    } catch (e) {
-      console.error("Тест МосЭнергоСбыт: ошибка подготовки JSON:", e);
-      showAlert("error", "Тест МосЭнергоСбыт: ошибка подготовки JSON");
-    }
-  };
+  // const handleTestMes = () => {
+  //   try {
+  //     if (!mesPayload) {
+  //       showAlert("warning", "Нет данных для теста МосЭнергоСбыта");
+  //       return;
+  //     }
+  //     console.log(
+  //       "МосЭнергоСбыт: тестовый JSON без отправки →\n" +
+  //         JSON.stringify(mesPayload, null, 2)
+  //     );
+  //     showAlert("success", "Тест МосЭнергоСбыт: JSON выведен в консоль");
+  //   } catch (e) {
+  //     console.error("Тест МосЭнергоСбыт: ошибка подготовки JSON:", e);
+  //     showAlert("error", "Тест МосЭнергоСбыт: ошибка подготовки JSON");
+  //   }
+  // };
 
   const handleSend = async () => {
     try {
@@ -251,12 +251,12 @@ export default function SendBlock({ tn, documentId, refresh }) {
           Отправить
         </Button>
 
-        <Button onClick={handleTestEdds} disabled={sending || !eddsPayload}>
+        {/* <Button onClick={handleTestEdds} disabled={sending || !eddsPayload}>
           Тест ЕДДС
         </Button>
         <Button onClick={handleTestMes} disabled={sending || !mesPayload}>
           Тест МосЭнергоСбыт
-        </Button>
+        </Button> */}
       </Flex>
 
       <Typography.Paragraph type="secondary" style={{ marginTop: 6 }}>

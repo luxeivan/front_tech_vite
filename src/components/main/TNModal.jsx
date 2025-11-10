@@ -205,11 +205,13 @@ export default function TNModal({ open, documentId, onClose }) {
       destroyOnClose
     >
       {/* ВАЖНО: передаём tnEffective, чтобы JSON для ЕДДС был по текущим значениям */}
-      <SendBlock
-        tn={tnEffective}
-        documentId={documentId}
-        refresh={() => getTn(documentId)}
-      />
+      {canEdit && (
+        <SendBlock
+          tn={tnEffective}
+          documentId={documentId}
+          refresh={() => getTn(documentId)}
+        />
+      )}
 
       {isLoadingTn ? (
         <Flex justify="center" style={{ padding: 24 }}>
