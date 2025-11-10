@@ -1,7 +1,6 @@
-
-
 import React from "react";
 import { Modal, Alert, List, Space, Typography, Skeleton, message } from "antd";
+import axios from "axios";
 import useAuth from "../../stores/useAuth";
 
 const { Text } = Typography;
@@ -22,50 +21,59 @@ function parseDateFromLine(line) {
 }
 
 export default function JournalOpenModal({ open, onClose }) {
-  const { getJwt, getUserMe } = useAuth((s) => s);
+  const { getUserMe } = useAuth((s) => s);
   const [lines, setLines] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
 
   const loadJournal = React.useCallback(async () => {
     try {
       setLoading(true);
-      await getUserMe?.(); // чтобы в сторе был свежий user/jwt
-      const jwt = getJwt?.();
+
+      // Обновим пользователя/сессию (интерцептор сам подмешает JWT)
+      await getUserMe?.();
+
       const base = import.meta.env.VITE_URL_BACKEND;
-      const url =
-        `${base}/api/zhurnal-otpravkis` +
-        `?pagination[page]=1&pagination[pageSize]=1&sort[0]=updatedAt:desc`;
+      const url = `${base}/api/zhurnal-otpravkis`;
 
-      const r = await fetch(url, {
-        headers: {
-          "Content-Type": "application/json",
-          ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
-        },
-      });
+      // В axios корректно сериализуем вложенные параметры в стиле Strapi
+      const params = {
+        'pagination[page]': 1,
+        'pagination[pageSize]': 1,
+        'sort[0]': 'updatedAt:desc',
+      };
 
-      const data = await r.json().catch(() => ({}));
-      if (!r.ok) {
-        throw new Error(data?.error?.message || "Не удалось получить журнал");
+      const { data: payload } = await axios.get(url, { params });
+
+      // Strapi v4: item has shape { id, attributes: { data: [...] } }
+      const firstItem = Array.isArray(payload?.data) && payload.data.length > 0 ? payload.data[0] : null;
+      let arr = firstItem?.attributes?.data ?? firstItem?.data ?? [];
+
+      // Если бэк отдал строку ("one per line"), превратим в массив
+      if (!Array.isArray(arr) && typeof arr === "string") {
+        arr = arr.split(/\r?\n/).filter(Boolean);
       }
 
-      const arr = Array.isArray(data?.data) && data.data.length > 0
-        ? data.data[0]?.data
-        : [];
-
-      // Стравниваем и сортируем: от свежих к старым (сверху вниз)
       const prepared = Array.isArray(arr) ? [...arr] : [];
       prepared.sort((a, b) => parseDateFromLine(b) - parseDateFromLine(a));
       setLines(prepared);
+
+      console.log("[journalModal] loaded entries:", Array.isArray(prepared) ? prepared.length : 0);
     } catch (e) {
+      const status = e?.response?.status;
+      const backendMsg = e?.response?.data?.error?.message;
+      if (status === 401) {
+        message.warning("Сессия истекла. Войдите снова.");
+      } else if (status === 403) {
+        message.error("Недостаточно прав для чтения журнала (403). Проверьте роли/permissions в Strapi.");
+      } else {
+        message.error(backendMsg || e?.message || "Ошибка загрузки журнала. Попробуйте обновить страницу.");
+      }
       console.log("[journalModal] load error", e);
-      message.error(
-        e?.message || "Ошибка загрузки журнала. Попробуйте обновить страницу."
-      );
       setLines([]);
     } finally {
       setLoading(false);
     }
-  }, [getJwt, getUserMe]);
+  }, [getUserMe]);
 
   React.useEffect(() => {
     if (open) loadJournal();
@@ -103,7 +111,7 @@ export default function JournalOpenModal({ open, onClose }) {
               size="small"
               bordered
               dataSource={lines}
-              renderItem={(item, idx) => (
+              renderItem={(item) => (
                 <List.Item>
                   <Text style={{ whiteSpace: "pre-wrap" }}>{item}</Text>
                 </List.Item>

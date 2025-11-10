@@ -14,6 +14,7 @@ import {
   Input,
 } from "antd";
 import React, { useEffect, useState } from "react";
+import axios from "axios";
 import useData from "../../stores/useData";
 import dayjs from "dayjs";
 import { ReloadOutlined } from "@ant-design/icons";
@@ -455,28 +456,31 @@ export default function TableTN() {
   const firstScanDoneRef = React.useRef(false);
 
   // === Journal send status state ===
-  const { getJwt, getUserMe } = useAuth((s) => s);
+  const { getUserMe } = useAuth((s) => s);
   const [sendStatus, setSendStatus] = useState({ byGuid: {}, byNumber: {} });
   const loadSendStatus = React.useCallback(async () => {
     try {
+      // обновим сессию/пользователя; интерцептор сам подмешает JWT
       await getUserMe?.();
-      const jwt = getJwt?.();
       const base = import.meta.env.VITE_URL_BACKEND;
-      const url = `${base}/api/zhurnal-otpravkis?pagination[page]=1&pagination[pageSize]=1&sort[0]=updatedAt:desc`;
-      const r = await fetch(url, {
-        headers: {
-          "Content-Type": "application/json",
-          ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
-        },
-      });
-      const data = await r.json().catch(() => ({}));
-      const arr = Array.isArray(data?.data) && data.data.length > 0 ? data.data[0]?.data : [];
+      const url = `${base}/api/zhurnal-otpravkis`;
+      const params = {
+        'pagination[page]': 1,
+        'pagination[pageSize]': 1,
+        'sort[0]': 'updatedAt:desc',
+      };
+      const { data: payload } = await axios.get(url, { params });
+      const firstItem = Array.isArray(payload?.data) && payload.data.length > 0 ? payload.data[0] : null;
+      let arr = firstItem?.attributes?.data ?? firstItem?.data ?? [];
+      if (!Array.isArray(arr) && typeof arr === 'string') {
+        arr = arr.split(/\r?\n/).filter(Boolean);
+      }
       setSendStatus(parseJournalStatuses(arr));
     } catch (e) {
       // молча игнорируем сбой журнала, чтобы таблица не падала
       setSendStatus({ byGuid: {}, byNumber: {} });
     }
-  }, [getJwt, getUserMe]);
+  }, [getUserMe]);
 
   React.useEffect(() => {
     loadSendStatus();
@@ -595,7 +599,7 @@ export default function TableTN() {
       };
 
       es.onerror = () => {
-        console.warn("⚠️ SSE ошибка/разрыв, переподключение через 3с…");
+        // console.warn("⚠️ SSE ошибка/разрыв, переподключение через 3с…");
         try {
           es.close();
         } catch {}
