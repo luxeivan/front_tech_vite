@@ -328,6 +328,8 @@ function SzoCell({ tags }) {
   );
 }
 
+// Проверка что всё окс работает
+
 // === Journal send-status helpers ===
 function parseDateFromJournalLine(line) {
   if (!line || typeof line !== "string") return 0;
