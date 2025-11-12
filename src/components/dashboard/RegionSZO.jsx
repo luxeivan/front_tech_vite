@@ -39,11 +39,81 @@ const classifySocialTyp = (t) => {
   return null;
 };
 
+// Число из строки/числа безопасно
+const toNumber = (v) => {
+  if (v == null) return 0;
+  // unwrap { value: ... }
+  if (typeof v === "object" && "value" in v) return toNumber(v.value);
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string") {
+    const normalized = v.replace(/[^\d.,-]/g, "").replace(",", ".");
+    const parsed = parseFloat(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+};
+
+// Кол-во отключённых людей из строки ТН
+const getRowPeopleCount = (row) => {
+  const raw = row?.data?.data ?? row?.data ?? row ?? {};
+  // 1) Явные поля
+  const fields = [
+    // приоритет — как в блоке InfoTN
+    "POPULATION_COUNT",
+    "populationCount",
+    "POPULATION_CNT",
+    "PEOPLE_COUNT",
+    "peopleCount",
+    "AFFECTED_POPULATION",
+    "affectedPopulation",
+    // прежние ключи
+    "PEOPLE_OFF",
+    "peopleOff",
+    "PEOPLE",
+    "PEOPLE_ALL",
+    "AFFECTED_PEOPLE",
+    "affectedPeople",
+    "RESIDENTS_OFF",
+    "residentsOff",
+    "CITIZENS_OFF",
+    "citizensOff",
+    "POPULATION_OFF",
+    "populationOff",
+    "POPULATION",
+    "population",
+    "ABONENTS_OFF", // иногда путают «абонентов» и «людей»
+    "abonentsOff",
+  ];
+  for (const f of fields) {
+    const val = raw[f];
+    if (val != null && toNumber(val) > 0) return toNumber(val);
+  }
+  // 2) Попробуем собрать из SocialObjects
+  const socials = Array.isArray(raw.SocialObjects) ? raw.SocialObjects : [];
+  if (socials.length) {
+    let sum = 0;
+    socials.forEach((it) => {
+      const v =
+        it?.People ??
+        it?.PEOPLE ??
+        it?.Population ??
+        it?.population ??
+        it?.Residents ??
+        it?.residents ??
+        0;
+      sum += toNumber(v);
+    });
+    if (sum > 0) return sum;
+  }
+  return 0;
+};
+
 // Подсчёт СЗО для одной строки ТН (уникализируем по FIAS/Name; при отсутствии массива — фолбэки по *_ALL)
 const getRowSzoCounts = (row) => {
   const raw = row?.data?.data ?? row?.data ?? row ?? {};
   const socials = Array.isArray(raw.SocialObjects) ? raw.SocialObjects : [];
   const base = {
+    people: 0,
     boilers: 0,
     ctp: 0,
     hosp: 0,
@@ -95,6 +165,8 @@ const getRowSzoCounts = (row) => {
     base.izhs = num(raw.PRIVATE_HOUSE_ALL);
     base.snt = num(raw.SNT_ALL);
   }
+  // Количество отключённых людей
+  base.people = getRowPeopleCount(row);
   return base;
 };
 
@@ -173,6 +245,7 @@ export default function RegionSZO({ rowsOpen, loadingExternal }) {
       const z = getRowSzoCounts(r);
       if (!acc.has(d))
         acc.set(d, {
+          people: 0,
           boilers: 0,
           ctp: 0,
           hosp: 0,
@@ -214,6 +287,8 @@ export default function RegionSZO({ rowsOpen, loadingExternal }) {
     borderBottom: "1px solid #f0f0f0",
   };
 
+  const fmtInt = (n) => new Intl.NumberFormat("ru-RU").format(Number(n || 0));
+
   return (
     <Card
       style={{ borderRadius: 20, marginTop: 8 }}
@@ -234,12 +309,13 @@ export default function RegionSZO({ rowsOpen, loadingExternal }) {
             <thead>
               <tr>
                 <th style={{ ...th, textAlign: "left" }}>Городской округ</th>
+                <th style={th} title="Количество отключённых людей">Чел</th>
                 <th style={th}>Котельные</th>
                 <th style={th}>ЦТП</th>
                 <th style={th}>Больницы</th>
-                <th style={th}>Поликлиники</th>
+                <th style={th}>Поликл</th>
                 <th style={th}>Школы</th>
-                <th style={th}>Детские сады</th>
+                <th style={th}>Дет.сады</th>
                 <th style={th}>ВЗУ</th>
                 <th style={th}>ВНС</th>
                 <th style={th}>МКД</th>
@@ -252,6 +328,7 @@ export default function RegionSZO({ rowsOpen, loadingExternal }) {
               {rowsView.map(([d, v], i) => (
                 <tr key={d} style={{ background: i % 2 ? "#fff" : "#fcfcfc" }}>
                   <td style={{ ...td, textAlign: "left" }}>{d}</td>
+                  <td style={td}>{fmtInt(v.people || 0)}</td>
                   <td style={td}>{v.boilers || 0}</td>
                   <td style={td}>{v.ctp || 0}</td>
                   <td style={td}>{v.hosp || 0}</td>
@@ -268,7 +345,7 @@ export default function RegionSZO({ rowsOpen, loadingExternal }) {
               ))}
               {rowsView.length === 0 && (
                 <tr>
-                  <td style={{ ...td, textAlign: "left" }} colSpan={13}>
+                  <td style={{ ...td, textAlign: "left" }} colSpan={14}>
                     Нет данных
                   </td>
                 </tr>

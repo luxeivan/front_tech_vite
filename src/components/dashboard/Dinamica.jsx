@@ -149,7 +149,8 @@ export default function Dinamica7Days() {
       ).length;
       const closed = createdDay.filter((r) => isClosedRow(r)).length;
       const deleted = createdDay.filter((r) => isDeletedRow(r)).length;
-      const total = opened + closed + deleted;
+      // Не считаем удалённые в total — они только для тултипов/диагностики
+      const total = opened + closed;
 
       return { label: ruDow[d.day()], opened, closed, deleted, total };
     });
