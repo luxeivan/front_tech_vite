@@ -202,11 +202,33 @@ export function buildEddsPayload(tn) {
   };
 
   const required = {
-    required_brigades: valOrZero(raw.need_brigade_count),
-    required_workers: valOrZero(raw.need_person_count),
-    required_equipment: valOrZero(raw.need_equipment_count),
+    required_brigades: valOrZero(
+      tn?.required_brigades ??
+        tn?.attributes?.required_brigades ??
+        obj?.required_brigades ??
+        raw?.required_brigades ??
+        raw?.need_brigade_count
+    ),
+    required_workers: valOrZero(
+      tn?.required_workers ??
+        tn?.attributes?.required_workers ??
+        obj?.required_workers ??
+        raw?.required_workers ??
+        raw?.need_person_count
+    ),
+    required_equipment: valOrZero(
+      tn?.required_equipment ??
+        tn?.attributes?.required_equipment ??
+        obj?.required_equipment ??
+        raw?.required_equipment ??
+        raw?.need_equipment_count
+    ),
     required_emergency_power_supply: valOrZero(
-      raw.need_reserve_power_source_count
+      tn?.required_emergency_power_supply ??
+        tn?.attributes?.required_emergency_power_supply ??
+        obj?.required_emergency_power_supply ??
+        raw?.required_emergency_power_supply ??
+        raw?.need_reserve_power_source_count
     ),
   };
 

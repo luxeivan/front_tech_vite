@@ -34,9 +34,17 @@ export default function TNModal({ open, documentId, onClose }) {
 
   const [overridePesCount, setOverridePesCount] = useState(null);
   const [overridePesPower, setOverridePesPower] = useState(null);
+  const [overrideReqBrigades, setOverrideReqBrigades] = useState(null);
+  const [overrideReqWorkers, setOverrideReqWorkers] = useState(null);
+  const [overrideReqEquipment, setOverrideReqEquipment] = useState(null);
+  const [overrideReqEPS, setOverrideReqEPS] = useState(null);
   useEffect(() => {
     setOverridePesCount(null);
     setOverridePesPower(null);
+    setOverrideReqBrigades(null);
+    setOverrideReqWorkers(null);
+    setOverrideReqEquipment(null);
+    setOverrideReqEPS(null);
   }, [documentId]);
 
   const mergedJsonData = useMemo(() => {
@@ -62,6 +70,32 @@ export default function TNModal({ open, documentId, onClose }) {
     return top != null ? String(top) : "0";
   }, [overridePesPower, tn]);
 
+  const reqBrigadesEffective = useMemo(() => {
+    if (overrideReqBrigades != null) return String(overrideReqBrigades);
+    const top = tn?.data?.required_brigades ?? tn?.required_brigades;
+    return top != null ? String(top) : "0";
+  }, [overrideReqBrigades, tn]);
+
+  const reqWorkersEffective = useMemo(() => {
+    if (overrideReqWorkers != null) return String(overrideReqWorkers);
+    const top = tn?.data?.required_workers ?? tn?.required_workers;
+    return top != null ? String(top) : "0";
+  }, [overrideReqWorkers, tn]);
+
+  const reqEquipmentEffective = useMemo(() => {
+    if (overrideReqEquipment != null) return String(overrideReqEquipment);
+    const top = tn?.data?.required_equipment ?? tn?.required_equipment;
+    return top != null ? String(top) : "0";
+  }, [overrideReqEquipment, tn]);
+
+  const reqEPSEffective = useMemo(() => {
+    if (overrideReqEPS != null) return String(overrideReqEPS);
+    const top =
+      tn?.data?.required_emergency_power_supply ??
+      tn?.required_emergency_power_supply;
+    return top != null ? String(top) : "0";
+  }, [overrideReqEPS, tn]);
+
   const tnEffective = useMemo(() => {
     if (!tn) return tn;
     return {
@@ -70,15 +104,23 @@ export default function TNModal({ open, documentId, onClose }) {
       description: descriptionEffective,
       PES_COUNT: pesCountEffective,
       PES_POWER: pesPowerEffective,
+      required_brigades: reqBrigadesEffective,
+      required_workers: reqWorkersEffective,
+      required_equipment: reqEquipmentEffective,
+      required_emergency_power_supply: reqEPSEffective,
       data: {
         ...(tn.data || {}),
         description: descriptionEffective,
         PES_COUNT: pesCountEffective,
         PES_POWER: pesPowerEffective,
+        required_brigades: reqBrigadesEffective,
+        required_workers: reqWorkersEffective,
+        required_equipment: reqEquipmentEffective,
+        required_emergency_power_supply: reqEPSEffective,
         data: mergedJsonData,
       },
     };
-  }, [tn, mergedJsonData, descriptionEffective, pesCountEffective, pesPowerEffective]);
+  }, [tn, mergedJsonData, descriptionEffective, pesCountEffective, pesPowerEffective, reqBrigadesEffective, reqWorkersEffective, reqEquipmentEffective, reqEPSEffective]);
   const handlerUpdateTn = async (name, value) => {
     const jwt = localStorage.getItem("jwt");
     if (!jwt) {
@@ -174,6 +216,10 @@ export default function TNModal({ open, documentId, onClose }) {
       setSaving(true);
       if (field === "PES_COUNT") setOverridePesCount(payload);
       if (field === "PES_POWER") setOverridePesPower(payload);
+      if (field === "required_brigades") setOverrideReqBrigades(payload);
+      if (field === "required_workers") setOverrideReqWorkers(payload);
+      if (field === "required_equipment") setOverrideReqEquipment(payload);
+      if (field === "required_emergency_power_supply") setOverrideReqEPS(payload);
 
       await axios.put(
         `${URL}/api/teh-narusheniyas/${documentId}`,
@@ -184,12 +230,20 @@ export default function TNModal({ open, documentId, onClose }) {
       await getTn(documentId);
       setOverridePesCount(null);
       setOverridePesPower(null);
+      setOverrideReqBrigades(null);
+      setOverrideReqWorkers(null);
+      setOverrideReqEquipment(null);
+      setOverrideReqEPS(null);
       message.success("Сохранено");
     } catch (e) {
       console.error("Ошибка сохранения ПЭС:", e);
       message.error("Не удалось сохранить");
       setOverridePesCount(null);
       setOverridePesPower(null);
+      setOverrideReqBrigades(null);
+      setOverrideReqWorkers(null);
+      setOverrideReqEquipment(null);
+      setOverrideReqEPS(null);
       await getTn(documentId);
     } finally {
       setSaving(false);
@@ -261,6 +315,81 @@ export default function TNModal({ open, documentId, onClose }) {
                   ]}
                 />
 
+                <Descriptions
+                  column={1}
+                  labelStyle={{ width: 260 }}
+                  style={{ marginTop: 12 }}
+                  items={[
+                    {
+                      key: "required_brigades",
+                      label: "Потребность: Бригады",
+                      children: (
+                        <EditableField
+                          editable
+                          canEdit={canEdit}
+                          name="required_brigades"
+                          value={reqBrigadesEffective}
+                          handlerUpdateTn={(_, v) =>
+                            handlerUpdatePesTop("required_brigades", v)
+                          }
+                          inputProps={{ style: { width: 160 } }}
+                        />
+                      ),
+                    },
+                    {
+                      key: "required_workers",
+                      label: "Потребность: Человек",
+                      children: (
+                        <EditableField
+                          editable
+                          canEdit={canEdit}
+                          name="required_workers"
+                          value={reqWorkersEffective}
+                          handlerUpdateTn={(_, v) =>
+                            handlerUpdatePesTop("required_workers", v)
+                          }
+                          inputProps={{ style: { width: 160 } }}
+                        />
+                      ),
+                    },
+                    {
+                      key: "required_equipment",
+                      label: "Потребность: Техника",
+                      children: (
+                        <EditableField
+                          editable
+                          canEdit={canEdit}
+                          name="required_equipment"
+                          value={reqEquipmentEffective}
+                          handlerUpdateTn={(_, v) =>
+                            handlerUpdatePesTop("required_equipment", v)
+                          }
+                          inputProps={{ style: { width: 160 } }}
+                        />
+                      ),
+                    },
+                    {
+                      key: "required_emergency_power_supply",
+                      label: "Потребность: Резервные источники",
+                      children: (
+                        <EditableField
+                          editable
+                          canEdit={canEdit}
+                          name="required_emergency_power_supply"
+                          value={reqEPSEffective}
+                          handlerUpdateTn={(_, v) =>
+                            handlerUpdatePesTop(
+                              "required_emergency_power_supply",
+                              v
+                            )
+                          }
+                          inputProps={{ style: { width: 160 } }}
+                        />
+                      ),
+                    },
+                  ]}
+                />
+
                 {/* === Прочие поля из настроек (read-only) === */}
                 {Array.isArray(fieldsSetting) && fieldsSetting.length > 0 && (
                   <Descriptions
@@ -273,7 +402,11 @@ export default function TNModal({ open, documentId, onClose }) {
                           it.nameModus !== "REASON_OPER" &&
                           it.nameModus !== "PES_COUNT" &&
                           it.nameModus !== "PES_POWER" &&
-                          it.nameModus !== "description"
+                          it.nameModus !== "description" &&
+                          it.nameModus !== "required_brigades" &&
+                          it.nameModus !== "required_workers" &&
+                          it.nameModus !== "required_equipment" &&
+                          it.nameModus !== "required_emergency_power_supply"
                       )
                       .map((item) => ({
                         key: item.nameModus || item.label,
