@@ -9,48 +9,67 @@ const useData = create((set) => ({
   tn: false,
   isLoadingTn: false,
   isUpdatingTn: false,
-  getTns: async () => {
+  getTns: async (opts = {}) => {
     try {
       set({ isLoadingTns: true });
       const jwt = localStorage.getItem("jwt");
       const base = `${urlBackend}/api/teh-narusheniyas`;
 
-      const SAFE_PAGE_LIMIT = 200; // защита от бесконечного цикла
-      const REQ_SIZE = 100; // безопасный размер, не выше лимита Strapi
-
-      const fetchPage = async (p, size) => {
-        const { data } = await axios.get(base, {
-          params: {
-            "pagination[page]": p,
-            "pagination[pageSize]": size,
-            "sort[0]": "createDateTime:DESC",
-          },
-          headers: { Authorization: `Bearer ${jwt}` },
-        });
-        return data;
+      const params = {
+        "pagination[page]": 1,
+        "pagination[pageSize]": 100,
+        "sort[0]": "createDateTime:DESC",
       };
 
-      // 1) первая страница
-      const first = await fetchPage(1, REQ_SIZE);
-      const total = first?.meta?.pagination?.total ?? (Array.isArray(first?.data) ? first.data.length : 0);
-      const effectiveSize = first?.meta?.pagination?.pageSize || Math.max(1, Math.min(REQ_SIZE, first?.data?.length || REQ_SIZE));
-
-      let all = Array.isArray(first?.data) ? first.data.slice() : [];
-
-      // 2) догружаем остальные, пока не наберём total
-      let page = 2;
-      while (all.length < total && page <= SAFE_PAGE_LIMIT) {
-        const chunk = await fetchPage(page, effectiveSize);
-        const arr = Array.isArray(chunk?.data) ? chunk.data : [];
-        if (!arr.length) break; // ничего не пришло — выходим
-        all.push(...arr);
-        page += 1;
+      if (opts.date) {
+        const d = opts.date;
+        const start = new Date(d.year(), d.month(), d.date(), 0, 0, 0).toISOString();
+        const end = new Date(d.year(), d.month(), d.date(), 23, 59, 59).toISOString();
+        params["filters[createDateTime][$gte]"] = start;
+        params["filters[createDateTime][$lte]"] = end;
       }
 
-      set({ tns: { data: all, meta: first?.meta }, isLoadingTns: false });
+      const { data } = await axios.get(base, {
+        params,
+        headers: { Authorization: `Bearer ${jwt}` },
+      });
+
+      set({ tns: data, isLoadingTns: false });
     } catch (error) {
       set({ isLoadingTns: false });
       console.log(`Ошибка при получении всех ТН`, error);
+    }
+  },
+
+  openedCount: 0,
+  loadingOpenedCount: false,
+  loadOpenedCount: async (opts = {}) => {
+    try {
+      set({ loadingOpenedCount: true });
+      const jwt = localStorage.getItem("jwt");
+      const base = `${urlBackend}/api/teh-narusheniyas`;
+      const params = {
+        "pagination[page]": 1,
+        "pagination[pageSize]": 1,
+        "sort[0]": "createDateTime:DESC",
+        "filters[isActive][$eq]": true,
+      };
+      if (opts.date) {
+        const d = opts.date;
+        const start = new Date(d.year(), d.month(), d.date(), 0, 0, 0).toISOString();
+        const end = new Date(d.year(), d.month(), d.date(), 23, 59, 59).toISOString();
+        params["filters[createDateTime][$gte]"] = start;
+        params["filters[createDateTime][$lte]"] = end;
+      }
+      const { data } = await axios.get(base, {
+        params,
+        headers: { Authorization: `Bearer ${jwt}` },
+      });
+      const total = data?.meta?.pagination?.total || 0;
+      set({ openedCount: total, loadingOpenedCount: false });
+    } catch (e) {
+      set({ openedCount: 0, loadingOpenedCount: false });
+      console.log("Ошибка при подсчёте открытых ТН", e?.message || e);
     }
   },
   

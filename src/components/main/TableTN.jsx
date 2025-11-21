@@ -89,13 +89,11 @@ const STATUS_OPTIONS = [
 ];
 
 function WelcomeHeader({ totalOpened, loadingOpened }) {
-  const { user, getJwt, getUserMe } = useAuth((s) => s);
+  const { user, getUserMe } = useAuth((s) => s);
   React.useEffect(() => {
-    const jwt = getJwt();
-    if (jwt) {
-      getUserMe?.();
-    }
-  }, [getJwt, getUserMe]);
+    // getUserMe сам проверит наличие JWT и не пойдёт в сеть, если его нет
+    getUserMe?.();
+  }, [getUserMe]);
 
   const name =
     user?.fullName ||
@@ -435,7 +433,7 @@ const defaultPageSize = 10;
 const defaultPage = 1;
 
 export default function TableTN() {
-  const { tns, getTns, isLoadingTns } = useData((store) => store);
+  const { tns, getTns, isLoadingTns, openedCount, loadOpenedCount, loadingOpenedCount } = useData((store) => store);
   const [pagination, setPagination] = useState({
     page: defaultPage,
     pageSize: defaultPageSize,
@@ -494,41 +492,12 @@ export default function TableTN() {
     console.log("[filters] режим: Статусы =", vals || []);
   };
 
-  const openedCount = React.useMemo(() => {
-    const list = Array.isArray(tns?.data) ? tns.data : [];
-    const byDate = list.filter((i) => {
-      const d = getCreateDate(i);
-      return date ? dayjs(d).isSame(date, "day") : true;
-    });
-    return byDate.filter((i) => isOpen(i)).length;
-  }, [tns?.data, date]);
-  const loadingOpened = isLoadingTns || !Array.isArray(tns?.data);
-
-  const totalByDate = React.useMemo(() => {
-    const list = Array.isArray(tns?.data) ? tns.data : [];
-    return list.filter((i) => {
-      const d = getCreateDate(i);
-      return date ? dayjs(d).isSame(date, "day") : true;
-    }).length;
-  }, [tns?.data, date]);
-
-  const headerTotal = React.useMemo(() => {
-    if (selectedStatuses.length === 0) return totalByDate;
-    if (selectedStatuses.length === 1 && selectedStatuses[0] === "открыта")
-      return openedCount;
-    // считаем по активным фильтрам
-    const list = Array.isArray(tns?.data) ? tns.data : [];
-    return list.filter((i) => {
-      const d = getCreateDate(i);
-      if (date && !dayjs(d).isSame(date, "day")) return false;
-      const s = getStatusName(i);
-      return s ? selectedStatuses.includes(s) : false;
-    }).length;
-  }, [tns?.data, date, selectedStatuses, openedCount, totalByDate]);
+  // --- removed openedCount, loadingOpened, totalByDate, headerTotal memoizations
 
   useEffect(() => {
-    getTns();
-  }, [date, selectedStatuses, getTns]);
+    getTns({ date });
+    loadOpenedCount({ date });
+  }, [date, selectedStatuses, getTns, loadOpenedCount]);
 
   useEffect(() => {
     if (isLoadingTns) return;
@@ -582,7 +551,8 @@ export default function TableTN() {
       if (refreshLocked) return;
       timer = setTimeout(() => {
         if (!refreshLocked) {
-          getTns();
+          getTns({ date });
+          loadOpenedCount({ date });
           loadSendStatus();
         }
       }, delay);
@@ -617,7 +587,7 @@ export default function TableTN() {
         es?.close();
       } catch {}
     };
-  }, [getTns, loadSendStatus]);
+  }, [getTns, loadSendStatus, refreshLocked, date, loadOpenedCount]);
 
   // === /LIVE ПОДПИСКА ===
 
@@ -743,7 +713,8 @@ export default function TableTN() {
       item.VIOLATION_GUID_STR ||
       src.id;
     const resolvedGuid = extractGuid(item);
-    const ts = dayjs(getCreateDate(item)).valueOf();
+    const tsRaw = dayjs(getCreateDate(item)).valueOf();
+    const ts = Number.isFinite(tsRaw) ? tsRaw : 0;
     const send = (resolvedGuid && sendStatus.byGuid[resolvedGuid]) ||
                  (src.number != null && sendStatus.byNumber[String(src.number)]) ||
                  null;
@@ -755,7 +726,7 @@ export default function TableTN() {
       energoObject: src.energoObject,
       addressList: src.addressList,
       dispCenter: src.dispCenter,
-      createDateTime: dayjs(ts).format("DD.MM.YYYY HH:mm"),
+      createDateTime: ts ? dayjs(ts).format("DD.MM.YYYY HH:mm") : "—",
       createTs: ts,
       documentId: docId,
       szoTags,
@@ -897,7 +868,7 @@ export default function TableTN() {
         style={{ display: "none" }}
       />
       {/* Показываем всегда количество ОТКРЫТЫХ ТН (независимо от выбранных статусов), учитывая только фильтр по дате */}
-      <WelcomeHeader totalOpened={openedCount} loadingOpened={loadingOpened} />
+      <WelcomeHeader totalOpened={openedCount} loadingOpened={loadingOpenedCount} />
 
       <TableTNActionsBar
         onDashboard={() => {
@@ -942,7 +913,8 @@ export default function TableTN() {
           <Button
             disabled={isLoadingTns}
             onClick={() => {
-              getTns();
+              getTns({ date });
+              loadOpenedCount({ date });
               loadSendStatus();
             }}
           >
