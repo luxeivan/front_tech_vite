@@ -200,9 +200,12 @@ export default function PotrebiteliSZO({ rowsOpen, loadingExternal }) {
       ].join("&");
 
       const headers = { Authorization: `Bearer ${jwt}` };
-      const respOpen = await axios.get(`${URL}/api/teh-narusheniyas?${qsOpen}`, {
-        headers,
-      });
+      const respOpen = await axios.get(
+        `${URL}/api/teh-narusheniyas?${qsOpen}`,
+        {
+          headers,
+        }
+      );
 
       const listOpen = Array.isArray(respOpen?.data?.data)
         ? respOpen.data.data.map((x) =>
@@ -271,8 +274,16 @@ export default function PotrebiteliSZO({ rowsOpen, loadingExternal }) {
   const meta = {
     boilers: { icon: <FireOutlined />, title: "Котельные", color: "#eb2f96" },
     ctp: { icon: <DashboardOutlined />, title: "ЦТП", color: "#13c2c2" },
-    hosp: { icon: <MedicineBoxOutlined />, title: "Больницы", color: "#1890ff" },
-    clinics: { icon: <MedicineBoxOutlined />, title: "Поликлиники", color: "#722ed1" },
+    hosp: {
+      icon: <MedicineBoxOutlined />,
+      title: "Больницы",
+      color: "#1890ff",
+    },
+    clinics: {
+      icon: <MedicineBoxOutlined />,
+      title: "Поликлиники",
+      color: "#722ed1",
+    },
     vzu: { icon: <ExperimentOutlined />, title: "ВЗУ", color: "#722ed1" },
     vns: { icon: <BuildOutlined />, title: "ВНС", color: "#faad14" },
     schools: { icon: <ReadOutlined />, title: "Школы", color: "#52c41a" },
@@ -295,7 +306,11 @@ export default function PotrebiteliSZO({ rowsOpen, loadingExternal }) {
   return (
     <Card
       style={{ borderRadius: 20, marginBottom: 8 }}
-      title={<div style={{ fontWeight: 700, color: "#1575bc" }}>Потребители и СЗО</div>}
+      title={
+        <div style={{ fontWeight: 700, color: "#1575bc" }}>
+          Потребители и СЗО
+        </div>
+      }
       styles={{ body: { padding: compact ? 6 : 8 } }}
     >
       {effectiveLoading ? (
@@ -306,7 +321,9 @@ export default function PotrebiteliSZO({ rowsOpen, loadingExternal }) {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: `repeat(auto-fit, minmax(${compact ? 112 : 128}px, max-content))`,
+            gridTemplateColumns: `repeat(auto-fit, minmax(${
+              compact ? 112 : 128
+            }px, max-content))`,
             justifyContent: "start",
             columnGap: compact ? 8 : 10,
             rowGap: compact ? 6 : 8,
@@ -329,7 +346,9 @@ export default function PotrebiteliSZO({ rowsOpen, loadingExternal }) {
                   <Tooltip
                     key={k}
                     placement="bottom"
-                    title={`${meta[k].title}: ${Number(szoTotals[k] || 0).toLocaleString("ru-RU")}`}
+                    title={`${meta[k].title}: ${Number(
+                      szoTotals[k] || 0
+                    ).toLocaleString("ru-RU")}`}
                     overlayStyle={{ maxWidth: 420 }}
                   >
                     <div>

@@ -241,7 +241,7 @@ export default function PowerMosOblEnergo() {
           style={{
             fontWeight: 700,
             color: "#1575bc",
-            textAlign: "center",
+            // textAlign: "center",
           }}
         >
           Задействовано сил и средств Мособлэнерго
