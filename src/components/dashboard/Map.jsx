@@ -21,11 +21,8 @@ import Overlay from "ol/Overlay";
 import { containsCoordinate } from "ol/extent";
 
 import arrTp from "../../tp.json";
-import tpNashe from "../../assets/ТП_наша.svg";
-import tpNeNashe from "../../assets/ТП_НЕнаша.svg";
-
-// import tpNashe from "../../assets/tpNashe.svg";
-// import tpNeNashe from "../../assets/tpNeNashe.svg";
+import tpNashe from "../../assets/tpNashe.svg";
+import tpNeNashe from "../../assets/tpNeNashe.svg";
 
 export default function MapPanel({
   height = "100%",
@@ -117,13 +114,18 @@ export default function MapPanel({
       }),
       stamenTerrain: new TileLayer({
         source: new XYZ({
-          url: "https://stamen-tiles.a.ssl.fastly.net/terrain/{z}/{x}/{y}.jpg",
+          url: `https://tiles.stadiamaps.com/tiles/stamen_terrain/{z}/{x}/{y}{r}.png${import.meta.env.VITE_STADIA_KEY ? ('?api_key=' + import.meta.env.VITE_STADIA_KEY) : ''}`,
+          crossOrigin: "anonymous",
+          attributions:
+            "Map © Stadia Maps, © Stamen • Data © OpenStreetMap contributors",
         }),
         visible: false,
       }),
       openTopoMap: new TileLayer({
         source: new XYZ({
-          url: "https://tile.opentopomap.org/{z}/{x}/{y}.png",
+          url: "https://{a-c}.tile.opentopomap.org/{z}/{x}/{y}.png",
+          crossOrigin: "anonymous",
+          attributions: "© OpenTopoMap (CC‑BY‑SA) • © OpenStreetMap contributors",
         }),
         visible: false,
       }),
@@ -149,6 +151,17 @@ export default function MapPanel({
       }),
     };
     layersRef.current = baseLayers;
+
+    // Auto-fallback to OSM if a provider errors out
+    const hookTileErrors = (key) => {
+      const src = baseLayers[key]?.getSource?.();
+      if (!src) return;
+      const onErr = () => setActiveLayer("osm");
+      src.on("tileloaderror", onErr);
+      src.on("imageloaderror", onErr);
+    };
+    hookTileErrors("stamenTerrain");
+    hookTileErrors("openTopoMap");
 
     const container = document.createElement("div");
     Object.assign(container.style, {
