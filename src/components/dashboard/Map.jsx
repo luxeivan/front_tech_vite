@@ -93,7 +93,7 @@ export default function MapPanel({
   const accLayerRef = useRef(null);
   const tpIndexRef = useRef([]);
 
-  const [activeLayer, setActiveLayer] = useState("gis2");
+  const [activeLayer, setActiveLayer] = useState("yandex");
   const [resolvedPoints, setResolvedPoints] = useState([]);
 
   useEffect(() => {
@@ -220,6 +220,10 @@ export default function MapPanel({
         else if (z < 17) scale = 0.006;
         else scale = 0.007;
 
+        const nameText =
+          (base && typeof base.get === "function" && (base.get("name") || "")) || "";
+        const showLabel = z >= 15; // показываем подпись с масштаба 15 и выше
+
         return new Style({
           image: new Icon({
             src: /мособлэнерго/i.test(property) ? tpNashe : tpNeNashe,
@@ -228,6 +232,15 @@ export default function MapPanel({
             anchorXUnits: "fraction",
             anchorYUnits: "fraction",
           }),
+          text: showLabel
+            ? new Text({
+                text: nameText,
+                offsetY: -6,
+                font: "600 12px system-ui, sans-serif",
+                fill: new Fill({ color: "#001529" }),
+                stroke: new Stroke({ color: "#ffffff", width: 3 }),
+              })
+            : undefined,
         });
       },
     });
@@ -313,40 +326,39 @@ export default function MapPanel({
       accLayer.changed();
     });
 
-    map.on("click", (evt) => {
-      const f = map.forEachFeatureAtPixel(evt.pixel, (feat) => feat);
-      if (!f) {
-        overlay.setPosition(undefined);
-        return;
-      }
+      map.on("click", (evt) => {
+        const f = map.forEachFeatureAtPixel(evt.pixel, (feat) => feat);
+        if (!f) {
+          overlay.setPosition(undefined);
+          return;
+        }
 
-      const members = f && f.get && f.get("features");
-      if (Array.isArray(members) && members.length > 1) {
-        ппа;
-        const current = viewRef.current?.getZoom?.() ?? 10;
-        viewRef.current?.setZoom(current + 1);
-      }
+        const members = f && f.get && f.get("features");
+        if (Array.isArray(members) && members.length > 1) {
+          const current = viewRef.current?.getZoom?.() ?? 10;
+          viewRef.current?.setZoom(current + 1);
+        }
 
-      const clustered = f.get("features");
-      if (Array.isArray(clustered) && clustered.length > 1) {
+        const clustered = f.get("features");
+        if (Array.isArray(clustered) && clustered.length > 1) {
+          if (overlayContentRef.current) {
+            overlayContentRef.current.innerHTML = `<div><b>Кластер ТП:</b> ${clustered.length} шт</div>`;
+          }
+          overlay.setPosition(evt.coordinate);
+          return;
+        }
+
+        const base =
+          Array.isArray(clustered) && clustered.length ? clustered[0] : f;
+        const props = base.getProperties() || {};
+        const html = props._popupHtml || props.name || "—";
+
         if (overlayContentRef.current) {
-          overlayContentRef.current.innerHTML = `<div><b>Кластер ТП:</b> ${clustered.length} шт</div>`;
+          overlayContentRef.current.innerHTML = html;
         }
         overlay.setPosition(evt.coordinate);
-        return;
-      }
-
-      const base =
-        Array.isArray(clustered) && clustered.length ? clustered[0] : f;
-      const props = base.getProperties() || {};
-      const html = props._popupHtml || props.name || "—";
-
-      if (overlayContentRef.current) {
-        overlayContentRef.current.innerHTML = html;
-      }
-      overlay.setPosition(evt.coordinate);
-    });
-    baseLayers.gis2.setVisible(true);
+      });
+    baseLayers.yandex.setVisible(true);
     return () => {
       map.setTarget(null);
     };
@@ -574,7 +586,6 @@ export default function MapPanel({
 
     const toLngLat = (p) => {
       if (Array.isArray(p.coordinates) && p.coordinates.length === 2) {
-        я;
         const [a, b] = p.coordinates;
         const latFirst = Math.abs(a) <= 90 && Math.abs(b) <= 180;
         return latFirst ? [b, a] : [a, b];
@@ -672,8 +683,8 @@ export default function MapPanel({
             optionType="button"
             buttonStyle="solid"
             options={[
-              { label: "2GIS", value: "gis2" },
               { label: "Yandex", value: "yandex" },
+              { label: "2GIS", value: "gis2" },
               { label: "Rgis", value: "rgis" },
               { label: "OSM", value: "osm" },
               { label: "Carto Light", value: "cartoLight" },
