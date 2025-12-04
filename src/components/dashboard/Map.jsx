@@ -110,7 +110,7 @@ export default function MapPanel({
   // Предрассчитанный индекс ТП (координаты уже в проекции 3857)
   const tpIndexRef = useRef([]);
 
-  const [activeLayer, setActiveLayer] = useState("osm");
+  const [activeLayer, setActiveLayer] = useState("gis2");
 
   // Результаты резолва FIAS
   const [resolvedPoints, setResolvedPoints] = useState([]);
@@ -396,7 +396,7 @@ export default function MapPanel({
     });
 
     // подложка по умолчанию
-    baseLayers.osm.setVisible(true);
+    baseLayers.gis2.setVisible(true);
 
     return () => {
       map.setTarget(null);
@@ -713,14 +713,14 @@ export default function MapPanel({
             optionType="button"
             buttonStyle="solid"
             options={[
+              { label: "2GIS", value: "gis2" },
+              { label: "Yandex", value: "yandex" },
+              { label: "Rgis", value: "rgis" },
               { label: "OSM", value: "osm" },
               { label: "Carto Light", value: "cartoLight" },
               { label: "Carto Dark", value: "cartoDark" },
               { label: "Terrain", value: "stamenTerrain" },
               { label: "Topo", value: "openTopoMap" },
-              { label: "Rgis", value: "rgis" },
-              { label: "Yandex", value: "yandex" },
-              { label: "2GIS", value: "gis2" },
             ]}
           />
         </Space>
