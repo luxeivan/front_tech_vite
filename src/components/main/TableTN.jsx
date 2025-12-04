@@ -53,6 +53,11 @@ const getCreateDate = (item) =>
   item?.attributes?.data?.data?.F81_060_EVENTDATETIME ??
   null;
 
+function isGuid36(s) {
+  return typeof s === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.trim());
+}
+
 function extractGuid(item) {
   const src = item?.attributes ? { id: item.id, ...item.attributes } : item;
   const candidates = [
@@ -64,8 +69,8 @@ function extractGuid(item) {
     item?.documentId,
     item?.data?.data?.VIOLATION_GUID_STR,
     item?.data?.data?.guid,
-  ].filter(Boolean);
-  return candidates.length ? String(candidates[0]) : null;
+  ].filter(isGuid36);
+  return candidates.length ? String(candidates[0]).toLowerCase() : null;
 }
 
 const isOpen = (item) => {
@@ -370,7 +375,8 @@ function parseJournalStatuses(lines) {
     if (typeof line !== "string" || !line.trim()) return;
     const ts = parseDateFromJournalLine(line);
     const num = (line.match(/№\s*(\d+)/i) || [])[1] || null;
-    const guid = (line.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i) || [])[0] || null;
+    const guidRaw = (line.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i) || [])[0] || null;
+    const guid = isGuid36(guidRaw) ? guidRaw.toLowerCase() : null;
     const ch = normalizeChannelName((line.match(/-\s*\d{2}\.\d{2}\.\d{4}\s\d{2}:\d{2}:\d{2}\s*-\s*([^\-\n\r:]+?)\s*-/) || [])[1]);
     if (!ch) return;
     const isError = /(ошиб|error|fail|не\s*отправ)/i.test(line);
@@ -715,9 +721,7 @@ export default function TableTN() {
     const resolvedGuid = extractGuid(item);
     const tsRaw = dayjs(getCreateDate(item)).valueOf();
     const ts = Number.isFinite(tsRaw) ? tsRaw : 0;
-    const send = (resolvedGuid && sendStatus.byGuid[resolvedGuid]) ||
-                 (src.number != null && sendStatus.byNumber[String(src.number)]) ||
-                 null;
+    const send = resolvedGuid ? sendStatus.byGuid[String(resolvedGuid).toLowerCase()] : null;
 
     return {
       key: src.id ?? item.id,
