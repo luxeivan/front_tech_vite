@@ -13,15 +13,19 @@ import VectorLayer from "ol/layer/Vector";
 import Feature from "ol/Feature";
 import Point from "ol/geom/Point";
 import { Icon, Style } from "ol/style";
+import Text from "ol/style/Text";
 import CircleStyle from "ol/style/Circle";
 import Fill from "ol/style/Fill";
 import Stroke from "ol/style/Stroke";
+import Cluster from "ol/source/Cluster";
 import Overlay from "ol/Overlay";
 import { containsCoordinate } from "ol/extent";
 
 // TP points (подстанции) лежат в src/tp.json
 // путь относительно компонента: src/components/dashboard/Map.jsx -> ../../tp.json
 import arrTp from "../../tp.json";
+import tpNashe from "../../assets/ТП_наша.svg";
+import tpNeNashe from "../../assets/ТП_НЕнаша.svg";
 
 /**
  * MapPanel (OpenLayers)
@@ -143,6 +147,26 @@ export default function MapPanel({
         }),
         visible: false,
       }),
+      rgis: new TileLayer({
+        source: new XYZ({
+          url: "https://rgis.mosreg.ru/wmts/m10/{z}/{x}/{y}.png",
+        }),
+        visible: false,
+      }),
+      yandex: new TileLayer({
+        source: new XYZ({
+          url: "https://core-renderer-tiles.maps.yandex.net/tiles?l=map&x={x}&y={y}&z={z}&scale=1&lang=ru_RU&projection=web_mercator",
+          crossOrigin: "anonymous",
+        }),
+        visible: false,
+      }),
+      gis2: new TileLayer({
+        source: new XYZ({
+          url: "https://tile1.maps.2gis.com/tiles?x={x}&y={y}&z={z}&v=1.1",
+          crossOrigin: "anonymous",
+        }),
+        visible: false,
+      }),
     };
     layersRef.current = baseLayers;
 
@@ -191,60 +215,110 @@ export default function MapPanel({
       return false;
     });
 
-    // Источник ТП и слой
+    // Источник ТП + кластеризация
     const tpSource = new VectorSource();
     tpSourceRef.current = tpSource;
 
-    const tpLayer = new VectorLayer({
+    const tpCluster = new Cluster({
+      distance: 40, // px
       source: tpSource,
-      style: (feature, resolution) => {
-        const currentZoom = viewRef.current?.getZoom?.() ?? zoom;
-        const scale = currentZoom < 10 ? 0.05 : currentZoom < 13 ? 0.09 : 0.15;
+    });
+
+    const tpLayer = new VectorLayer({
+      source: tpCluster,
+      style: (feature) => {
+        const z = viewRef.current?.getZoom?.() ?? zoom;
+
+        // ТП/РП показываем только на ближних масштабах,
+        // НИКАКИХ кластерных "пузырей" здесь — только маленькие svg-иконки.
+        if (z < 12) return null;
+
+        // Даже если это кластер, берём первую фичу и рисуем ОДНУ маленькую иконку.
+        const clustered = feature.get("features");
+        const base = Array.isArray(clustered) && clustered.length ? clustered[0] : feature;
+        const property = (base.get("property") || "").toString();
+
+        // Сильно уменьшаем масштаб иконок — это точечные объекты.
+        let scale;
+        if (z < 13) scale = 0.003;
+        else if (z < 14) scale = 0.00375;
+        else if (z < 15) scale = 0.0045;
+        else if (z < 16) scale = 0.00525;
+        else if (z < 17) scale = 0.006;
+        else scale = 0.007;
+
         return new Style({
           image: new Icon({
-            src: "https://cdn-icons-png.flaticon.com/128/234/234758.png", // условная иконка ТП
+            src: /мособлэнерго/i.test(property) ? tpNashe : tpNeNashe,
             scale,
+            // чуть смещаем "ножку" вниз, чтобы иконка стояла на точке
+            anchor: [0.5, 1],
+            anchorXUnits: 'fraction',
+            anchorYUnits: 'fraction',
           }),
         });
       },
     });
     tpLayerRef.current = tpLayer;
 
-    // Источник аварий (ТН) и слой
+    // Источник аварий (ТН) и слой (кластеризация)
     const accSource = new VectorSource();
     accSourceRef.current = accSource;
 
-    const accLayer = new VectorLayer({
+    const accCluster = new Cluster({
+      distance: 60, // px
       source: accSource,
-      style: () => {
+    });
+
+    const accStyleCache = {};
+
+    const accLayer = new VectorLayer({
+      source: accCluster,
+      style: (feature) => {
         const z = viewRef.current?.getZoom?.() ?? zoom;
-        // Радиус синей точки в зависимости от зума (приблизили к старой карте)
+        const members = feature.get("features");
+        const count = Array.isArray(members) ? members.length : 1;
+
+        // Кластеры: синий пузырь с числом
+        if (count > 1 && z <= 12) {
+          const key = `c:${count}`;
+          if (!accStyleCache[key]) {
+            const radius = Math.min(28, 10 + Math.log2(count + 1) * 5);
+            accStyleCache[key] = new Style({
+              image: new CircleStyle({
+                radius,
+                fill: new Fill({ color: "#1677ff" }),
+                stroke: new Stroke({ color: "#ffffff", width: 3 }),
+              }),
+              text: new Text({
+                text: String(count),
+                fill: new Fill({ color: "#ffffff" }),
+                font: "bold 12px system-ui, sans-serif",
+              }),
+            });
+          }
+          return accStyleCache[key];
+        }
+
+        // Одиночные точки: синяя точка с белой обводкой
         let r;
-        if (z < 8) r = 0;           // на очень дальнем зуме не рисуем
-        else if (z < 10) r = 5;     // стандартная загрузка — заметно
+        if (z < 10) r = 5;
         else if (z < 12) r = 7;
         else if (z < 14) r = 9;
         else if (z < 16) r = 11;
         else r = 13;
 
-        if (r <= 0) return null;
-
-        // Две окружности: белая «аура» + синяя точка с белой обводкой
-        return [
-          new Style({
-            image: new CircleStyle({
-              radius: r + 2,
-              fill: new Fill({ color: "rgba(255,255,255,0.9)" }),
-            }),
-          }),
-          new Style({
+        const key = `p:${r}`;
+        if (!accStyleCache[key]) {
+          accStyleCache[key] = new Style({
             image: new CircleStyle({
               radius: r,
-              fill: new Fill({ color: "#1677ff" }), // фирменная синяя точка
+              fill: new Fill({ color: "#1677ff" }),
               stroke: new Stroke({ color: "#ffffff", width: 2 }),
             }),
-          }),
-        ];
+          });
+        }
+        return accStyleCache[key];
       },
     });
     accLayerRef.current = accLayer;
@@ -282,15 +356,39 @@ export default function MapPanel({
       accLayer.changed();
     });
 
-    // клики по объектам — открываем попап
+    // клики по объектам — открываем попап, зум к кластеру аварий
     map.on("click", (evt) => {
       const f = map.forEachFeatureAtPixel(evt.pixel, (feat) => feat);
       if (!f) {
         overlay.setPosition(undefined);
         return;
       }
-      const props = f.getProperties() || {};
-      const html = props._popupHtml || props.name || "—";
+
+      // Зум к кластеру аварий (ТН)
+      const members = f && f.get && f.get("features");
+      if (Array.isArray(members) && members.length > 1) {
+        // плавно приближаем, чтобы распалась группа
+        const current = viewRef.current?.getZoom?.() ?? 10;
+        viewRef.current?.setZoom(current + 1);
+      }
+
+      // Если это кластер ТП
+      const clustered = f.get("features");
+      if (Array.isArray(clustered) && clustered.length > 1) {
+        if (overlayContentRef.current) {
+          overlayContentRef.current.innerHTML = `<div><b>Кластер ТП:</b> ${clustered.length} шт</div>`;
+        }
+        overlay.setPosition(evt.coordinate);
+        return;
+      }
+
+      const base = Array.isArray(clustered) && clustered.length ? clustered[0] : f;
+      const props = base.getProperties() || {};
+      const html =
+        props._popupHtml ||
+        props.name ||
+        "—";
+
       if (overlayContentRef.current) {
         overlayContentRef.current.innerHTML = html;
       }
@@ -328,7 +426,10 @@ export default function MapPanel({
       const lat = Number(props?.y);
       if (!Number.isFinite(lon) || !Number.isFinite(lat)) continue;
       const xy = fromLonLat([lon, lat]); // [x,y] в 3857
-      idx.push({ xy, lon, lat, name });
+      const type = props["Тип подстанции"] || "";
+      const zone = props["Зона ответственности"] || "";
+      const property = props["Вид собственности"] || "";
+      idx.push({ xy, lon, lat, name, type, zone, property });
     }
     tpIndexRef.current = idx;
 
@@ -367,11 +468,21 @@ export default function MapPanel({
         const it = selected[i];
         const f = new Feature({
           geometry: new Point(it.xy),
+        });
+        f.setProperties({
           name: it.name,
+          type: it.type,
+          zone: it.zone,
+          property: it.property,
         });
         f.set(
           "_popupHtml",
-          `<div><b>${it.name}</b><br/>TP координаты: ${it.lat.toFixed(6)}, ${it.lon.toFixed(6)}</div>`
+          `<div><b>${it.name}</b>
+            <br/>Тип: ${it.type || "—"}
+            <br/>Зона: ${it.zone || "—"}
+            <br/>Собственность: ${it.property || "—"}
+            <br/>Коорд.: ${it.lat.toFixed(6)}, ${it.lon.toFixed(6)}
+          </div>`
         );
         feats.push(f);
       }
@@ -607,6 +718,9 @@ export default function MapPanel({
               { label: "Carto Dark", value: "cartoDark" },
               { label: "Terrain", value: "stamenTerrain" },
               { label: "Topo", value: "openTopoMap" },
+              { label: "Rgis", value: "rgis" },
+              { label: "Yandex", value: "yandex" },
+              { label: "2GIS", value: "gis2" },
             ]}
           />
         </Space>
