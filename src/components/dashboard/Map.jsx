@@ -1,19 +1,45 @@
-import React, { useMemo, useEffect, useState, useRef } from "react";
-import { YMaps, Map as YMap, ObjectManager } from "@pbe/react-yandex-maps";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Radio, Space } from "antd";
 
+// OpenLayers imports — strictly via path imports
+import OlMap from "ol/Map";
+import View from "ol/View";
+import TileLayer from "ol/layer/Tile";
+import OSM from "ol/source/OSM";
+import XYZ from "ol/source/XYZ";
+import { fromLonLat } from "ol/proj";
+import VectorSource from "ol/source/Vector";
+import VectorLayer from "ol/layer/Vector";
+import Feature from "ol/Feature";
+import Point from "ol/geom/Point";
+import { Icon, Style } from "ol/style";
+import Overlay from "ol/Overlay";
+import { containsCoordinate } from "ol/extent";
+
+// TP points (подстанции) лежат в src/tp.json
+// путь относительно компонента: src/components/dashboard/Map.jsx -> ../../tp.json
+import arrTp from "../../tp.json";
+
+/**
+ * MapPanel (OpenLayers)
+ * Полная замена @pbe/react-yandex-maps на OpenLayers с сохранением логики:
+ *  - загрузка координат по FIAS из Strapi;
+ *  - отображение аварий (ТН) + список номеров ТН по адресу (fiasOwners);
+ *  - отдельный слой ТП из tp.json;
+ *  - попап по клику и счётчик "Точек на карте".
+ */
 export default function MapPanel({
   height = "100%",
-  initialState = { center: [55.751244, 37.618423], zoom: 8 },
-  points = [],
-  fiasCodes = [],
-  url,
-  fiasCollection = "adress",
-  objectOptions = {},
-  clusterOptions = {},
-  fiasOwners = {},
+  initialState = { center: [55.751244, 37.618423], zoom: 8 }, // lat,lon (как было в Яндекс-версии)
+  points = [],                 // Альтернатива fiasCodes: готовые точки { lat/lon | latitude/longitude | coords | coordinates }
+  fiasCodes = [],              // Список FIAS, который надо резолвить через Strapi
+  url,                         // Бэкенд Strapi, напр. VITE_URL_BACKEND
+  fiasCollection = "adress",   // Коллекция адресов в Strapi
+  objectOptions = {},          // (зарезервировано) настройки объектов
+  clusterOptions = {},         // (зарезервировано) настройки кластеров
+  fiasOwners = {},             // { fiasId: [tnNumber, ...] } — номера ТН на адресе
 }) {
-  const [zoom, setZoom] = useState(initialState?.zoom ?? 8);
-
+  // === helpers из старой версии ============================================
   const buildInParams = (field, values) => {
     const params = {};
     params[`filters[${field}][$in]`] = values;
@@ -22,11 +48,9 @@ export default function MapPanel({
 
   const encodeStrapiQuery = (params) => {
     const parts = [];
-    const push = (k, v) =>
-      parts.push(`${encodeURIComponent(k)}=${encodeURIComponent(v)}`);
+    const push = (k, v) => parts.push(`${encodeURIComponent(k)}=${encodeURIComponent(v)}`);
     for (const [key, value] of Object.entries(params)) {
-      if (Array.isArray(value))
-        value.forEach((v, i) => push(`${key}[${i}]`, v));
+      if (Array.isArray(value)) value.forEach((v, i) => push(`${key}[${i}]`, v));
       else push(key, value);
     }
     return parts.join("&");
@@ -53,71 +77,338 @@ export default function MapPanel({
     return null;
   };
 
+  // В OpenLayers нам важен текущий zoom для динамического размера иконок
+  const [zoom, setZoom] = useState(initialState?.zoom ?? 8);
+
+  // cache/abort для FIAS-резолва
   const cacheRef = useRef(new Map());
   const abortRef = useRef(null);
-  const omRef = useRef(null);
-  const mapRef = useRef(null);
-  const fittedRef = useRef(false);
+
+  // карта и слои
+  const mapRef = useRef(null);       // DOM-узел
+  const olMapRef = useRef(null);     // экземпляр Map
+  const viewRef = useRef(null);
+
+  // overlay (попап)
+  const overlayRef = useRef(null);
+  const overlayElRef = useRef(null);
+  const overlayContentRef = useRef(null);
+
+  // источники/слои
+  const layersRef = useRef({});
+  const tpSourceRef = useRef(null);
+  const tpLayerRef = useRef(null);
+  const accSourceRef = useRef(null);
+  const accLayerRef = useRef(null);
+  // Предрассчитанный индекс ТП (координаты уже в проекции 3857)
+  const tpIndexRef = useRef([]);
+
+  const [activeLayer, setActiveLayer] = useState("osm");
+
+  // Результаты резолва FIAS
   const [resolvedPoints, setResolvedPoints] = useState([]);
 
+  // === Стартовая инициализация карты =======================================
   useEffect(() => {
-    console.log("[MapPanel] Original FIAS codes:", fiasCodes.length);
+    // Подложки
+    const baseLayers = {
+      osm: new TileLayer({
+        source: new OSM(),
+        visible: false,
+      }),
+      cartoLight: new TileLayer({
+        source: new XYZ({
+          url: "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+        }),
+        visible: false,
+      }),
+      cartoDark: new TileLayer({
+        source: new XYZ({
+          url: "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+        }),
+        visible: false,
+      }),
+      stamenTerrain: new TileLayer({
+        source: new XYZ({
+          url: "https://stamen-tiles.a.ssl.fastly.net/terrain/{z}/{x}/{y}.jpg",
+        }),
+        visible: false,
+      }),
+      openTopoMap: new TileLayer({
+        source: new XYZ({
+          url: "https://tile.opentopomap.org/{z}/{x}/{y}.png",
+        }),
+        visible: false,
+      }),
+    };
+    layersRef.current = baseLayers;
 
-    const uniqueFias = [...new Set(fiasCodes.filter(Boolean))];
-    console.log("[MapPanel] Unique FIAS codes:", uniqueFias.length);
+    // Попап (overlay)
+    const container = document.createElement("div");
+    Object.assign(container.style, {
+      position: "relative",
+      background: "#fff",
+      padding: "8px 12px",
+      borderRadius: "6px",
+      boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
+      minWidth: "160px",
+      maxWidth: "320px",
+      fontSize: "13px",
+      lineHeight: 1.25,
+    });
+    const closer = document.createElement("a");
+    closer.textContent = "×";
+    Object.assign(closer.style, {
+      position: "absolute",
+      top: "4px",
+      right: "8px",
+      cursor: "pointer",
+      color: "#333",
+      textDecoration: "none",
+      fontSize: "16px",
+      fontWeight: "bold",
+    });
+    const content = document.createElement("div");
+    container.appendChild(content);
+    container.appendChild(closer);
 
-    if (uniqueFias.length !== fiasCodes.length) {
-      console.log(
-        "[MapPanel] FIAS duplicates found:",
-        fiasCodes.length - uniqueFias.length
-      );
+    const overlay = new Overlay({
+      element: container,
+      positioning: "bottom-center",
+      stopEvent: false,
+      offset: [0, -10],
+    });
+    overlayRef.current = overlay;
+    overlayElRef.current = container;
+    overlayContentRef.current = content;
+
+    closer.addEventListener("click", (e) => {
+      e.stopPropagation();
+      overlay.setPosition(undefined);
+      return false;
+    });
+
+    // Источник ТП и слой
+    const tpSource = new VectorSource();
+    tpSourceRef.current = tpSource;
+
+    const tpLayer = new VectorLayer({
+      source: tpSource,
+      style: (feature, resolution) => {
+        const currentZoom = viewRef.current?.getZoom?.() ?? zoom;
+        const scale = currentZoom < 10 ? 0.05 : currentZoom < 13 ? 0.09 : 0.15;
+        return new Style({
+          image: new Icon({
+            src: "https://cdn-icons-png.flaticon.com/128/234/234758.png", // условная иконка ТП
+            scale,
+          }),
+        });
+      },
+    });
+    tpLayerRef.current = tpLayer;
+
+    // Источник аварий (ТН) и слой
+    const accSource = new VectorSource();
+    accSourceRef.current = accSource;
+
+    const accLayer = new VectorLayer({
+      source: accSource,
+      style: (feature, resolution) => {
+        const currentZoom = viewRef.current?.getZoom?.() ?? zoom;
+        const scale = currentZoom < 10 ? 0.06 : currentZoom < 13 ? 0.12 : 0.2;
+        return new Style({
+          image: new Icon({
+            // отдельная иконка для аварий
+            src: "https://cdn-icons-png.flaticon.com/128/565/565547.png",
+            scale,
+          }),
+        });
+      },
+    });
+    accLayerRef.current = accLayer;
+
+    // Стартовый центр (из старого API: [lat, lon] -> OL [lon, lat])
+    const lat = initialState?.center?.[0] ?? 55.751244;
+    const lon = initialState?.center?.[1] ?? 37.618423;
+
+    const view = new View({
+      center: fromLonLat([lon, lat]),
+      zoom: initialState?.zoom ?? 8,
+      maxZoom: 19,
+      minZoom: 5,
+    });
+    viewRef.current = view;
+
+    const map = new OlMap({
+      target: mapRef.current,
+      layers: [
+        ...Object.values(baseLayers),
+        tpLayer,   // слой ТП
+        accLayer,  // слой аварий/ТН
+      ],
+      overlays: [overlay],
+      view,
+    });
+    olMapRef.current = map;
+
+    // следим за зумом, чтобы обновлять scale и state.zoom
+    view.on("change:resolution", () => {
+      const vz = view.getZoom();
+      setZoom(vz);
+      // перерисовка стилей
+      tpLayer.changed();
+      accLayer.changed();
+    });
+
+    // клики по объектам — открываем попап
+    map.on("click", (evt) => {
+      const f = map.forEachFeatureAtPixel(evt.pixel, (feat) => feat);
+      if (!f) {
+        overlay.setPosition(undefined);
+        return;
+      }
+      const props = f.getProperties() || {};
+      const html = props._popupHtml || props.name || "—";
+      if (overlayContentRef.current) {
+        overlayContentRef.current.innerHTML = html;
+      }
+      overlay.setPosition(evt.coordinate);
+    });
+
+    // подложка по умолчанию
+    baseLayers.osm.setVisible(true);
+
+    return () => {
+      map.setTarget(null);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Переключение подложек
+  useEffect(() => {
+    const layers = layersRef.current;
+    Object.keys(layers).forEach((key) => {
+      layers[key]?.setVisible?.(key === activeLayer);
+    });
+  }, [activeLayer]);
+
+  // === Построение слоя ТП из tp.json (LOD: по зуму и текущему экстенту) ===
+  useEffect(() => {
+    if (!tpSourceRef.current || !viewRef.current || !olMapRef.current) return;
+
+    // 1) Построим индекс один раз: координаты сразу преобразуем в 3857
+    const raw = Array.isArray(arrTp?.features) ? arrTp.features : [];
+    const idx = [];
+    for (const item of raw) {
+      const props = item?.properties || {};
+      const name = props["Наименование подстанции"] || props.name || "ТП";
+      const lon = Number(props?.x);
+      const lat = Number(props?.y);
+      if (!Number.isFinite(lon) || !Number.isFinite(lat)) continue;
+      const xy = fromLonLat([lon, lat]); // [x,y] в 3857
+      idx.push({ xy, lon, lat, name });
     }
-    console.log("[MapPanel] FIAS resolution effect started");
+    tpIndexRef.current = idx;
 
-    if (!Array.isArray(fiasCodes) || fiasCodes.length === 0) {
-      console.log("[MapPanel] No fiasCodes provided");
+    // 2) Обновление слоя по текущему экстенту/зуму
+    const TP_ZOOM_ON = 11;     // показываем ТП только с этого зума
+    const TP_MAX_POINTS = 5000; // хард-лимит фич за раз (для плавности)
+
+    const updateTpLayer = () => {
+      const map = olMapRef.current;
+      const view = viewRef.current;
+      if (!map || !view || !tpSourceRef.current) return;
+
+      const z = view.getZoom();
+      // Если далеко отзумлены — не рисуем ТП
+      if (z < TP_ZOOM_ON) {
+        tpSourceRef.current.clear(true);
+        return;
+      }
+
+      const extent = view.calculateExtent(map.getSize());
+      // отфильтруем объекты, попадающие в экран (с небольшим буфером)
+      const buffer = 0; // можно увеличить при желании
+      const feats = [];
+      const selected = [];
+      for (const it of tpIndexRef.current) {
+        if (containsCoordinate(extent, it.xy)) selected.push(it);
+      }
+
+      // Если точек слишком много — прореживаем
+      let stride = 1;
+      if (selected.length > TP_MAX_POINTS) {
+        stride = Math.ceil(selected.length / TP_MAX_POINTS);
+      }
+
+      for (let i = 0; i < selected.length; i += stride) {
+        const it = selected[i];
+        const f = new Feature({
+          geometry: new Point(it.xy),
+          name: it.name,
+        });
+        f.set(
+          "_popupHtml",
+          `<div><b>${it.name}</b><br/>TP координаты: ${it.lat.toFixed(6)}, ${it.lon.toFixed(6)}</div>`
+        );
+        feats.push(f);
+      }
+
+      tpSourceRef.current.clear(true);
+      tpSourceRef.current.addFeatures(feats);
+    };
+
+    // 3) Первичная отрисовка и подписки
+    updateTpLayer();
+    const map = olMapRef.current;
+
+    const onMoveEnd = () => updateTpLayer();
+    const onRes = () => updateTpLayer();
+
+    map.on("moveend", onMoveEnd);
+    viewRef.current.on("change:resolution", onRes);
+
+    return () => {
+      if (map) map.un("moveend", onMoveEnd);
+      if (viewRef.current) viewRef.current.un("change:resolution", onRes);
+    };
+  }, []);
+
+  // === Резолв FIAS в координаты (как в старой карте) =======================
+  useEffect(() => {
+    console.log("[MapOL] FIAS resolution start, codes:", fiasCodes?.length || 0);
+
+    // гарантия, что у нас именно Map, иначе могли словить runtime-ошибку
+    if (!(cacheRef.current instanceof globalThis.Map)) {
+      cacheRef.current = new globalThis.Map();
+    }
+
+    const uniqueFias = Array.from(new Set((fiasCodes || []).filter(Boolean)));
+    if (!uniqueFias.length) {
       setResolvedPoints([]);
       return;
     }
     if (!url || !fiasCollection) {
-      console.log("[MapPanel] Missing url or fiasCollection:", {
-        url,
-        fiasCollection,
-      });
+      console.log("[MapOL] Missing url or fiasCollection", { url, fiasCollection });
       setResolvedPoints([]);
       return;
     }
-
-    console.log(
-      "[MapPanel] Starting FIAS resolution for",
-      fiasCodes.length,
-      "codes"
-    );
 
     if (abortRef.current) abortRef.current.abort();
     const ac = new AbortController();
     abortRef.current = ac;
 
-    const uniq = Array.from(new Set(fiasCodes.filter(Boolean)));
-    const cache = cacheRef.current;
-
-    // что уже есть в кэше — отрисуем сразу
-    const initial = uniq
-      .filter((c) => cache.has(c))
-      .map((c) => ({ id: c, ...cache.get(c) }));
-    console.log("[MapPanel] Cached points:", initial.length);
+    const cacheMap = cacheRef.current;
+    const initial = uniqueFias
+      .filter((c) => cacheMap.has(c))
+      .map((c) => ({ id: c, ...cacheMap.get(c) }));
     setResolvedPoints(initial);
 
-    const toResolve = uniq.filter((c) => !cache.has(c));
-    console.log("[MapPanel] Points to resolve:", toResolve.length);
-
+    const toResolve = uniqueFias.filter((c) => !cacheMap.has(c));
     if (!toResolve.length) return;
 
-    const CONCURRENCY = 4;
-
     const BASE = String(url).replace(/\/$/, "");
-    const MAX_URL_LEN = 1800; // безопасный лимит для большинства прокси
-
+    const MAX_URL_LEN = 1800;
     const buildQuery = (ids) =>
       encodeStrapiQuery({
         ...buildInParams("fiasId", ids),
@@ -125,13 +416,10 @@ export default function MapPanel({
         "pagination[pageSize]": Math.min(ids.length, 100),
         fields: ["fiasId", "lat", "lon", "fullAddress"],
       });
-    const buildUrl = (ids) =>
-      `${BASE}/api/${fiasCollection}?${buildQuery(ids)}`;
+    const buildUrl = (ids) => `${BASE}/api/${fiasCollection}?${buildQuery(ids)}`;
+
     let innerSize = Math.min(50, toResolve.length || 50);
-    while (
-      innerSize > 1 &&
-      buildUrl(toResolve.slice(0, innerSize)).length > MAX_URL_LEN
-    ) {
+    while (innerSize > 1 && buildUrl(toResolve.slice(0, innerSize)).length > MAX_URL_LEN) {
       innerSize = Math.max(1, Math.floor(innerSize * 0.7));
     }
 
@@ -140,56 +428,35 @@ export default function MapPanel({
       batches.push(toResolve.slice(i, i + innerSize));
     }
 
-    console.log("[MapPanel] Batches to load:", batches.length);
-
     const loadBatch = async (batch) => {
       const urlStr = buildUrl(batch);
-      console.log("[MapPanel] Fetching batch from:", urlStr);
-
-      try {
-        const resp = await fetch(urlStr, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("jwt") || ""}`,
-          },
-          signal: ac.signal,
-        });
-
-        console.log("[MapPanel] Response status:", resp.status);
-
-        if (!resp.ok) throw new Error(`FIAS lookup failed: ${resp.status}`);
-
-        const json = await resp.json();
-        console.log("[MapPanel] Response data structure:", {
-          hasData: !!json.data,
-          dataIsArray: Array.isArray(json.data),
-          dataLength: Array.isArray(json.data) ? json.data.length : "not array",
-        });
-
-        const arr = Array.isArray(json?.data) ? json.data : [];
-        const out = [];
-        for (const item of arr) {
-          const a = item?.attributes ? item.attributes : item;
-          const fias =
-            a.fiasId || a.fias || a.FIAS || a.fias_code || a.FIAS_CODE;
-          const ll = pickLatLon(a);
-          const fullAddress =
-            a.fullAddress ?? a.address ?? a.full_address ?? a.FullAddress ?? null;
-          if (fias && ll) {
-            const payload = { lat: ll.lat, lon: ll.lon, fullAddress };
-            cache.set(fias, payload);
-            out.push({ id: fias, fiasId: fias, ...payload });
-          }
+      const resp = await fetch(urlStr, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("jwt") || ""}` },
+        signal: ac.signal,
+      });
+      if (!resp.ok) throw new Error(`FIAS lookup failed: ${resp.status}`);
+      const json = await resp.json();
+      const arr = Array.isArray(json?.data) ? json.data : [];
+      const out = [];
+      for (const item of arr) {
+        const a = item?.attributes ? item.attributes : item;
+        const fias =
+          a.fiasId || a.fias || a.FIAS || a.fias_code || a.FIAS_CODE;
+        const ll = pickLatLon(a);
+        const fullAddress =
+          a.fullAddress ?? a.address ?? a.full_address ?? a.FullAddress ?? null;
+        if (fias && ll) {
+          const payload = { lat: ll.lat, lon: ll.lon, fullAddress };
+          cacheMap.set(fias, payload);
+          out.push({ id: fias, fiasId: fias, ...payload });
         }
-        // console.log("[MapPanel] Batch processed, valid points:", out.length);
-        return out;
-      } catch (error) {
-        console.error("[MapPanel] Error loading batch:", error);
-        throw error;
       }
+      return out;
     };
 
     let idx = 0;
     let active = 0;
+    const CONCURRENCY = 4;
     const collected = [...initial];
 
     const pump = () => {
@@ -201,12 +468,9 @@ export default function MapPanel({
           .then((pts) => {
             if (ac.signal.aborted) return;
             pts.forEach((p) => collected.push(p));
-            // console.log("[MapPanel] Total collected points:", collected.length);
             setResolvedPoints([...collected]);
           })
-          .catch((error) => {
-            console.error("[MapPanel] Error in batch processing:", error);
-          })
+          .catch((e) => console.error("[MapOL] batch error:", e))
           .finally(() => {
             active--;
             if (idx < batches.length) pump();
@@ -218,156 +482,126 @@ export default function MapPanel({
     return () => ac.abort();
   }, [fiasCodes, url, fiasCollection]);
 
-  const features = useMemo(() => {
-    if (fiasCodes.length > 0 && resolvedPoints.length === 0) {
-      console.log("[MapPanel] FIAS codes provided but no resolved points yet");
-      return { type: "FeatureCollection", features: [] };
-    }
+  // === Построение слоя аварий/ТН ===========================================
+  const accidentPoints = useMemo(() => {
+    // либо точки из props.points, либо из резолва fiasCodes
+    const src = (Array.isArray(fiasCodes) && fiasCodes.length > 0)
+      ? resolvedPoints
+      : (Array.isArray(points) ? points : []);
 
-    const sourcePoints = fiasCodes.length > 0 ? resolvedPoints : points;
-    const toCoords = (p) => {
-      if (Array.isArray(p.coordinates) && p.coordinates.length === 2)
-        return p.coordinates;
-      if (Array.isArray(p.coords) && p.coords.length === 2) return p.coords;
-
-      if (p.lat != null && p.lon != null) {
-        const lat = typeof p.lat === "number" ? p.lat : parseFloat(p.lat);
-        const lon = typeof p.lon === "number" ? p.lon : parseFloat(p.lon);
-        if (Number.isFinite(lat) && Number.isFinite(lon)) return [lat, lon];
+    // нормализация в массив объектов { lon, lat, fiasKey, addr, tnNums[] }
+    const toLngLat = (p) => {
+      // допускаем разные поля
+      if (Array.isArray(p.coordinates) && p.coordinates.length === 2) {
+        // старый формат мог быть [lat, lon]; подстрахуемся
+        const [a, b] = p.coordinates;
+        const latFirst = Math.abs(a) <= 90 && Math.abs(b) <= 180;
+        return latFirst ? [b, a] : [a, b];
       }
-      if (p.latitude != null && p.longitude != null) {
-        const lat =
-          typeof p.latitude === "number" ? p.latitude : parseFloat(p.latitude);
-        const lon =
-          typeof p.longitude === "number"
-            ? p.longitude
-            : parseFloat(p.longitude);
-        if (Number.isFinite(lat) && Number.isFinite(lon)) return [lat, lon];
+      if (Array.isArray(p.coords) && p.coords.length === 2) {
+        const [a, b] = p.coords;
+        const latFirst = Math.abs(a) <= 90 && Math.abs(b) <= 180;
+        return latFirst ? [b, a] : [a, b];
       }
+      const lat = p.lat ?? p.latitude;
+      const lon = p.lon ?? p.longitude;
+      if (Number.isFinite(lat) && Number.isFinite(lon)) return [lon, lat];
+      const latN = parseFloat(lat);
+      const lonN = parseFloat(lon);
+      if (Number.isFinite(latN) && Number.isFinite(lonN)) return [lonN, latN];
       return null;
     };
 
-    const list = (Array.isArray(sourcePoints) ? sourcePoints : []).flatMap(
-      (p, i) => {
-        const coords = toCoords(p);
-        if (!coords || coords.length !== 2) {
-          console.log("[MapPanel] Invalid coordinates for point:", p);
-          return [];
-        }
-        const [lat, lon] = coords;
-        const isMax = zoom >= 18;
-        const addr = p.fullAddress ?? p.address ?? "";
-        const coordsStr =
-          Number.isFinite(lat) && Number.isFinite(lon)
-            ? `${lat.toFixed(6)}, ${lon.toFixed(6)}`
-            : "";
+    return (src || []).flatMap((p, i) => {
+      const coords = toLngLat(p);
+      if (!coords) return [];
+      const [lon, lat] = coords;
 
-        const fiasKey = p.id ?? p.fias ?? p.fiasId;
-        const tnNums = Array.isArray(fiasOwners?.[fiasKey])
-          ? fiasOwners[fiasKey]
-          : Array.isArray(fiasOwners?.[p.fias])
-          ? fiasOwners[p.fias]
-          : [];
+      const fiasKey = p.id ?? p.fias ?? p.fiasId ?? null;
+      const tnNums = Array.isArray(fiasOwners?.[fiasKey])
+        ? fiasOwners[fiasKey]
+        : Array.isArray(fiasOwners?.[p.fias])
+        ? fiasOwners[p.fias]
+        : [];
 
-        const hintListMax = 8;
-        const tnList = tnNums.slice(0, hintListMax).join(", ");
-        const tnMore = tnNums.length > hintListMax ? ` и ещё ${tnNums.length - hintListMax}` : "";
+      const addr = p.fullAddress ?? p.address ?? "";
+      const coordsStr =
+        Number.isFinite(lat) && Number.isFinite(lon)
+          ? `${lat.toFixed(6)}, ${lon.toFixed(6)}`
+          : "";
 
-        let hintText;
-        if (isMax) {
-          const tnPart   = tnNums.length ? `<div><b>ТН:</b> ${tnList}${tnMore}</div>` : "";
-          const addrPart = addr ? `<div><b>Адрес:</b> ${addr}</div>` : "";
-          const fiasPart = fiasKey ? `<div><b>FIAS:</b> ${fiasKey}</div>` : "";
-          const coordPart= coordsStr ? `<div><b>Коорд.:</b> ${coordsStr}</div>` : "";
-          hintText = `<div>${tnPart}${addrPart}${fiasPart}${coordPart}</div>`;
-        } else {
-          hintText = tnNums.length ? `ТН: ${tnList}${tnMore}` : (p.hintContent ?? p.caption ?? "");
-        }
+      const hintListMax = 8;
+      const tnList = tnNums.slice(0, hintListMax).map((n) => `№ ${n}`).join(", ");
+      const tnMore =
+        tnNums.length > hintListMax ? ` и ещё ${tnNums.length - hintListMax}` : "";
 
-        const iconCap = p.iconCaption ?? (tnNums.length ? `ТН ${tnNums[0]}` : p.caption ?? "");
+      const tnBlock = tnNums.length
+        ? `<div><b>ТН (в этой точке):</b> ${tnList}${tnMore}</div>`
+        : "";
 
-        const tnBlock   = tnNums.length ? `<div><b>ТН (в этой точке):</b> ${tnNums.map((n) => `№ ${n}`).join(", ")}</div>` : "";
-        const addrBlock = addr ? `<div><b>Адрес:</b> ${addr}</div>` : "";
-        const fiasBlock = fiasKey ? `<div><b>FIAS:</b> ${fiasKey}</div>` : "";
-        const coordBlock= coordsStr ? `<div><b>Координаты:</b> ${coordsStr}</div>` : "";
+      const fiasBlock = fiasKey ? `<div><b>FIAS:</b> ${fiasKey}</div>` : "";
+      const addrBlock = addr ? `<div><b>Адрес:</b> ${addr}</div>` : "";
+      const coordBlock = coordsStr ? `<div><b>Координаты:</b> ${coordsStr}</div>` : "";
 
-        const balloonText = p.balloonContent ?? `<div>${tnBlock}${addrBlock}${fiasBlock}${coordBlock}</div>`;
+      const popupHtml = `<div>${tnBlock}${addrBlock}${fiasBlock}${coordBlock}</div>`;
 
-        return [
-          {
-            type: "Feature",
-            id: fiasKey ?? i,
-            geometry: { type: "Point", coordinates: [lat, lon] },
-            properties: {
-              iconCaption: iconCap,
-              hintContent: hintText,
-              balloonContent: balloonText,
-              ...p.properties,
-            },
-          },
-        ];
-      }
-    );
+      return [{
+        lon, lat, fiasKey, popupHtml,
+      }];
+    });
+  }, [points, resolvedPoints, fiasCodes, fiasOwners]);
 
-    return { type: "FeatureCollection", features: list };
-  }, [points, fiasCodes, resolvedPoints, fiasOwners, zoom]);
+  // заливаем аварии в векторный слой
+  useEffect(() => {
+    if (!accSourceRef.current) return;
+    const feats = [];
+    for (const p of accidentPoints) {
+      const feature = new Feature({
+        geometry: new Point(fromLonLat([p.lon, p.lat])),
+      });
+      feature.set("_popupHtml", p.popupHtml);
+      feats.push(feature);
+    }
+    accSourceRef.current.clear(true);
+    accSourceRef.current.addFeatures(feats);
+  }, [accidentPoints]);
 
-  const omOptions = useMemo(
-    () => ({
-      clusterize: zoom < 18, // Полностью отключаем кластеризацию при сильном приближении
-      gridSize: zoom > 16 ? 1 : zoom > 12 ? 32 : 64,
-      clusterDisableClickZoom: false,
-      clusterOpenBalloonOnClick: true,
-      ...clusterOptions,
-    }),
-    [zoom, clusterOptions]
-  );
-
-  const omObjects = {
-    preset: "islands#blueCircleDotIconWithCaption",
-    openBalloonOnClick: true,
-    ...objectOptions,
-  };
-
-  const omClusters = {
-    preset: "islands#invertedBlueClusterIcons",
-    clusterNumbers: [10, 50, 100],
-  };
-
-  const modules = [
-    "objectManager.addon.objectsHint",
-    "objectManager.addon.objectsBalloon",
-    "objectManager.addon.clustersBalloon",
-  ];
-
-  const shownCount = features.features.length;
+  const shownCount = accidentPoints.length;
 
   return (
     <div style={{ position: "relative", width: "100%", height }}>
-      <YMaps query={{ lang: "ru_RU", load: "package.full" }}>
-        <YMap
-          state={initialState}
-          options={{
-            suppressMapOpenBlock: true,
-            yandexMapDisablePoiInteractivity: true,
-          }}
-          width="100%"
-          height={height}
-          onLoad={(ymaps) => console.log("[MapPanel] ymaps loaded:", !!ymaps)}
-          instanceRef={(ref) => (mapRef.current = ref)}
-          onBoundsChange={(e) => setZoom(e.get("newZoom"))}
-        >
-          <ObjectManager
-            key={`om-${zoom}-${shownCount}`}
-            options={omOptions}
-            objects={omObjects}
-            clusters={omClusters}
-            modules={modules}
-            features={features}
-            instanceRef={(ref) => (omRef.current = ref)}
+      {/* Переключатель подложек */}
+      <div style={{ marginBottom: 8 }}>
+        <Space>
+          Подложка:
+          <Radio.Group
+            value={activeLayer}
+            onChange={(e) => setActiveLayer(e.target.value)}
+            optionType="button"
+            buttonStyle="solid"
+            options={[
+              { label: "OSM", value: "osm" },
+              { label: "Carto Light", value: "cartoLight" },
+              { label: "Carto Dark", value: "cartoDark" },
+              { label: "Terrain", value: "stamenTerrain" },
+              { label: "Topo", value: "openTopoMap" },
+            ]}
           />
-        </YMap>
-      </YMaps>
+        </Space>
+      </div>
+
+      {/* Карта */}
+      <div
+        ref={mapRef}
+        style={{
+          width: "100%",
+          height,
+          background: "#f0f0f0",
+          borderRadius: 4,
+        }}
+      />
+
+      {/* Счётчик */}
       <div
         style={{
           position: "absolute",
