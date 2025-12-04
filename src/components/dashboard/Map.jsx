@@ -13,6 +13,9 @@ import VectorLayer from "ol/layer/Vector";
 import Feature from "ol/Feature";
 import Point from "ol/geom/Point";
 import { Icon, Style } from "ol/style";
+import CircleStyle from "ol/style/Circle";
+import Fill from "ol/style/Fill";
+import Stroke from "ol/style/Stroke";
 import Overlay from "ol/Overlay";
 import { containsCoordinate } from "ol/extent";
 
@@ -213,16 +216,35 @@ export default function MapPanel({
 
     const accLayer = new VectorLayer({
       source: accSource,
-      style: (feature, resolution) => {
-        const currentZoom = viewRef.current?.getZoom?.() ?? zoom;
-        const scale = currentZoom < 10 ? 0.06 : currentZoom < 13 ? 0.12 : 0.2;
-        return new Style({
-          image: new Icon({
-            // отдельная иконка для аварий
-            src: "https://cdn-icons-png.flaticon.com/128/565/565547.png",
-            scale,
+      style: () => {
+        const z = viewRef.current?.getZoom?.() ?? zoom;
+        // Радиус синей точки в зависимости от зума (приблизили к старой карте)
+        let r;
+        if (z < 8) r = 0;           // на очень дальнем зуме не рисуем
+        else if (z < 10) r = 5;     // стандартная загрузка — заметно
+        else if (z < 12) r = 7;
+        else if (z < 14) r = 9;
+        else if (z < 16) r = 11;
+        else r = 13;
+
+        if (r <= 0) return null;
+
+        // Две окружности: белая «аура» + синяя точка с белой обводкой
+        return [
+          new Style({
+            image: new CircleStyle({
+              radius: r + 2,
+              fill: new Fill({ color: "rgba(255,255,255,0.9)" }),
+            }),
           }),
-        });
+          new Style({
+            image: new CircleStyle({
+              radius: r,
+              fill: new Fill({ color: "#1677ff" }), // фирменная синяя точка
+              stroke: new Stroke({ color: "#ffffff", width: 2 }),
+            }),
+          }),
+        ];
       },
     });
     accLayerRef.current = accLayer;
