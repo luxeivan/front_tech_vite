@@ -218,13 +218,18 @@ export default function MapPanel({
 
     const tpLayer = new VectorLayer({
       source: tpCluster,
+      declutter: true,
       style: (feature) => {
         const z = viewRef.current?.getZoom?.() ?? zoom;
         if (z < 12) return null;
+
         const clustered = feature.get("features");
         const base =
           Array.isArray(clustered) && clustered.length ? clustered[0] : feature;
+
         const property = (base.get("property") || "").toString();
+
+        // базовый масштаб иконки по зуму
         let scale;
         if (z < 13) scale = 0.003;
         else if (z < 14) scale = 0.00375;
@@ -233,14 +238,20 @@ export default function MapPanel({
         else if (z < 17) scale = 0.006;
         else scale = 0.007;
 
+        // Увеличиваем иконку ~в 3 раза относительно текущего размера
+        // (x6 к базовому коэффициенту, было *2)
+        const iconScale = scale * 6;
+
         const nameText =
-          (base && typeof base.get === "function" && (base.get("name") || "")) || "";
-        const showLabel = z >= 15; // показываем подпись с масштаба 15 и выше
+          (base && typeof base.get === "function" && (base.get("name") || "")) ||
+          "";
+        // Показываем подпись немного раньше
+        const showLabel = z >= 14;
 
         return new Style({
           image: new Icon({
             src: /мособлэнерго/i.test(property) ? tpNashe : tpNeNashe,
-            scale,
+            scale: iconScale,
             anchor: [0.5, 1],
             anchorXUnits: "fraction",
             anchorYUnits: "fraction",
@@ -248,10 +259,14 @@ export default function MapPanel({
           text: showLabel
             ? new Text({
                 text: nameText,
-                offsetY: -6,
                 font: "600 12px system-ui, sans-serif",
                 fill: new Fill({ color: "#001529" }),
                 stroke: new Stroke({ color: "#ffffff", width: 3 }),
+                // ⚑ Подпись справа от иконки (по центру по вертикали)
+                textAlign: "left",
+                textBaseline: "middle",
+                offsetX: 18,
+                offsetY: -12,
               })
             : undefined,
         });
