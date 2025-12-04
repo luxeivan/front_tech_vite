@@ -19,6 +19,7 @@ import Stroke from "ol/style/Stroke";
 import Cluster from "ol/source/Cluster";
 import Overlay from "ol/Overlay";
 import { containsCoordinate } from "ol/extent";
+import FullScreen from "ol/control/FullScreen";
 
 import arrTp from "../../tp.json";
 import tpNashe from "../../assets/tpNashe.svg";
@@ -347,6 +348,19 @@ export default function MapPanel({
     });
     olMapRef.current = map;
 
+    // Добавляем кнопку полноэкранного режима
+    map.addControl(
+      new FullScreen({
+        tipLabel: "Полный экран", // всплывающая подсказка на кнопке
+      })
+    );
+
+    // Обновляем размер карты при входе/выходе из полноэкранного режима
+    const resizeOnFs = () => {
+      requestAnimationFrame(() => olMapRef.current?.updateSize());
+    };
+    document.addEventListener("fullscreenchange", resizeOnFs);
+
     view.on("change:resolution", () => {
       const vz = view.getZoom();
       setZoom(vz);
@@ -388,6 +402,7 @@ export default function MapPanel({
       });
     baseLayers.yandex.setVisible(true);
     return () => {
+      document.removeEventListener("fullscreenchange", resizeOnFs);
       map.setTarget(null);
     };
   }, []);
