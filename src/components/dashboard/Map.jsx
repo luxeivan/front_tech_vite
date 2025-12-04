@@ -19,7 +19,6 @@ import Stroke from "ol/style/Stroke";
 import Cluster from "ol/source/Cluster";
 import Overlay from "ol/Overlay";
 import { containsCoordinate } from "ol/extent";
-import FullScreen from "ol/control/FullScreen";
 
 import arrTp from "../../tp.json";
 import tpNashe from "../../assets/tpNashe.svg";
@@ -78,6 +77,7 @@ export default function MapPanel({
   const [zoom, setZoom] = useState(initialState?.zoom ?? 8);
   const cacheRef = useRef(new Map());
   const abortRef = useRef(null);
+  const wrapperRef = useRef(null);
   const mapRef = useRef(null);
   const olMapRef = useRef(null);
   const viewRef = useRef(null);
@@ -345,15 +345,9 @@ export default function MapPanel({
       layers: [...Object.values(baseLayers), tpLayer, accLayer],
       overlays: [overlay],
       view,
+      controls: [], // hide default OL controls; we render our own
     });
     olMapRef.current = map;
-
-    // Добавляем кнопку полноэкранного режима
-    map.addControl(
-      new FullScreen({
-        tipLabel: "Полный экран", // всплывающая подсказка на кнопке
-      })
-    );
 
     // Обновляем размер карты при входе/выходе из полноэкранного режима
     const resizeOnFs = () => {
@@ -714,12 +708,43 @@ export default function MapPanel({
 
   const shownCount = accidentPoints.length;
 
+  // --- Custom UI controls handlers (zoom/fullscreen) ---
+  const handleZoomIn = () => {
+    const v = viewRef.current;
+    if (!v) return;
+    const z = v.getZoom() ?? 8;
+    v.setZoom(z + 1);
+  };
+
+  const handleZoomOut = () => {
+    const v = viewRef.current;
+    if (!v) return;
+    const z = v.getZoom() ?? 8;
+    v.setZoom(z - 1);
+  };
+
+  const handleFullscreen = () => {
+    const el = wrapperRef.current || mapRef.current;
+    if (!el) return;
+    if (document.fullscreenElement === el) {
+      document.exitFullscreen?.();
+      return;
+    }
+    if (!document.fullscreenElement) {
+      el.requestFullscreen?.();
+    } else {
+      document.exitFullscreen?.();
+      setTimeout(() => el.requestFullscreen?.(), 0);
+    }
+  };
+
   return (
-    <div style={{ position: "relative", width: "100%", height }}>
+    <div ref={wrapperRef} className="mo-map-wrapper" style={{ position: "relative", width: "100%", height }}>
+      <style>{`.mo-map-wrapper .ol-control{display:none!important}`}</style>
       {/* Переключатель подложек */}
       <div style={{ marginBottom: 8 }}>
         <Space>
-          Подложка:
+          {/* Подложка: */}
           <Radio.Group
             value={activeLayer}
             onChange={(e) => setActiveLayer(e.target.value)}
@@ -749,6 +774,73 @@ export default function MapPanel({
           borderRadius: 4,
         }}
       />
+
+      {/* Custom top-right controls */}
+      <div
+        style={{
+          position: "absolute",
+          top: 10,
+          right: 10,
+          display: "flex",
+          gap: 8,
+          zIndex: 1000,
+        }}
+      >
+        <button
+          onClick={handleZoomIn}
+          title="Приблизить"
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 10,
+            border: "1px solid #d9d9d9",
+            background: "#fff",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+            fontSize: 24,
+            lineHeight: "42px",
+            cursor: "pointer",
+            padding: 0,
+          }}
+        >
+          +
+        </button>
+        <button
+          onClick={handleZoomOut}
+          title="Отдалить"
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 10,
+            border: "1px solid #d9d9d9",
+            background: "#fff",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+            fontSize: 24,
+            lineHeight: "42px",
+            cursor: "pointer",
+            padding: 0,
+          }}
+        >
+          −
+        </button>
+        <button
+          onClick={handleFullscreen}
+          title="Полный экран"
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 10,
+            border: "1px solid #d9d9d9",
+            background: "#fff",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+            fontSize: 22,
+            lineHeight: "42px",
+            cursor: "pointer",
+            padding: 0,
+          }}
+        >
+          ⛶
+        </button>
+      </div>
 
       {/* Счётчик */}
       <div
