@@ -229,6 +229,12 @@ export default function MapPanel({
           Array.isArray(clustered) && clustered.length ? clustered[0] : feature;
 
         const property = (base.get("property") || "").toString();
+        // --- Ownership normalization and icon selection ---
+        const prop = property.toLowerCase();
+        const isLease = prop.includes("аренд");           // аренда -> зелёная (наша)
+        const isExternal = prop.includes("сторон");       // сторонняя -> синяя (не наша)
+        const isOur = /мособлэнерго/.test(prop) || isLease;
+        const iconSrc = isOur ? tpNashe : tpNeNashe;
 
         // базовый масштаб иконки по зуму
         let scale;
@@ -240,8 +246,8 @@ export default function MapPanel({
         else scale = 0.007;
 
         // Увеличиваем иконку ~в 3 раза относительно текущего размера
-        // (x6 к базовому коэффициенту, было *2)
-        const iconScale = scale * 6;
+        // (x6.6 к базовому коэффициенту, было *6)
+        const iconScale = scale * 6.6;
 
         const nameText =
           (base && typeof base.get === "function" && (base.get("name") || "")) ||
@@ -251,7 +257,7 @@ export default function MapPanel({
 
         return new Style({
           image: new Icon({
-            src: /мособлэнерго/i.test(property) ? tpNashe : tpNeNashe,
+            src: iconSrc,
             scale: iconScale,
             anchor: [0.5, 1],
             anchorXUnits: "fraction",
