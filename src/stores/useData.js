@@ -73,41 +73,6 @@ const useData = create((set) => ({
     }
   },
   
-  
-  // getTns: async (_page, pageSize = 500) => {
-  //   try {
-  //     set({ isLoadingTns: true });
-  //     const jwt = localStorage.getItem("jwt");
-  //     const base = `${urlBackend}/api/teh-narusheniyas`;
-
-  //     const fetchPage = async (p) => {
-  //       const { data } = await axios.get(base, {
-  //         params: {
-  //           "pagination[page]": p,
-  //           // даже если Strapi отрежет до 100, мы просто пройдём по всем страницам
-  //           "pagination[pageSize]": pageSize,
-  //           "sort[0]": "createDateTime:DESC",
-  //         },
-  //         headers: { Authorization: `Bearer ${jwt}` },
-  //       });
-  //       return data;
-  //     };
-
-  //     const first = await fetchPage(1);
-  //     const pageCount = first?.meta?.pagination?.pageCount || 1;
-  //     let all = Array.isArray(first?.data) ? first.data.slice() : [];
-
-  //     for (let p = 2; p <= pageCount; p++) {
-  //       const chunk = await fetchPage(p);
-  //       if (Array.isArray(chunk?.data)) all.push(...chunk.data);
-  //     }
-
-  //     set({ tns: { data: all, meta: first?.meta }, isLoadingTns: false });
-  //   } catch (error) {
-  //     set({ isLoadingTns: false });
-  //     console.log(`Ошибка при получении всех ТН`, error);
-  //   }
-  // },
 
   getTn: async (documentId) => {
     try {
@@ -129,49 +94,6 @@ const useData = create((set) => ({
       console.log(`Ошибка при получении ТН ${documentId}`, error);
     }
   },
-
-  //   getTns: async (page, pageSize) => {
-  //     try {
-  //       set({ isLoadingTns: true });
-  //       const res = await axios.get(`${urlBackend}/api/teh-narusheniyas`, {
-  //         params: {
-  //           "pagination[page]": page,
-  //           "pagination[pageSize]": pageSize,
-  //           _: Date.now(), // 👈 cache-buster
-  //         },
-  //         headers: {
-  //           Authorization: `Bearer ${localStorage.getItem("jwt")}`,
-  //           "Cache-Control": "no-cache", // 👈 просим не кэшировать
-  //           Pragma: "no-cache",
-  //         },
-  //       });
-  //       if (res.data) set({ tns: res.data, isLoadingTns: false });
-  //     } catch (error) {
-  //       set({ isLoadingTns: false });
-  //       console.log(`Ошибка при получении всех ТН`, error);
-  //     }
-  //   },
-
-  //   getTn: async (documentId) => {
-  //     try {
-  //       set({ isLoadingTn: true });
-  //       const res = await axios.get(
-  //         `${urlBackend}/api/teh-narusheniyas/${documentId}`,
-  //         {
-  //           params: { _: Date.now() }, // 👈 cache-buster
-  //           headers: {
-  //             Authorization: `Bearer ${localStorage.getItem("jwt")}`,
-  //             "Cache-Control": "no-cache", // 👈 и тут
-  //             Pragma: "no-cache",
-  //           },
-  //         }
-  //       );
-  //       if (res.data) set({ tn: res.data, isLoadingTn: false });
-  //     } catch (error) {
-  //       set({ isLoadingTn: false });
-  //       console.log(`Ошибка при получении ТН ${documentId}`, error);
-  //     }
-  //   },
 
   updateTn: async (documentId, data) => {
     try {

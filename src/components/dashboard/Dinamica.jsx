@@ -1,12 +1,23 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Card, Skeleton, Typography } from "antd";
 import dayjs from "dayjs";
+import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
+import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+dayjs.extend(isSameOrAfter);
+dayjs.extend(isSameOrBefore);
+
+dayjs.tz.setDefault("Europe/Moscow");
+
 import axios from "axios";
 
 const { Text } = Typography;
 const URL = import.meta.env.VITE_URL_BACKEND;
 
-/* ---------------- helpers ---------------- */
 const pick = (obj, key) =>
   obj?.[key] ??
   obj?.attributes?.[key] ??
@@ -32,32 +43,30 @@ const recoveryDate = (row) =>
   pick(row, "F81_070_RESTOR_SUPPLAYDATETIME") ??
   null;
 
-// ==== Рабочие "сутки" 08:00→08:00 (ключ дня на базе смещения -8 часов)
-const dayKey0808 = (v) =>
-  v ? dayjs(v).subtract(8, "hour").format("YYYY-MM-DD") : null;
-
-/* ---------------- sparkline ---------------- */
 const Sparkline7 = ({ points }) => {
   const w = 900,
     h = 120,
     padX = 24,
     padY = 22;
-  const max = Math.max(1, ...points.map((p) => p.total));
+  const max = Math.max(1, ...points.map((p) => Number(p.total || 0)));
   const step = points.length > 1 ? (w - 2 * padX) / (points.length - 1) : 0;
 
-  const xy = points.map((p, i) => [
-    padX + i * step,
-    h - padY - (h - 2 * padY) * (p.total / max),
-  ]);
+  const xy = points.map((p, i) => {
+    if (p.total == null) return null;
+    return [
+      padX + i * step,
+      h - padY - (h - 2 * padY) * (p.total / max),
+    ];
+  });
 
-  const poly = xy.map((p) => p.join(",")).join(" ");
+  const poly = xy.map((p) => p?.join(",")).filter(Boolean).join(" ");
 
   return (
     <svg viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", height: 140 }}>
-      {/* линия */}
       <polyline points={poly} fill="none" stroke="#ff4d4f" strokeWidth="2" />
-      {/* точки + значения + подписи дней */}
-      {xy.map(([x, y], i) => {
+      {xy.map((pt, i) => {
+        if (!pt) return null;
+        const [x, y] = pt;
         const p = points[i];
         return (
           <g key={i}>
@@ -88,7 +97,6 @@ const Sparkline7 = ({ points }) => {
           </g>
         );
       })}
-      {/* осевая линия снизу (визуально приятней) */}
       <line
         x1={padX}
         y1={h - padY}
@@ -100,7 +108,6 @@ const Sparkline7 = ({ points }) => {
   );
 };
 
-/* ---------------- компонент: только блок 4 ---------------- */
 export default function Dinamica7Days() {
   const [rows7d, setRows7d] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -109,22 +116,41 @@ export default function Dinamica7Days() {
 
   const ruDow = ["вс", "пн", "вт", "ср", "чт", "пт", "сб"];
 
-  // 7 рабочих суток, привязанных к 08→08 (сегодня включительно)
-  const todayKey = dayKey0808(dayjs());
   const days7 = useMemo(
     () =>
       Array.from({ length: 7 }, (_, i) =>
-        dayjs(todayKey).subtract(6 - i, "day")
+        dayjs().tz("Europe/Moscow").startOf("day").subtract(6 - i, "day")
       ),
-    [todayKey]
+    []
   );
 
   const daily = useMemo(() => {
     return days7.map((d) => {
-      const key = d.format("YYYY-MM-DD");
-      const sameWorkday = (dt) => (dt ? dayKey0808(dt) === key : false);
+      console.group("[Dinamica][day]", d.format("YYYY-MM-DD"), d.format("dd"));
+      // сутки считаем с 08:00 МСК
+      const d0 = d.tz("Europe/Moscow").startOf("day").add(8, "hour");
+      const d1 = d0.add(1, "day");
 
-      const createdDay = rows7d.filter((r) => sameWorkday(startDate(r)));
+      console.log("Окно дня:", d0.toISOString(), "—", d1.toISOString());
+
+      const createdDay = rows7d.filter((r) => {
+        const dt = startDate(r);
+        if (!dt) return false;
+        const dtz = dayjs(dt).tz("Europe/Moscow");
+        return dtz.isSameOrAfter(d0) && dtz.isBefore(d1);
+      });
+
+      console.log("Всего записей за день:", createdDay.length);
+      createdDay.slice(0, 5).forEach((r, i) => {
+        console.log(
+          "row",
+          i,
+          "createDateTime=",
+          startDate(r),
+          "parsed=",
+          startDate(r) ? dayjs(startDate(r)).toISOString() : null
+        );
+      });
 
       const isDeletedRow = (r) => {
         const st = String(
@@ -133,7 +159,8 @@ export default function Dinamica7Days() {
         const upd = pick(r, "updatedAt") ?? r?.updatedAt ?? null;
         const del = pick(r, "deletedAt") ?? r?.deletedAt ?? null;
         return (
-          st.includes("удален") || st.includes("delete") || sameWorkday(del)
+          st.includes("удален") || st.includes("delete") || 
+          (del && dayjs(del).isSameOrAfter(d0) && dayjs(del).isBefore(d1))
         );
       };
 
@@ -141,7 +168,10 @@ export default function Dinamica7Days() {
         if (isOpenTN(r) || isDeletedRow(r)) return false;
         const upd = pick(r, "updatedAt") ?? r?.updatedAt ?? null;
         const rec = recoveryDate(r);
-        return sameWorkday(upd) || sameWorkday(rec);
+        return (
+          (upd && dayjs(upd).isSameOrAfter(d0) && dayjs(upd).isBefore(d1)) ||
+          (rec && dayjs(rec).isSameOrAfter(d0) && dayjs(rec).isBefore(d1))
+        );
       };
 
       const opened = createdDay.filter(
@@ -149,8 +179,10 @@ export default function Dinamica7Days() {
       ).length;
       const closed = createdDay.filter((r) => isClosedRow(r)).length;
       const deleted = createdDay.filter((r) => isDeletedRow(r)).length;
-      // Не считаем удалённые в total — они только для тултипов/диагностики
       const total = opened + closed;
+
+      console.log("Итого:", { opened, closed, deleted, total });
+      console.groupEnd();
 
       return { label: ruDow[d.day()], opened, closed, deleted, total };
     });
@@ -163,35 +195,68 @@ export default function Dinamica7Days() {
       const jwt = localStorage.getItem("jwt");
       if (!jwt) throw new Error("Нет JWT: авторизуйтесь");
 
-      // Берём запас по времени, чтобы точно покрыть 7 интервалов 08→08
+      // загружаем данные с учётом суток с 08:00 МСК
       const since7d = dayjs()
-        .subtract(7, "day")
+        .tz("Europe/Moscow")
         .startOf("day")
-        .subtract(8, "hour")
+        .add(8, "hour")
+        .subtract(6, "day")
         .toISOString();
 
-      const qsAll7d = [
-        "pagination[page]=1",
-        "pagination[pageSize]=1000",
-        "sort[0]=createDateTime:DESC",
-        `filters[createDateTime][$gte]=${encodeURIComponent(since7d)}`,
-      ].join("&");
+      console.log("[Dinamica][load] since7d =", since7d);
 
       const headers = { Authorization: `Bearer ${jwt}` };
-      const respAll = await axios.get(
-        `${URL}/api/teh-narusheniyas?${qsAll7d}`,
-        {
-          headers,
-        }
-      );
 
-      const listAll7d = Array.isArray(respAll?.data?.data)
-        ? respAll.data.data.map((x) =>
-            x?.attributes ? { id: x.id, ...x.attributes } : x
-          )
-        : [];
+      let page = 1;
+      const pageSize = 100;
+      let all = [];
 
-      setRows7d(listAll7d);
+      while (true) {
+        const qs = [
+          `pagination[page]=${page}`,
+          `pagination[pageSize]=${pageSize}`,
+          "sort[0]=createDateTime:DESC",
+          `filters[createDateTime][$gte]=${encodeURIComponent(since7d)}`,
+        ].join("&");
+
+        const resp = await axios.get(
+          `${URL}/api/teh-narusheniyas?${qs}`,
+          { headers }
+        );
+
+        const chunk = Array.isArray(resp?.data?.data)
+          ? resp.data.data.map((x) =>
+              x?.attributes ? { id: x.id, ...x.attributes } : x
+            )
+          : [];
+
+        console.log(
+          "[Dinamica][load] page",
+          page,
+          "rows =",
+          chunk.length
+        );
+
+        all.push(...chunk);
+
+        if (chunk.length < pageSize) break;
+        page += 1;
+      }
+
+      console.log("[Dinamica][load] rows7d total =", all.length);
+
+      all.slice(0, 5).forEach((r, i) => {
+        console.log(
+          "row",
+          i,
+          "createDateTime=",
+          startDate(r),
+          "parsed=",
+          startDate(r) ? dayjs(startDate(r)).toISOString() : null
+        );
+      });
+
+      setRows7d(all);
     } catch (e) {
       setError(e?.message || "Ошибка загрузки данных");
     } finally {
@@ -203,7 +268,6 @@ export default function Dinamica7Days() {
     load();
   }, []);
 
-  // SSE автообновление, чтобы график обновлялся по новым событиям
   useEffect(() => {
     if (!URL) return;
     try {

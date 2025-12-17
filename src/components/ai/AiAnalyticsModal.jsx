@@ -61,7 +61,7 @@ export default function AiAnalyticsModal({ open, onClose, items = [], title }) {
   }, [aiText, metrics]);
 
   React.useEffect(() => {
-    console.log("[aiModal] открыли =", open);
+    // console.log("[aiModal] открыли =", open);
   }, [open]);
 
   const callLLM = async (mode) => {

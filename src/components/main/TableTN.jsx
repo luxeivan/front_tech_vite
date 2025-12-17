@@ -511,13 +511,13 @@ export default function TableTN() {
     if (all.length === 0) return;
 
     const opened = all.filter((i) => getStatusName(i) === "открыта");
-    console.log(`[filters] открытых ТН: ${opened.length}`);
+    // console.log(`[filters] открытых ТН: ${opened.length}`);
     opened.forEach((i) => {
       const id = i?.documentId || i?.id;
       // console.log(`ТН ${id}: статус = "открыта"`);
     });
 
-    console.log("=== ВСЕ ТН (для будущей AI-Аналитики) ===");
+    // console.log("=== ВСЕ ТН (для будущей AI-Аналитики) ===");
     all.forEach((tn, i) => {});
     console.log("Всего ТН:", all.length);
   }, [tns?.data, isLoadingTns]);
