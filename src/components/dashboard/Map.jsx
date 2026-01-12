@@ -89,10 +89,20 @@ export default function MapPanel({
   const tpLayerRef = useRef(null);
   const accSourceRef = useRef(null);
   const accLayerRef = useRef(null);
+  const pesSourceRef = useRef(null);
+  const pesLayerRef = useRef(null);
   const tpIndexRef = useRef([]);
 
   const [activeLayer, setActiveLayer] = useState("yandex");
   const [resolvedPoints, setResolvedPoints] = useState([]);
+
+  const mapHeight = useMemo(() => {
+    // When `height` is "100%" but the parent doesn't have a fixed height,
+    // OL target collapses to 0px and the list visually appears "on the map".
+    // Use a sane default for map area.
+    if (height === "100%" || height === "100vh") return "520px";
+    return height;
+  }, [height]);
 
   useEffect(() => {
     // Подложки
@@ -115,7 +125,11 @@ export default function MapPanel({
       }),
       stamenTerrain: new TileLayer({
         source: new XYZ({
-          url: `https://tiles.stadiamaps.com/tiles/stamen_terrain/{z}/{x}/{y}{r}.png${import.meta.env.VITE_STADIA_KEY ? ('?api_key=' + import.meta.env.VITE_STADIA_KEY) : ''}`,
+          url: `https://tiles.stadiamaps.com/tiles/stamen_terrain/{z}/{x}/{y}{r}.png${
+            import.meta.env.VITE_STADIA_KEY
+              ? "?api_key=" + import.meta.env.VITE_STADIA_KEY
+              : ""
+          }`,
           crossOrigin: "anonymous",
           attributions:
             "Map © Stadia Maps, © Stamen • Data © OpenStreetMap contributors",
@@ -126,7 +140,8 @@ export default function MapPanel({
         source: new XYZ({
           url: "https://{a-c}.tile.opentopomap.org/{z}/{x}/{y}.png",
           crossOrigin: "anonymous",
-          attributions: "© OpenTopoMap (CC‑BY‑SA) • © OpenStreetMap contributors",
+          attributions:
+            "© OpenTopoMap (CC‑BY‑SA) • © OpenStreetMap contributors",
         }),
         visible: false,
       }),
@@ -231,8 +246,8 @@ export default function MapPanel({
         const property = (base.get("property") || "").toString();
         // --- Ownership normalization and icon selection ---
         const prop = property.toLowerCase();
-        const isLease = prop.includes("аренд");           // аренда -> зелёная (наша)
-        const isExternal = prop.includes("сторон");       // сторонняя -> синяя (не наша)
+        const isLease = prop.includes("аренд"); // аренда -> зелёная (наша)
+        const isExternal = prop.includes("сторон"); // сторонняя -> синяя (не наша)
         const isOur = /мособлэнерго/.test(prop) || isLease;
         const iconSrc = isOur ? tpNashe : tpNeNashe;
 
@@ -250,7 +265,9 @@ export default function MapPanel({
         const iconScale = scale * 6.6;
 
         const nameText =
-          (base && typeof base.get === "function" && (base.get("name") || "")) ||
+          (base &&
+            typeof base.get === "function" &&
+            (base.get("name") || "")) ||
           "";
         // Показываем подпись немного раньше
         const showLabel = z >= 14;
@@ -337,6 +354,53 @@ export default function MapPanel({
     });
     accLayerRef.current = accLayer;
 
+    // --- PES vehicles layer (moving mobile units) ---
+    const pesSource = new VectorSource();
+    pesSourceRef.current = pesSource;
+
+    const pesLayer = new VectorLayer({
+      source: pesSource,
+      // keep above other layers
+      zIndex: 9999,
+      declutter: true,
+      style: (feature) => {
+        const z = viewRef.current?.getZoom?.() ?? zoom;
+        // slightly grow with zoom
+        let r;
+        if (z < 8) r = 5;
+        else if (z < 10) r = 6;
+        else if (z < 12) r = 7;
+        else if (z < 14) r = 8;
+        else if (z < 16) r = 9;
+        else r = 10;
+
+        const name = (feature.get("name") || "").toString();
+        const speed = Number(feature.get("speed") ?? 0);
+        const showLabel = z >= 12;
+
+        return new Style({
+          image: new CircleStyle({
+            radius: r,
+            fill: new Fill({ color: speed > 0 ? "#fa8c16" : "#d46b08" }),
+            stroke: new Stroke({ color: "#ffffff", width: 2 }),
+          }),
+          text: showLabel
+            ? new Text({
+                text: name,
+                font: "600 12px system-ui, sans-serif",
+                fill: new Fill({ color: "#001529" }),
+                stroke: new Stroke({ color: "#ffffff", width: 3 }),
+                textAlign: "left",
+                textBaseline: "middle",
+                offsetX: 14,
+                offsetY: -10,
+              })
+            : undefined,
+        });
+      },
+    });
+    pesLayerRef.current = pesLayer;
+
     const lat = initialState?.center?.[0] ?? 55.751244;
     const lon = initialState?.center?.[1] ?? 37.618423;
     const view = new View({
@@ -348,7 +412,7 @@ export default function MapPanel({
     viewRef.current = view;
     const map = new OlMap({
       target: mapRef.current,
-      layers: [...Object.values(baseLayers), tpLayer, accLayer],
+      layers: [...Object.values(baseLayers), tpLayer, accLayer, pesLayer],
       overlays: [overlay],
       view,
       controls: [], // hide default OL controls; we render our own
@@ -368,38 +432,38 @@ export default function MapPanel({
       accLayer.changed();
     });
 
-      map.on("click", (evt) => {
-        const f = map.forEachFeatureAtPixel(evt.pixel, (feat) => feat);
-        if (!f) {
-          overlay.setPosition(undefined);
-          return;
-        }
+    map.on("click", (evt) => {
+      const f = map.forEachFeatureAtPixel(evt.pixel, (feat) => feat);
+      if (!f) {
+        overlay.setPosition(undefined);
+        return;
+      }
 
-        const members = f && f.get && f.get("features");
-        if (Array.isArray(members) && members.length > 1) {
-          const current = viewRef.current?.getZoom?.() ?? 10;
-          viewRef.current?.setZoom(current + 1);
-        }
+      const members = f && f.get && f.get("features");
+      if (Array.isArray(members) && members.length > 1) {
+        const current = viewRef.current?.getZoom?.() ?? 10;
+        viewRef.current?.setZoom(current + 1);
+      }
 
-        const clustered = f.get("features");
-        if (Array.isArray(clustered) && clustered.length > 1) {
-          if (overlayContentRef.current) {
-            overlayContentRef.current.innerHTML = `<div><b>Кластер ТП:</b> ${clustered.length} шт</div>`;
-          }
-          overlay.setPosition(evt.coordinate);
-          return;
-        }
-
-        const base =
-          Array.isArray(clustered) && clustered.length ? clustered[0] : f;
-        const props = base.getProperties() || {};
-        const html = props._popupHtml || props.name || "—";
-
+      const clustered = f.get("features");
+      if (Array.isArray(clustered) && clustered.length > 1) {
         if (overlayContentRef.current) {
-          overlayContentRef.current.innerHTML = html;
+          overlayContentRef.current.innerHTML = `<div><b>Кластер ТП:</b> ${clustered.length} шт</div>`;
         }
         overlay.setPosition(evt.coordinate);
-      });
+        return;
+      }
+
+      const base =
+        Array.isArray(clustered) && clustered.length ? clustered[0] : f;
+      const props = base.getProperties() || {};
+      const html = props._popupHtml || props.name || "—";
+
+      if (overlayContentRef.current) {
+        overlayContentRef.current.innerHTML = html;
+      }
+      overlay.setPosition(evt.coordinate);
+    });
     baseLayers.yandex.setVisible(true);
     return () => {
       document.removeEventListener("fullscreenchange", resizeOnFs);
@@ -744,8 +808,105 @@ export default function MapPanel({
     }
   };
 
+  // --- Load and refresh moving PES vehicles from backend services ---
+  useEffect(() => {
+    if (!pesSourceRef.current) return;
+
+    const base = String(
+      import.meta.env.VITE_URL_BACKEND_SERVICES ||
+        import.meta.env.VITE_URL_BACKEND ||
+        ""
+    ).replace(/\/$/, "");
+
+    // If env is not set, do nothing (keeps old functionality intact)
+    if (!base) return;
+
+    const endpoint = `${base}/services/pes/vehicles`;
+
+    let timer = null;
+    let stopped = false;
+    const ac = new AbortController();
+
+    const formatTime = (ms) => {
+      const n = Number(ms);
+      if (!Number.isFinite(n) || n <= 0) return "—";
+      try {
+        return new Date(n).toLocaleString();
+      } catch {
+        return String(n);
+      }
+    };
+
+    const load = async () => {
+      try {
+        const resp = await fetch(endpoint, { signal: ac.signal });
+        if (!resp.ok) throw new Error(`PES fetch failed: ${resp.status}`);
+        const json = await resp.json();
+        const vehicles = Array.isArray(json?.vehicles) ? json.vehicles : [];
+
+        const feats = [];
+        for (const v of vehicles) {
+          const lat = typeof v?.lat === "number" ? v.lat : parseFloat(v?.lat);
+          const lon = typeof v?.lon === "number" ? v.lon : parseFloat(v?.lon);
+          if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+
+          const feature = new Feature({
+            geometry: new Point(fromLonLat([lon, lat])),
+          });
+
+          const name = v?.name || v?.caption || `PES ${v?.id ?? ""}`;
+          const model = v?.model || "—";
+          const speed = Number(v?.speed ?? 0);
+          const time = v?.time ?? null;
+
+          feature.setProperties({
+            id: v?.id,
+            name,
+            model,
+            speed,
+            time,
+          });
+
+          feature.set(
+            "_popupHtml",
+            `<div><b>${name}</b>
+              <br/>Модель: ${model}
+              <br/>Скорость: ${Number.isFinite(speed) ? speed : 0}
+              <br/>Время: ${formatTime(time)}
+              <br/>Коорд.: ${lat.toFixed(6)}, ${lon.toFixed(6)}
+            </div>`
+          );
+
+          feats.push(feature);
+        }
+
+        if (!stopped && pesSourceRef.current) {
+          pesSourceRef.current.clear(true);
+          pesSourceRef.current.addFeatures(feats);
+        }
+      } catch (e) {
+        if (e?.name === "AbortError") return;
+        console.error("[MapOL] PES vehicles error:", e);
+      }
+    };
+
+    // initial + polling
+    load();
+    timer = setInterval(load, 15_000);
+
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+      ac.abort();
+    };
+  }, []);
+
   return (
-    <div ref={wrapperRef} className="mo-map-wrapper" style={{ position: "relative", width: "100%", height }}>
+    <div
+      ref={wrapperRef}
+      className="mo-map-wrapper"
+      style={{ position: "relative", width: "100%", height: "auto" }}
+    >
       <style>{`.mo-map-wrapper .ol-control{display:none!important}`}</style>
       {/* Переключатель подложек */}
       <div style={{ marginBottom: 8 }}>
@@ -771,98 +932,104 @@ export default function MapPanel({
       </div>
 
       {/* Карта */}
-      <div
-        ref={mapRef}
-        style={{
-          width: "100%",
-          height,
-          background: "#f0f0f0",
-          borderRadius: 4,
-        }}
-      />
+      <div style={{ position: "relative" }}>
+        <div
+          ref={mapRef}
+          style={{
+            width: "100%",
+            height: mapHeight,
+            background: "#f0f0f0",
+            borderRadius: 4,
+          }}
+        />
 
-      {/* Custom top-right controls */}
-      <div
-        style={{
-          position: "absolute",
-          top: 10,
-          right: 10,
-          display: "flex",
-          gap: 8,
-          zIndex: 1000,
-        }}
-      >
-        <button
-          onClick={handleZoomIn}
-          title="Приблизить"
+        {/* Custom top-right controls */}
+        <div
           style={{
-            width: 44,
-            height: 44,
-            borderRadius: 10,
-            border: "1px solid #d9d9d9",
-            background: "#fff",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-            fontSize: 24,
-            lineHeight: "42px",
-            cursor: "pointer",
-            padding: 0,
+            position: "absolute",
+            top: 10,
+            right: 10,
+            display: "flex",
+            gap: 8,
+            zIndex: 1000,
           }}
         >
-          +
-        </button>
-        <button
-          onClick={handleZoomOut}
-          title="Отдалить"
+          <button
+            onClick={handleZoomIn}
+            title="Приблизить"
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 10,
+              border: "1px solid #d9d9d9",
+              background: "#fff",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+              fontSize: 24,
+              lineHeight: "42px",
+              cursor: "pointer",
+              padding: 0,
+            }}
+          >
+            +
+          </button>
+          <button
+            onClick={handleZoomOut}
+            title="Отдалить"
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 10,
+              border: "1px solid #d9d9d9",
+              background: "#fff",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+              fontSize: 24,
+              lineHeight: "42px",
+              cursor: "pointer",
+              padding: 0,
+            }}
+          >
+            −
+          </button>
+          <button
+            onClick={handleFullscreen}
+            title="Полный экран"
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 10,
+              border: "1px solid #d9d9d9",
+              background: "#fff",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+              fontSize: 22,
+              lineHeight: "42px",
+              cursor: "pointer",
+              padding: 0,
+            }}
+          >
+            ⛶
+          </button>
+        </div>
+
+        {/* Счётчик */}
+        <div
           style={{
-            width: 44,
-            height: 44,
-            borderRadius: 10,
-            border: "1px solid #d9d9d9",
-            background: "#fff",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-            fontSize: 24,
-            lineHeight: "42px",
-            cursor: "pointer",
-            padding: 0,
+            position: "absolute",
+            bottom: 6,
+            right: 10,
+            fontSize: 12,
+            opacity: 0.75,
+            background: "rgba(255,255,255,0.8)",
+            padding: "2px 6px",
+            borderRadius: 3,
           }}
         >
-          −
-        </button>
-        <button
-          onClick={handleFullscreen}
-          title="Полный экран"
-          style={{
-            width: 44,
-            height: 44,
-            borderRadius: 10,
-            border: "1px solid #d9d9d9",
-            background: "#fff",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-            fontSize: 22,
-            lineHeight: "42px",
-            cursor: "pointer",
-            padding: 0,
-          }}
-        >
-          ⛶
-        </button>
+          Точек на карте: {shownCount}
+        </div>
       </div>
 
-      {/* Счётчик */}
-      <div
-        style={{
-          position: "absolute",
-          bottom: 6,
-          right: 10,
-          fontSize: 12,
-          opacity: 0.75,
-          background: "rgba(255,255,255,0.8)",
-          padding: "2px 6px",
-          borderRadius: 3,
-        }}
-      >
-        Точек на карте: {shownCount}
-      </div>
+
+      
     </div>
+    
   );
 }
