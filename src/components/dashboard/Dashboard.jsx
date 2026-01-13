@@ -11,7 +11,7 @@ import {
 } from "antd";
 import { HomeOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
-import MapPanel from "./Map";
+import MapPanel from "./Map/Map";
 import dayjs from "dayjs";
 import axios from "axios";
 
