@@ -8,7 +8,23 @@ import Text from "ol/style/Text";
 import Fill from "ol/style/Fill";
 import Stroke from "ol/style/Stroke";
 
+
 export const PES_POLL_MS_DEFAULT = 120_000; // 2 minutes
+
+// NOTE: Backend returns a large fleet; only the highlighted IDs are actual PES units.
+export const PES_ALLOWED_IDS = new Set([
+  52957,
+  53945,
+  52455,
+  53835,
+  54111,
+  51556,
+  54117,
+  51479,
+  54132,
+  54123,
+  53949,
+]);
 
 export const pesIconDataUrl = (fillColor = "#d46b08") => {
   const svg = `
@@ -124,7 +140,13 @@ export const startPesPolling = ({
       const resp = await fetch(endpoint, { signal: ac.signal });
       if (!resp.ok) throw new Error(`PES fetch failed: ${resp.status}`);
       const json = await resp.json();
-      const vehicles = Array.isArray(json?.vehicles) ? json.vehicles : [];
+      const vehiclesRaw = Array.isArray(json?.vehicles) ? json.vehicles : [];
+
+      // Filter only real PES units by known IDs
+      const vehicles = vehiclesRaw.filter((v) => {
+        const idNum = typeof v?.id === "number" ? v.id : parseInt(v?.id, 10);
+        return Number.isFinite(idNum) && PES_ALLOWED_IDS.has(idNum);
+      });
 
       const feats = [];
       for (const v of vehicles) {
@@ -141,7 +163,8 @@ export const startPesPolling = ({
         const speed = Number(v?.speed ?? 0);
         const time = v?.time ?? null;
 
-        feature.setProperties({ id: v?.id, name, model, speed, time });
+        const idNum = typeof v?.id === "number" ? v.id : parseInt(v?.id, 10);
+        feature.setProperties({ id: idNum, name, model, speed, time });
         feature.set(
           "_popupHtml",
           buildPesPopupHtml({ name, model, speed, time, lat, lon })
@@ -174,9 +197,6 @@ export const startPesPolling = ({
   };
 };
 
-/**
- * Хелпер для вычисления endpoint по env.
- */
 export const getPesEndpointFromEnv = () => {
   const base = String(
     import.meta.env.VITE_URL_BACKEND_SERVICES ||
