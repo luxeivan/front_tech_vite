@@ -97,12 +97,17 @@ export default function MapPanel({
 
   const [activeLayer, setActiveLayer] = useState("yandex");
   const [resolvedPoints, setResolvedPoints] = useState([]);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
 
   const mapHeight = useMemo(() => {
+    // In fullscreen we stretch to the wrapper height (100vh)
+    if (isFullscreen) return "100%";
+
+    // Default behavior: if parent gives a percentage height (often collapses), use a sane pixel fallback
     if (height === "100%" || height === "100vh") return "520px";
     return height;
-  }, [height]);
+  }, [height, isFullscreen]);
 
   useEffect(() => {
     const { baseLayers, cleanup: baseCleanup } = createBaseLayers({
@@ -151,6 +156,8 @@ export default function MapPanel({
     olMapRef.current = map;
 
     const resizeOnFs = () => {
+      const fsEl = document.fullscreenElement;
+      setIsFullscreen(fsEl === (wrapperRef.current || mapRef.current));
       requestAnimationFrame(() => olMapRef.current?.updateSize());
     };
     document.addEventListener("fullscreenchange", resizeOnFs);
@@ -475,9 +482,19 @@ export default function MapPanel({
     <div
       ref={wrapperRef}
       className="mo-map-wrapper"
-      style={{ position: "relative", width: "100%", height: "auto" }}
+      style={{
+        position: "relative",
+        width: "100%",
+        height: isFullscreen ? "100vh" : "auto",
+        display: isFullscreen ? "flex" : "block",
+        flexDirection: isFullscreen ? "column" : undefined,
+      }}
     >
-      <style>{`.mo-map-wrapper .ol-control{display:none!important}`}</style>
+      <style>{`
+        .mo-map-wrapper .ol-control{display:none!important}
+        .mo-map-wrapper:fullscreen{width:100vw;height:100vh;background:#fff;display:flex;flex-direction:column}
+        .mo-map-wrapper:fullscreen > .mo-map-area{flex:1 1 auto;min-height:0}
+      `}</style>
       <div style={{ marginBottom: 8 }}>
         <Space>
           {/* Подложка: */}
@@ -501,12 +518,16 @@ export default function MapPanel({
       </div>
 
       {/* Карта */}
-      <div style={{ position: "relative" }}>
+      <div
+        className="mo-map-area"
+        style={{ position: "relative", flex: isFullscreen ? "1 1 auto" : undefined, minHeight: isFullscreen ? 0 : undefined }}
+      >
         <div
           ref={mapRef}
+          className="mo-map-canvas"
           style={{
             width: "100%",
-            height: mapHeight,
+            height: isFullscreen ? "100%" : mapHeight,
             background: "#f0f0f0",
             borderRadius: 4,
           }}
