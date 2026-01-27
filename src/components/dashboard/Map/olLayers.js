@@ -276,6 +276,7 @@ export function createTpLayer({
         image: new Icon({
           src: iconSrc,
           scale: iconScale,
+          opacity: 0.65,
           anchor: [0.5, 1],
           anchorXUnits: "fraction",
           anchorYUnits: "fraction",
@@ -503,9 +504,9 @@ export function createTpViewportUpdater({
           <br/>Зона: ${it.zone || "—"}
           <br/>Собственность: ${it.property || "—"}
           <br/>Коорд.: ${Number.isFinite(it.lat) ? it.lat.toFixed(6) : "—"}, ${
-          Number.isFinite(it.lon) ? it.lon.toFixed(6) : "—"
-        }
-        </div>`
+            Number.isFinite(it.lon) ? it.lon.toFixed(6) : "—"
+          }
+        </div>`,
       );
 
       feats.push(f);

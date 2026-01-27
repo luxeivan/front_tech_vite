@@ -8,22 +8,16 @@ import Text from "ol/style/Text";
 import Fill from "ol/style/Fill";
 import Stroke from "ol/style/Stroke";
 
+import pesIcon from "../../../assets/PES.svg";
+
+// Размер ПЭС-иконки
+const PES_ICON_SCALE_MULT = 0.02;
 
 export const PES_POLL_MS_DEFAULT = 120_000; // 2 minutes
 
 // NOTE: Backend returns a large fleet; only the highlighted IDs are actual PES units.
 export const PES_ALLOWED_IDS = new Set([
-  52957,
-  53945,
-  52455,
-  53835,
-  54111,
-  51556,
-  54117,
-  51479,
-  54132,
-  54123,
-  53949,
+  52957, 53945, 52455, 53835, 54111, 51556, 54117, 51479, 54132, 54123, 53949,
 ]);
 
 export const pesIconDataUrl = (fillColor = "#d46b08") => {
@@ -83,21 +77,24 @@ export const createPesLayer = ({ getZoom, getFallbackZoom }) => {
 
       return new Style({
         image: new Icon({
-          src: pesIconDataUrl(speed > 0 ? "#fa8c16" : "#d46b08"),
+          src: pesIcon,
+          imgSize: [64, 64],
+          opacity: 0.65,
           scale:
-            z < 10
+            (z < 10
               ? 0.55
               : z < 12
-              ? 0.65
-              : z < 14
-              ? 0.75
-              : z < 16
-              ? 0.85
-              : 0.95,
+                ? 0.65
+                : z < 14
+                  ? 0.75
+                  : z < 16
+                    ? 0.85
+                    : 0.95) * PES_ICON_SCALE_MULT,
           anchor: [0.5, 1],
           anchorXUnits: "fraction",
           anchorYUnits: "fraction",
         }),
+
         text: showLabel
           ? new Text({
               text: name,
@@ -167,7 +164,7 @@ export const startPesPolling = ({
         feature.setProperties({ id: idNum, name, model, speed, time });
         feature.set(
           "_popupHtml",
-          buildPesPopupHtml({ name, model, speed, time, lat, lon })
+          buildPesPopupHtml({ name, model, speed, time, lat, lon }),
         );
 
         feats.push(feature);
@@ -201,7 +198,7 @@ export const getPesEndpointFromEnv = () => {
   const base = String(
     import.meta.env.VITE_URL_BACKEND_SERVICES ||
       import.meta.env.VITE_URL_BACKEND ||
-      ""
+      "",
   ).replace(/\/$/, "");
 
   if (!base) return "";
