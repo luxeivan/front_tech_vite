@@ -11,7 +11,7 @@ import Stroke from "ol/style/Stroke";
 import pesIcon from "../../../assets/PES.svg";
 
 // Размер ПЭС-иконки
-const PES_ICON_SCALE_MULT = 0.02;
+const PES_ICON_SCALE_MULT = 0.04;
 
 export const PES_POLL_MS_DEFAULT = 120_000; // 2 minutes
 
