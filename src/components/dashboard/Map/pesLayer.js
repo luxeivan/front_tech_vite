@@ -13,11 +13,21 @@ import pesIcon from "../../../assets/PES.svg";
 // Размер ПЭС-иконки
 const PES_ICON_SCALE_MULT = 0.04;
 
-export const PES_POLL_MS_DEFAULT = 120_000; // 2 minutes
+export const PES_POLL_MS_DEFAULT = 120_000; 
 
-// NOTE: Backend returns a large fleet; only the highlighted IDs are actual PES units.
 export const PES_ALLOWED_IDS = new Set([
-  52957, 53945, 52455, 53835, 54111, 51556, 54117, 51479, 54132, 54123, 53949,
+  52957, 
+  53945, 
+  52455,
+  51547, 
+  53835, 
+  54111, 
+  // 51556, 
+  54117, 
+  51479, 
+  54132, 
+  54123, 
+  53949,
 ]);
 
 export const pesIconDataUrl = (fillColor = "#d46b08") => {
@@ -196,9 +206,8 @@ export const startPesPolling = ({
 
 export const getPesEndpointFromEnv = () => {
   const base = String(
-    import.meta.env.VITE_URL_BACKEND_SERVICES ||
-      import.meta.env.VITE_URL_BACKEND ||
-      "",
+    // import.meta.env.VITE_URL_BACKEND_SERVICES ||
+    import.meta.env.VITE_URL_BACKEND || "",
   ).replace(/\/$/, "");
 
   if (!base) return "";
