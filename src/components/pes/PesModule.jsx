@@ -72,6 +72,7 @@ export default function PesModule() {
   const [items, setItems] = useState([]);
   const [summary, setSummary] = useState(null);
   const [error, setError] = useState("");
+  const [config, setConfig] = useState(null);
   const [selected, setSelected] = useState([]);
 
   const [branchFilter, setBranchFilter] = useState(undefined);
@@ -86,6 +87,17 @@ export default function PesModule() {
 
   const canManage = user?.view_role === "standart";
   const mode = selected.length > 1 ? "multi" : "single";
+
+
+  const loadConfig = async () => {
+    try {
+      const base = getBackendBase();
+      const { data } = await axios.get(`${base}/services/pes/module/config`);
+      setConfig(data || null);
+    } catch {
+      setConfig(null);
+    }
+  };
 
   const loadItems = async () => {
     try {
@@ -126,6 +138,7 @@ export default function PesModule() {
 
   useEffect(() => {
     loadItems();
+    loadConfig();
   }, []);
 
   useEffect(() => {
@@ -191,14 +204,18 @@ export default function PesModule() {
         payload.actualDepartureAt = new Date().toISOString();
       }
 
-      await axios.post(`${base}/services/pes/module/command`, payload, {
+      const { data } = await axios.post(`${base}/services/pes/module/command`, payload, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("jwt") || ""}`,
           "x-view-role": user?.view_role || "",
         },
       });
 
-      message.success("Операция выполнена");
+      if (data?.telegram?.skipped) {
+        message.warning(`Операция выполнена, но Telegram пропущен: ${data?.telegram?.reason || "не настроен"}`);
+      } else {
+        message.success("Операция выполнена");
+      }
       setComment("");
       setSelected([]);
       setDestinationId(undefined);
@@ -226,6 +243,14 @@ export default function PesModule() {
       </Flex>
 
       {error && <Alert type="error" showIcon style={{ marginBottom: 12 }} message={error} />}
+      {config && !config.telegramConfigured && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 12 }}
+          message="Telegram-уведомления пока не настроены (работаем в режиме подготовки)."
+        />
+      )}
 
       {summary && (
         <Row gutter={[8, 8]} style={{ marginBottom: 12 }}>
