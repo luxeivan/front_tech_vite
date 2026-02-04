@@ -45,11 +45,9 @@ function PesCard({ item, selected, onToggle, selectable }) {
       title={
         <Flex justify="space-between" align="center">
           <Space size={8}>
-            <Checkbox
-              checked={selected}
-              disabled={!selectable}
-              onChange={() => onToggle(item.id)}
-            />
+            {selectable ? (
+              <Checkbox checked={selected} onChange={() => onToggle(item.id)} />
+            ) : null}
             <Text strong>ПЭС №{item.number}</Text>
           </Space>
           <Tag color={meta.color}>{meta.label}</Tag>
@@ -115,9 +113,9 @@ export default function PesModule() {
   const [config, setConfig] = useState(null);
   const [selected, setSelected] = useState([]);
 
-  const [branchFilter, setBranchFilter] = useState(undefined);
-  const [poFilter, setPoFilter] = useState(undefined);
-  const [statusFilter, setStatusFilter] = useState(undefined);
+  const [branchFilter, setBranchFilter] = useState("__all__");
+  const [poFilter, setPoFilter] = useState("__all__");
+  const [statusFilter, setStatusFilter] = useState("__all__");
 
   const [destinations, setDestinations] = useState({ assembly: [], tp: [] });
   const [destinationType, setDestinationType] = useState("assembly");
@@ -184,20 +182,29 @@ export default function PesModule() {
   }, [mode]);
 
   const branchOptions = useMemo(
-    () => Array.from(new Set(items.map((x) => x.branch).filter(Boolean))).map((x) => ({ label: x, value: x })),
+    () => [
+      { label: "Все", value: "__all__" },
+      ...Array.from(new Set(items.map((x) => x.branch).filter(Boolean))).map((x) => ({ label: x, value: x })),
+    ],
     [items]
   );
 
   const poOptions = useMemo(() => {
-    const subset = branchFilter ? items.filter((x) => x.branch === branchFilter) : items;
-    return Array.from(new Set(subset.map((x) => x.po).filter(Boolean))).map((x) => ({ label: x, value: x }));
+    const subset =
+      branchFilter && branchFilter !== "__all__"
+        ? items.filter((x) => x.branch === branchFilter)
+        : items;
+    return [
+      { label: "Все", value: "__all__" },
+      ...Array.from(new Set(subset.map((x) => x.po).filter(Boolean))).map((x) => ({ label: x, value: x })),
+    ];
   }, [items, branchFilter]);
 
   const filteredItems = useMemo(() => {
     return items.filter((x) => {
-      if (branchFilter && x.branch !== branchFilter) return false;
-      if (poFilter && x.po !== poFilter) return false;
-      if (statusFilter && x.effectiveStatus !== statusFilter) return false;
+      if (branchFilter !== "__all__" && x.branch !== branchFilter) return false;
+      if (poFilter !== "__all__" && x.po !== poFilter) return false;
+      if (statusFilter !== "__all__" && x.effectiveStatus !== statusFilter) return false;
       return true;
     });
   }, [items, branchFilter, poFilter, statusFilter]);
@@ -222,9 +229,9 @@ export default function PesModule() {
   };
 
   const resetFilters = () => {
-    setBranchFilter(undefined);
-    setPoFilter(undefined);
-    setStatusFilter(undefined);
+    setBranchFilter("__all__");
+    setPoFilter("__all__");
+    setStatusFilter("__all__");
   };
 
   const runAction = async (action) => {
@@ -384,20 +391,18 @@ export default function PesModule() {
         <Row gutter={[8, 8]}>
           <Col xs={24} md={7}>
             <Select
-              allowClear
               placeholder="Филиал"
               options={branchOptions}
               value={branchFilter}
               onChange={(v) => {
                 setBranchFilter(v);
-                setPoFilter(undefined);
+                setPoFilter("__all__");
               }}
               style={{ width: "100%" }}
             />
           </Col>
           <Col xs={24} md={7}>
             <Select
-              allowClear
               placeholder="ПО"
               options={poOptions}
               value={poFilter}
@@ -407,14 +412,16 @@ export default function PesModule() {
           </Col>
           <Col xs={24} md={7}>
             <Select
-              allowClear
               placeholder="Статус"
               value={statusFilter}
               onChange={setStatusFilter}
-              options={Object.entries(STATUS_META).map(([value, meta]) => ({
-                value,
-                label: meta.label,
-              }))}
+              options={[
+                { label: "Все", value: "__all__" },
+                ...Object.entries(STATUS_META).map(([value, meta]) => ({
+                  value,
+                  label: meta.label,
+                })),
+              ]}
               style={{ width: "100%" }}
             />
           </Col>
@@ -424,70 +431,72 @@ export default function PesModule() {
         </Row>
       </Card>
 
-      <Card size="small" style={{ marginBottom: 12 }}>
-        <Space direction="vertical" style={{ width: "100%" }} size={8}>
-          <Text strong>
-            Команда на ПЭС ({mode === "multi" ? "множественный" : "одиночный"} выбор), выбрано: {selected.length}
-          </Text>
-          <Row gutter={[8, 8]}>
-            <Col xs={24} md={8}>
-              <Select
-                value={destinationType}
-                onChange={setDestinationType}
-                disabled={!canManage || mode === "multi" || sending}
-                options={[
-                  { value: "assembly", label: "Точка сбора ПЭС" },
-                  { value: "tp", label: "ТП (только одиночный выбор)" },
-                ]}
-                style={{ width: "100%" }}
-              />
-            </Col>
-            <Col xs={24} md={16}>
-              <Select
-                showSearch
-                value={destinationId}
-                onChange={setDestinationId}
-                options={destinationOptions}
-                placeholder="Точка назначения"
-                optionFilterProp="label"
-                disabled={!canManage || sending}
-                style={{ width: "100%" }}
-              />
-            </Col>
-          </Row>
-          <Input.TextArea
-            rows={2}
-            placeholder="Комментарий (для отмены/корректировки)"
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-            disabled={!canManage || sending}
-          />
-          <Space wrap>
-            <Button type="primary" onClick={() => runAction("dispatch")} loading={sending} disabled={!canManage}>
-              Команда на выезд
-            </Button>
-            <Button onClick={() => runAction("reroute")} loading={sending} disabled={!canManage}>
-              Корректировка маршрута
-            </Button>
-            <Button onClick={() => runAction("cancel")} loading={sending} disabled={!canManage}>
-              Отмена выезда
-            </Button>
-            <Divider type="vertical" />
-            <Button onClick={() => runAction("depart")} loading={sending} disabled={!canManage}>
-              Фактический выезд
-            </Button>
-            <Button onClick={() => runAction("connect")} loading={sending} disabled={!canManage}>
-              Подключена
-            </Button>
-            <Button onClick={() => runAction("ready")} loading={sending} disabled={!canManage}>
-              Вернуть в резерв
-            </Button>
-            <Button onClick={() => runAction("repair")} loading={sending} disabled={!canManage}>
-              В ремонт
-            </Button>
+      {canManage ? (
+        <Card size="small" style={{ marginBottom: 12 }}>
+          <Space direction="vertical" style={{ width: "100%" }} size={8}>
+            <Text strong>
+              Команда на ПЭС ({mode === "multi" ? "множественный" : "одиночный"} выбор), выбрано: {selected.length}
+            </Text>
+            <Row gutter={[8, 8]}>
+              <Col xs={24} md={8}>
+                <Select
+                  value={destinationType}
+                  onChange={setDestinationType}
+                  disabled={mode === "multi" || sending}
+                  options={[
+                    { value: "assembly", label: "Точка сбора ПЭС" },
+                    { value: "tp", label: "ТП (только одиночный выбор)" },
+                  ]}
+                  style={{ width: "100%" }}
+                />
+              </Col>
+              <Col xs={24} md={16}>
+                <Select
+                  showSearch
+                  value={destinationId}
+                  onChange={setDestinationId}
+                  options={destinationOptions}
+                  placeholder="Точка назначения"
+                  optionFilterProp="label"
+                  disabled={sending}
+                  style={{ width: "100%" }}
+                />
+              </Col>
+            </Row>
+            <Input.TextArea
+              rows={2}
+              placeholder="Комментарий (для отмены/корректировки)"
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              disabled={sending}
+            />
+            <Space wrap>
+              <Button type="primary" onClick={() => runAction("dispatch")} loading={sending}>
+                Команда на выезд
+              </Button>
+              <Button onClick={() => runAction("reroute")} loading={sending}>
+                Корректировка маршрута
+              </Button>
+              <Button onClick={() => runAction("cancel")} loading={sending}>
+                Отмена выезда
+              </Button>
+              <Divider type="vertical" />
+              <Button onClick={() => runAction("depart")} loading={sending}>
+                Фактический выезд
+              </Button>
+              <Button onClick={() => runAction("connect")} loading={sending}>
+                Подключена
+              </Button>
+              <Button onClick={() => runAction("ready")} loading={sending}>
+                Вернуть в резерв
+              </Button>
+              <Button onClick={() => runAction("repair")} loading={sending}>
+                В ремонт
+              </Button>
+            </Space>
           </Space>
-        </Space>
-      </Card>
+        </Card>
+      ) : null}
 
       {filteredItems.length === 0 ? (
         <Card>
