@@ -31,6 +31,7 @@ export default function TableTNActionsBar({
       style={{ marginBottom: 12, flexWrap: "wrap", ...style }}
     >
       <Button onClick={() => navigate("/dashboard")}>Дашборд</Button>
+      {/* <Button onClick={() => navigate("/pes")}>Модуль ПЭС</Button> */}
       <Button onClick={onReset}>Сбросить фильтры</Button>
       <Button onClick={onAiAnalytics}>AI-Аналитика</Button>
       <Button onClick={onToggleSound}>

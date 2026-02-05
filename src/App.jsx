@@ -8,6 +8,7 @@ import AuthForm from "./components/AuthForm";
 import TableTN from "./components/main/TableTN";
 import Dashboard from "./components/dashboard/Dashboard";
 import Portal404 from "./components/Portal404/Portal404";
+import PesModule from "./components/pes/PesModule";
 
 function App() {
   const { authing, isAuth, exit, getJwt, fieldsSetting, getFieldsSetting } =
@@ -33,6 +34,12 @@ function App() {
           <Route
             path="/dashboard"
             element={authOk ? <Dashboard /> : <Navigate to="/" replace />}
+          />
+
+
+          <Route
+            path="/pes"
+            element={authOk ? <PesModule /> : <Navigate to="/" replace />}
           />
 
           {/* Фоллбек */}
