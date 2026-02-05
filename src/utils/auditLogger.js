@@ -64,9 +64,11 @@ function normalizeDetails(event, actor) {
 
 export function buildAuditHeaders(user, page = "") {
   const actor = buildAuditActor(user);
+  const safeUsername = encodeURIComponent(actor.username || "unknown");
+  const safeRole = encodeURIComponent(actor.role || "unknown");
   return {
-    "x-audit-username": actor.username,
-    "x-audit-role": actor.role,
+    "x-audit-username": safeUsername,
+    "x-audit-role": safeRole,
     "x-audit-page": page || window?.location?.pathname || "",
   };
 }
