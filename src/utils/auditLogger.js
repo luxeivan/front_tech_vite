@@ -1,5 +1,7 @@
 import axios from "axios";
 
+let lastKnownActor = null;
+
 function backendBase() {
   const a = String(import.meta.env.VITE_URL_BACKEND_SERVICES || "").trim();
   const b = String(import.meta.env.VITE_URL_BACKEND || "").trim();
@@ -8,8 +10,11 @@ function backendBase() {
 
 export function buildAuditActor(user) {
   const username =
-    user?.fullName || user?.username || user?.email || "unknown";
-  const role = user?.view_role || "unknown";
+    user?.fullName || user?.username || user?.email || lastKnownActor?.username || "unknown";
+  const role = user?.view_role || lastKnownActor?.role || "unknown";
+  if (username !== "unknown" && role !== "unknown") {
+    lastKnownActor = { username, role };
+  }
   return { username, role };
 }
 
@@ -80,9 +85,18 @@ export async function logAuditEvent(event, user) {
     details: normalizeDetails(event, actor),
   };
   try {
-    await axios.post(`${base}/services/audit/event`, payload, {
+    // Use x-www-form-urlencoded to avoid noisy CORS preflights in local dev.
+    const form = new URLSearchParams();
+    form.set("username", payload.username);
+    form.set("role", payload.role);
+    form.set("page", payload.page);
+    form.set("action", payload.action);
+    form.set("entity", payload.entity);
+    form.set("entity_id", payload.entity_id);
+    form.set("details", JSON.stringify(payload.details || {}));
+
+    await axios.post(`${base}/services/audit/event`, form, {
       timeout: 2500,
-      headers: buildAuditHeaders(user, payload.page),
     });
   } catch {
     // intentionally silent: logging must never break UX
