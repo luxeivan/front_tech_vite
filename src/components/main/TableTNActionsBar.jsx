@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import { Button, Flex } from "antd";
 import { useNavigate } from "react-router-dom";
 import useAuth from "../../stores/useAuth";
+import { logAuditEvent } from "../../utils/auditLogger";
 
 export default function TableTNActionsBar({
   onReset,
@@ -30,15 +31,46 @@ export default function TableTNActionsBar({
       gap={8}
       style={{ marginBottom: 12, flexWrap: "wrap", ...style }}
     >
-      <Button onClick={() => navigate("/dashboard")}>Дашборд</Button>
+      <Button
+        onClick={() => {
+          logAuditEvent({ page: "/", action: "click_dashboard", entity: "button" }, user);
+          navigate("/dashboard");
+        }}
+      >
+        Дашборд
+      </Button>
       {/* <Button onClick={() => navigate("/pes")}>Модуль ПЭС</Button> */}
-      <Button onClick={onReset}>Сбросить фильтры</Button>
-      <Button onClick={onAiAnalytics}>AI-Аналитика</Button>
-      <Button onClick={onToggleSound}>
+      <Button
+        onClick={() => {
+          logAuditEvent({ page: "/", action: "click_reset_filters", entity: "button" }, user);
+          onReset?.();
+        }}
+      >
+        Сбросить фильтры
+      </Button>
+      <Button
+        onClick={() => {
+          logAuditEvent({ page: "/", action: "click_ai_analytics", entity: "button" }, user);
+          onAiAnalytics?.();
+        }}
+      >
+        AI-Аналитика
+      </Button>
+      <Button
+        onClick={() => {
+          logAuditEvent({ page: "/", action: "toggle_sound", entity: "button" }, user);
+          onToggleSound?.();
+        }}
+      >
         {soundEnabled ? "🔔 Звук: Вкл" : "🔕 Звук: Выкл"}
       </Button>
       {showJournal && (
-        <Button onClick={() => onOpenJournal && onOpenJournal()}>
+        <Button
+          onClick={() => {
+            logAuditEvent({ page: "/", action: "open_send_journal", entity: "button" }, user);
+            onOpenJournal && onOpenJournal();
+          }}
+        >
           Журнал отправки
         </Button>
       )}

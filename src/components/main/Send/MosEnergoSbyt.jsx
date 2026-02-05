@@ -93,10 +93,11 @@ export function buildMosEnergoSbytPayload(tn) {
 }
 
 
-export async function sendToMes(url, data, jwt) {
+export async function sendToMes(url, data, jwt, extraHeaders = {}) {
   const headers = {
     "Content-Type": "application/json",
     ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
+    ...extraHeaders,
   };
   const res = await axios.post(`${url}/services/mes/upload`, data, {
     headers,

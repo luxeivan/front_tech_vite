@@ -3,10 +3,13 @@ import { Alert, Button, Checkbox, Divider, Flex, Typography } from "antd";
 import axios from "axios";
 import { buildEddsPayload, sendToEdds } from "./Edds";
 import { buildMosEnergoSbytPayload, sendToMes } from "./MosEnergoSbyt";
+import useAuth from "../../../stores/useAuth";
+import { buildAuditHeaders, logAuditEvent } from "../../../utils/auditLogger";
 
 const URL = import.meta.env.VITE_URL_BACKEND;
 
 export default function SendBlock({ tn, documentId, refresh }) {
+  const user = useAuth((s) => s.user);
   const [sentEdds, setSentEdds] = useState(false);
   const [sentMes, setSentMes] = useState(false);
   const [eddsSelected, setEddsSelected] = useState(true);
@@ -117,6 +120,7 @@ export default function SendBlock({ tn, documentId, refresh }) {
       const toMes = mesSelected;
 
       if (!toEdds && !toMes) {
+        logAuditEvent({ action: "send_block_no_target", entity: "send_block", details: { documentId } }, user);
         showAlert("warning", "Выберите получателя перед отправкой");
         return;
       }
@@ -135,7 +139,12 @@ export default function SendBlock({ tn, documentId, refresh }) {
       // === ЕДДС (без изменений глобальной логики) ===
       if (toEdds) {
         const jwt = localStorage.getItem("jwt");
-        const resp = await sendToEdds(URL, eddsPayload, jwt);
+        const resp = await sendToEdds(
+          URL,
+          eddsPayload,
+          jwt,
+          buildAuditHeaders(user, "/")
+        );
         const ok = resp?.success === true || resp?.ok === true;
         if (ok) {
           // мягко обновляем флаг в Strapi, но не роняем процесс при ошибке сети
@@ -157,30 +166,79 @@ export default function SendBlock({ tn, documentId, refresh }) {
             (resp?.data?.claim_id ? `Данные приняты (ID: ${resp.data.claim_id})` : "отправлено");
 
           showAlert("success", `ЕДДС: ${okText}`);
+          logAuditEvent(
+            {
+              action: "send_edds_ok",
+              entity: "tn",
+              entity_id: String(documentId || ""),
+              details: { message: okText },
+            },
+            user
+          );
         } else {
           const details = formatErrorDetails(resp) || "Ответ без сообщения";
           showAlert("error", "ЕДДС: ошибка — " + details);
+          logAuditEvent(
+            {
+              action: "send_edds_error",
+              entity: "tn",
+              entity_id: String(documentId || ""),
+              details: { error: details },
+            },
+            user
+          );
         }
       }
 
       if (toMes) {
         const jwt = localStorage.getItem("jwt"); // не обязателен
-        const resp = await sendToMes(URL, mesPayload, jwt);
+        const resp = await sendToMes(
+          URL,
+          mesPayload,
+          jwt,
+          buildAuditHeaders(user, "/")
+        );
         if (resp?.ok === true) {
           await patchFlags({ sendedMosEnergoSbit: true });
           setSentMes(true);
           setMesSelected(false);
           showAlert("success", "МосЭнергоСбыт: отправлено");
           console.log("МосЭнергоСбыт ответ:", JSON.stringify(resp, null, 2));
+          logAuditEvent(
+            {
+              action: "send_mes_ok",
+              entity: "tn",
+              entity_id: String(documentId || ""),
+            },
+            user
+          );
         } else {
           const details = formatErrorDetails(resp) || "Ответ без сообщения";
           showAlert("error", "МосЭнергоСбыт: ошибка — " + details);
+          logAuditEvent(
+            {
+              action: "send_mes_error",
+              entity: "tn",
+              entity_id: String(documentId || ""),
+              details: { error: details },
+            },
+            user
+          );
         }
       }
 
       await refresh?.();
     } catch (e) {
       console.error("Ошибка при отправке:", e);
+      logAuditEvent(
+        {
+          action: "send_error",
+          entity: "tn",
+          entity_id: String(documentId || ""),
+          details: { message: e?.message || "unknown" },
+        },
+        user
+      );
       showAlert(
         "error",
         "Ошибка при отправке: " + (e?.message || "неизвестно")

@@ -447,8 +447,11 @@ export function buildEddsPayload(tn) {
   return out;
 }
 
-export async function sendToEdds(url, data, jwt) {
-  const headers = jwt ? { Authorization: `Bearer ${jwt}` } : {};
+export async function sendToEdds(url, data, jwt, extraHeaders = {}) {
+  const headers = {
+    ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
+    ...extraHeaders,
+  };
   const res = await axios.post(`${url}/services/edds/`, data, {
     headers,
     timeout: 30000,
