@@ -7,6 +7,7 @@ import useAuth from "../../stores/useAuth";
 import EditableField from "./EditableField";
 import SendBlock from "./Send/SendBlock";
 import { buildDescriptionTemplate } from "../../utils/descriptionTemplate";
+import { logAuditEvent } from "../../utils/auditLogger";
 
 const URL = import.meta.env.VITE_URL_BACKEND;
 
@@ -153,6 +154,15 @@ export default function TNModal({ open, documentId, onClose }) {
       setOverrideData(null);
 
       message.success("Сохранено");
+      logAuditEvent(
+        {
+          action: "tn_field_edit",
+          entity: "tn",
+          entity_id: String(documentId || ""),
+          details: { field: name },
+        },
+        user
+      );
     } catch (e) {
       console.error("Ошибка сохранения поля:", e);
       message.error("Не удалось сохранить");
@@ -191,6 +201,14 @@ export default function TNModal({ open, documentId, onClose }) {
       await getTn(documentId);
       setOverrideDescription(null);
       message.success("Описание сохранено");
+      logAuditEvent(
+        {
+          action: "tn_description_edit",
+          entity: "tn",
+          entity_id: String(documentId || ""),
+        },
+        user
+      );
     } catch (e) {
       console.error("Ошибка сохранения описания:", e);
       message.error("Не удалось сохранить описание");
@@ -235,6 +253,15 @@ export default function TNModal({ open, documentId, onClose }) {
       setOverrideReqEquipment(null);
       setOverrideReqEPS(null);
       message.success("Сохранено");
+      logAuditEvent(
+        {
+          action: "tn_resource_edit",
+          entity: "tn",
+          entity_id: String(documentId || ""),
+          details: { field },
+        },
+        user
+      );
     } catch (e) {
       console.error("Ошибка сохранения ПЭС:", e);
       message.error("Не удалось сохранить");

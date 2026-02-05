@@ -19,6 +19,7 @@ import {
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import useAuth from "../../stores/useAuth";
+import { buildAuditHeaders, logAuditEvent } from "../../utils/auditLogger";
 
 const { Title, Text } = Typography;
 
@@ -142,7 +143,10 @@ export default function PesModule() {
       setError("");
       const base = getBackendBase();
       const { data } = await axios.get(`${base}/services/pes/module/items`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("jwt") || ""}` },
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("jwt") || ""}`,
+          ...buildAuditHeaders(user, "/pes"),
+        },
       });
       setItems(Array.isArray(data?.items) ? data.items : []);
     } catch (e) {
@@ -282,6 +286,7 @@ export default function PesModule() {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("jwt") || ""}`,
             "x-view-role": user?.view_role || "",
+            ...buildAuditHeaders(user, "/pes"),
           },
         }
       );
@@ -302,6 +307,19 @@ export default function PesModule() {
           duration: 4,
         });
       }
+      logAuditEvent(
+        {
+          page: "/pes",
+          action: `pes_${action}`,
+          entity: "pes",
+          entity_id: selected.join(","),
+          details: {
+            destinationType,
+            destinationId,
+          },
+        },
+        user
+      );
 
       setComment("");
       setSelected([]);
