@@ -14,8 +14,10 @@ import { logAuditBeacon, logAuditEvent } from "./utils/auditLogger";
 function AuditTracker() {
   const location = useLocation();
   const user = useAuth((s) => s.user);
+  const isAuth = useAuth((s) => s.isAuth);
 
   useEffect(() => {
+    if (!isAuth || !user) return;
     logAuditEvent(
       {
         page: location.pathname,
@@ -24,9 +26,10 @@ function AuditTracker() {
       },
       user
     );
-  }, [location.pathname, user?.username, user?.fullName, user?.view_role]);
+  }, [isAuth, location.pathname, user?.username, user?.fullName, user?.view_role]);
 
   useEffect(() => {
+    if (!isAuth || !user) return;
     const onBeforeUnload = () => {
       logAuditBeacon(
         {
@@ -39,7 +42,7 @@ function AuditTracker() {
     };
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [location.pathname, user?.username, user?.fullName, user?.view_role]);
+  }, [isAuth, location.pathname, user?.username, user?.fullName, user?.view_role]);
 
   return null;
 }
