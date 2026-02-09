@@ -8,12 +8,18 @@ import Text from "ol/style/Text";
 import Fill from "ol/style/Fill";
 import Stroke from "ol/style/Stroke";
 
-import pesIcon from "../../../assets/PES.svg";
+// Import the SVG as text so we can recolor it (moving vs idle) without changing shape.
+import pesIconSvgRaw from "../../../assets/PES.svg?raw";
 
 // Размер ПЭС-иконки
 const PES_ICON_SCALE_MULT = 0.04;
 
 export const PES_POLL_MS_DEFAULT = 120_000;
+
+// If speed > threshold, treat the vehicle as "moving" and color it red.
+const PES_MOVING_SPEED_THRESHOLD = 0;
+const PES_ICON_COLOR_IDLE = "#000000";
+const PES_ICON_COLOR_MOVING = "#cf1322";
 
 export const PES_ALLOWED_IDS = new Set([
   52459, 53810, 24490, 53832, 52879, 53796, 53973, 54102, 54093, 21718, 52957,
@@ -31,17 +37,16 @@ export const PES_ALLOWED_IDS = new Set([
   53797, 1123, 53984,
 ]);
 
-export const pesIconDataUrl = (fillColor = "#d46b08") => {
-  const svg = `
-<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-  <path d="M10 26h26l8 8h10v14H10z" fill="${fillColor}" stroke="#ffffff" stroke-width="3" stroke-linejoin="round"/>
-  <path d="M36 26h8l8 8h-8z" fill="${fillColor}" opacity="0.9"/>
-  <path d="M30 18l-6 12h6l-4 16 12-18h-6l4-10z" fill="#ffd666" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/>
-  <circle cx="20" cy="48" r="6" fill="#262626" stroke="#ffffff" stroke-width="3"/>
-  <circle cx="44" cy="48" r="6" fill="#262626" stroke="#ffffff" stroke-width="3"/>
-</svg>`;
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg.trim())}`;
+export const pesIconDataUrl = (fillColor = PES_ICON_COLOR_IDLE) => {
+  // PES.svg uses a `style="fill:#000000"` declaration; replace it to recolor the icon.
+  const patched = String(pesIconSvgRaw || "")
+    .replace(/fill:\s*#000000/gi, `fill:${fillColor}`)
+    .replace(/fill="#000000"/gi, `fill="${fillColor}"`);
+  return `data:image/svg+xml;utf8,${encodeURIComponent(patched.trim())}`;
 };
+
+const PES_ICON_SRC_IDLE = pesIconDataUrl(PES_ICON_COLOR_IDLE);
+const PES_ICON_SRC_MOVING = pesIconDataUrl(PES_ICON_COLOR_MOVING);
 
 const formatTime = (ms) => {
   const n = Number(ms);
@@ -84,11 +89,12 @@ export const createPesLayer = ({ getZoom, getFallbackZoom }) => {
 
       const name = (feature.get("name") || "").toString();
       const speed = Number(feature.get("speed") ?? 0);
+      const moving = Number.isFinite(speed) && speed > PES_MOVING_SPEED_THRESHOLD;
       const showLabel = z >= 12;
 
       return new Style({
         image: new Icon({
-          src: pesIcon,
+          src: moving ? PES_ICON_SRC_MOVING : PES_ICON_SRC_IDLE,
           imgSize: [64, 64],
           opacity: 0.65,
           scale:
