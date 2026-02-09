@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
-import { Button, Typography } from "antd";
+import { Button, Spin, Typography } from "antd";
 import { useEffect, useState } from "react";
 import Container from "./components/Container";
 import useAuth from "./stores/useAuth";
@@ -50,14 +50,30 @@ function AuditTracker() {
 function App() {
   const { authing, isAuth, exit, getJwt, fieldsSetting, getFieldsSetting } =
     useAuth((store) => store);
+  const [authChecked, setAuthChecked] = useState(false);
   useEffect(() => {
-    getJwt();
+    Promise.resolve(getJwt()).finally(() => setAuthChecked(true));
   }, []);
   useEffect(() => {
     getFieldsSetting();
   }, [isAuth]);
 
   const authOk = isAuth;
+  const hasJwt = Boolean(localStorage.getItem("jwt"));
+
+  const Protected = ({ children }) => {
+    // If the user opened a protected page directly, give getJwt() a moment to restore auth
+    // instead of redirecting them to "/".
+    if (!authChecked && hasJwt) {
+      return (
+        <div style={{ padding: 28, display: "flex", justifyContent: "center" }}>
+          <Spin size="large" />
+        </div>
+      );
+    }
+    if (!authOk) return <Navigate to="/" replace />;
+    return children;
+  };
 
   return (
     <BrowserRouter>
@@ -71,13 +87,20 @@ function App() {
           {/* Дашборд: защищённая страница */}
           <Route
             path="/dashboard"
-            element={authOk ? <Dashboard /> : <Navigate to="/" replace />}
+            element={
+              <Protected>
+                <Dashboard />
+              </Protected>
+            }
           />
-
 
           <Route
             path="/pes"
-            element={authOk ? <PesModule /> : <Navigate to="/" replace />}
+            element={
+              <Protected>
+                <PesModule />
+              </Protected>
+            }
           />
 
           {/* Фоллбек */}

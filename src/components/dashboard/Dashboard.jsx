@@ -1,14 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import {
-  Typography,
-  Row,
-  Col,
-  Card,
-  Space,
-  Spin,
-  Skeleton,
-  Button,
-} from "antd";
+import { Typography, Row, Col, Card, Space, Spin, Skeleton, Button } from "antd";
 import { HomeOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import MapPanel from "./Map/Map";
@@ -41,11 +32,7 @@ const isFiasGuid = (s) => {
 // Достаём ФИАСы ТОЛЬКО из FIAS_LIST
 const extractFiasFromRow = (row) => {
   const seen = new Set();
-  const candidates = [
-    row?.data?.FIAS_LIST,
-    row?.FIAS_LIST,
-    row?.data?.data?.FIAS_LIST,
-  ];
+  const candidates = [row?.data?.FIAS_LIST, row?.FIAS_LIST, row?.data?.data?.FIAS_LIST];
   for (const src of candidates) {
     if (!src) continue;
     String(src)
@@ -59,25 +46,7 @@ const extractFiasFromRow = (row) => {
   return Array.from(seen);
 };
 
-/* ---------------- helpers ---------------- */
-const toNumber = (v) => {
-  const val = v != null && typeof v === "object" && "value" in v ? v.value : v;
-  const n = Number(val);
-  return Number.isFinite(n) ? n : 0;
-};
-
-const pick = (obj, key) =>
-  obj?.[key] ?? obj?.data?.[key] ?? obj?.data?.data?.[key] ?? null;
-
-// like pick, but tries several alternative keys and returns the first non-null/undefined
-const pickAny = (obj, keys) => {
-  const arr = Array.isArray(keys) ? keys : [keys];
-  for (const k of arr) {
-    const v = pick(obj, k);
-    if (v !== null && v !== undefined) return v;
-  }
-  return null;
-};
+const pick = (obj, key) => obj?.[key] ?? obj?.data?.[key] ?? obj?.data?.data?.[key] ?? null;
 
 const isOpenTN = (row) => {
   const v =
@@ -91,12 +60,11 @@ const isOpenTN = (row) => {
 };
 
 const tnNumber = (row) => pick(row, "number") ?? row?.number ?? null;
-/* ---------------- компонент ---------------- */
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const headerRef = useRef(null);
   const [mapHeight, setMapHeight] = useState(420);
-  const CARD_SCALE = 0.42; // делаем карточки заметно компактнее
 
   // compact mode по размеру окна
   const [compact, setCompact] = useState(false);
@@ -105,9 +73,7 @@ export default function Dashboard() {
       const h = window.innerHeight;
       const w = window.innerWidth;
       setCompact(h < 900 || w < 1280);
-      const headerH = headerRef.current
-        ? headerRef.current.getBoundingClientRect().height
-        : 0;
+      const headerH = headerRef.current ? headerRef.current.getBoundingClientRect().height : 0;
       const paddingY = 32;
       const base = Math.max(300, Math.floor(h - headerH - paddingY));
       const scaled = Math.max(200, Math.floor(base * MAP_SCALE));
@@ -118,7 +84,6 @@ export default function Dashboard() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // агрегаты под макет
   const [now, setNow] = useState(dayjs().format("DD.MM.YYYY, HH:mm:ss"));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -128,9 +93,7 @@ export default function Dashboard() {
 
   const fiasCodes = useMemo(
     () =>
-      Array.from(
-        new Set(rows.flatMap((r) => extractFiasFromRow(r)).filter(Boolean))
-      ),
+      Array.from(new Set(rows.flatMap((r) => extractFiasFromRow(r)).filter(Boolean))),
     [rows]
   );
 
@@ -155,10 +118,7 @@ export default function Dashboard() {
 
   // header ticker
   useEffect(() => {
-    const t = setInterval(
-      () => setNow(dayjs().format("DD.MM.YYYY, HH:mm:ss")),
-      60_000
-    );
+    const t = setInterval(() => setNow(dayjs().format("DD.MM.YYYY, HH:mm:ss")), 60_000);
     return () => clearInterval(t);
   }, []);
 
@@ -194,12 +154,8 @@ export default function Dashboard() {
       ]);
 
       const mapIt = (x) => (x?.attributes ? { id: x.id, ...x.attributes } : x);
-      const listOpen = Array.isArray(respOpen?.data?.data)
-        ? respOpen.data.data.map(mapIt)
-        : [];
-      const listAll7d = Array.isArray(respAll?.data?.data)
-        ? respAll.data.data.map(mapIt)
-        : [];
+      const listOpen = Array.isArray(respOpen?.data?.data) ? respOpen.data.data.map(mapIt) : [];
+      const listAll7d = Array.isArray(respAll?.data?.data) ? respAll.data.data.map(mapIt) : [];
 
       setRows(listOpen.filter(isOpenTN));
       setRows7d(listAll7d);
@@ -233,15 +189,13 @@ export default function Dashboard() {
     } catch {}
   }, []);
 
-  /* ---------------- UI ---------------- */
   return (
     <div style={{ width: "100%", minHeight: "100vh", background: "#f7f9fc" }}>
       {/* Hero / Header */}
       <div
         ref={headerRef}
         style={{
-          background:
-            "linear-gradient(90deg, #eaf4ff 0%, #f9fbff 50%, #ffffff 100%)",
+          background: "linear-gradient(90deg, #eaf4ff 0%, #f9fbff 50%, #ffffff 100%)",
           borderBottom: "1px solid #eef3f8",
         }}
       >
@@ -303,21 +257,15 @@ export default function Dashboard() {
             display: "grid",
             gridTemplateColumns: compact
               ? "1fr"
-              : "minmax(700px, 1.4fr) minmax(560px, 1.6fr)", // give more room to the map (right column)
-            gap: compact ? 8 : 12,
+              : "minmax(700px, 1.4fr) minmax(560px, 1.6fr)",
+            gap: compact ? 10 : 14,
             alignItems: "start",
           }}
         >
           {/* LEFT: panels */}
           <div>
             {loading && !error && (
-              <Space
-                style={{
-                  width: "100%",
-                  justifyContent: "center",
-                  marginTop: 40,
-                }}
-              >
+              <Space style={{ width: "100%", justifyContent: "center", marginTop: 40 }}>
                 <Spin size="large" />
               </Space>
             )}
@@ -341,11 +289,7 @@ export default function Dashboard() {
             )}
 
             {rows.length === 0 && loading && (
-              <Skeleton
-                active
-                paragraph={{ rows: 4 }}
-                style={{ marginTop: 24 }}
-              />
+              <Skeleton active paragraph={{ rows: 4 }} style={{ marginTop: 24 }} />
             )}
           </div>
 
@@ -353,13 +297,13 @@ export default function Dashboard() {
           <div>
             {/* ===== Блок 6: Карта отключённых потребителей ===== */}
             <Card
-              style={{ borderRadius: 20, overflow: "hidden" }}
+              style={{
+                borderRadius: 18,
+                overflow: "hidden",
+                boxShadow: "0 10px 28px rgba(18, 31, 53, 0.06)",
+              }}
               styles={{ body: { padding: 0 } }}
-              title={
-                <div style={{ fontWeight: 700, color: "#1575bc" }}>
-                  Карта отключённых потребителей
-                </div>
-              }
+              title={<div style={{ fontWeight: 700, color: "#1575bc" }}>Карта отключённых потребителей</div>}
             >
               <div
                 style={{
