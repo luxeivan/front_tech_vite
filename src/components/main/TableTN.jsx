@@ -721,7 +721,11 @@ export default function TableTN() {
     const resolvedGuid = extractGuid(item);
     const tsRaw = dayjs(getCreateDate(item)).valueOf();
     const ts = Number.isFinite(tsRaw) ? tsRaw : 0;
-    const send = resolvedGuid ? sendStatus.byGuid[String(resolvedGuid).toLowerCase()] : null;
+    const numKey = src?.number != null ? String(src.number) : null;
+    const sendByGuid = resolvedGuid
+      ? sendStatus.byGuid[String(resolvedGuid).toLowerCase()]
+      : null;
+    const send = sendByGuid || (numKey ? sendStatus.byNumber[numKey] : null);
 
     return {
       key: src.id ?? item.id,
@@ -968,6 +972,11 @@ export default function TableTN() {
         open={isOpenModalTN}
         onClose={() => {
           setIsOpenModalTN(false);
+          setTimeout(() => {
+            getTns({ date });
+            loadOpenedCount({ date });
+            loadSendStatus();
+          }, 0);
         }}
         documentId={isOpenModalTN}
       />
