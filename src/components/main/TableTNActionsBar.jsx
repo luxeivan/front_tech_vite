@@ -48,14 +48,14 @@ export default function TableTNActionsBar({
       >
         Сбросить фильтры
       </Button>
-      <Button
+      {/* <Button
         onClick={() => {
           logAuditEvent({ page: "/", action: "click_ai_analytics", entity: "button" }, user);
           onAiAnalytics?.();
         }}
       >
         AI-Аналитика
-      </Button>
+      </Button> */}
       <Button
         onClick={() => {
           logAuditEvent({ page: "/", action: "toggle_sound", entity: "button" }, user);
