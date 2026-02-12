@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Radio, Space } from "antd";
+import { Button, Input, Radio, Space, message } from "antd";
 
 import {
   attachMapClickPopup,
@@ -98,6 +98,7 @@ export default function MapPanel({
   const [activeLayer, setActiveLayer] = useState("yandex");
   const [resolvedPoints, setResolvedPoints] = useState([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [pesSearchId, setPesSearchId] = useState("");
 
 
   const mapHeight = useMemo(() => {
@@ -478,6 +479,44 @@ export default function MapPanel({
     return () => stop();
   }, []);
 
+  const findPesFeatureById = (rawId) => {
+    const id = String(rawId || "").trim();
+    if (!id || !pesSourceRef.current) return null;
+    const features = pesSourceRef.current.getFeatures?.() || [];
+    return (
+      features.find((f) => String(f?.get?.("id") ?? "") === id) ||
+      null
+    );
+  };
+
+  const focusPesById = () => {
+    const id = String(pesSearchId || "").trim();
+    if (!id) {
+      message.warning("Введите ID ПЭС");
+      return;
+    }
+
+    const feature = findPesFeatureById(id);
+    if (!feature) {
+      message.info(`ПЭС с ID ${id} пока не найдена на карте`);
+      return;
+    }
+
+    const geometry = feature.getGeometry?.();
+    const center = geometry?.getCoordinates?.();
+    if (!center || !viewRef.current) {
+      message.error("Не удалось определить координаты ПЭС");
+      return;
+    }
+
+    const view = viewRef.current;
+    const currentZoom = Number(view.getZoom?.() ?? 8);
+    view.animate(
+      { center, duration: 450 },
+      { zoom: Math.max(currentZoom, 14), duration: 450 }
+    );
+  };
+
   return (
     <div
       ref={wrapperRef}
@@ -495,9 +534,16 @@ export default function MapPanel({
         .mo-map-wrapper:fullscreen{width:100vw;height:100vh;background:#fff;display:flex;flex-direction:column}
         .mo-map-wrapper:fullscreen > .mo-map-area{flex:1 1 auto;min-height:0}
       `}</style>
-      <div style={{ marginBottom: 8 }}>
-        <Space>
-          {/* Подложка: */}
+      <div
+        style={{
+          marginBottom: 10,
+          padding: 10,
+          border: "1px solid #e5edf7",
+          borderRadius: 10,
+          background: "#fafcff",
+        }}
+      >
+        <div style={{ marginBottom: 10 }}>
           <Radio.Group
             value={activeLayer}
             onChange={(e) => setActiveLayer(e.target.value)}
@@ -514,6 +560,18 @@ export default function MapPanel({
               { label: "Topo", value: "openTopoMap" },
             ]}
           />
+        </div>
+        <Space wrap size={8} style={{ width: "100%" }}>
+          <Input
+            value={pesSearchId}
+            onChange={(e) => setPesSearchId(e.target.value)}
+            onPressEnter={focusPesById}
+            placeholder="Поиск ПЭС по ID (например 54087)"
+            style={{ width: 320, maxWidth: "100%" }}
+          />
+          <Button type="primary" onClick={focusPesById}>
+            Найти ПЭС
+          </Button>
         </Space>
       </div>
 

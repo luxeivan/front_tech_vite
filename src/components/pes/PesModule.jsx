@@ -156,11 +156,11 @@ export default function PesModule() {
     }
   };
 
-  const loadDestinations = async (nextMode) => {
+  const loadDestinations = async (nextMode, branch) => {
     try {
       const base = getBackendBase();
       const { data } = await axios.get(`${base}/services/pes/module/destinations`, {
-        params: { mode: nextMode },
+        params: { mode: nextMode, branch: branch || undefined },
       });
       const next = {
         assembly: Array.isArray(data?.assembly) ? data.assembly : [],
@@ -181,13 +181,22 @@ export default function PesModule() {
     loadConfig();
   }, []);
 
+  const destinationBranch = useMemo(() => {
+    if (selected.length === 1) {
+      const item = items.find((x) => x.id === selected[0]);
+      if (item?.branch) return item.branch;
+    }
+    if (branchFilter !== "__all__") return branchFilter;
+    return "";
+  }, [selected, items, branchFilter]);
+
   useEffect(() => {
-    loadDestinations(mode);
-  }, [mode]);
+    loadDestinations(mode, destinationBranch);
+  }, [mode, destinationBranch]);
 
   const branchOptions = useMemo(
     () => [
-      { label: "Все", value: "__all__" },
+      { label: "Все филиалы", value: "__all__" },
       ...Array.from(new Set(items.map((x) => x.branch).filter(Boolean))).map((x) => ({ label: x, value: x })),
     ],
     [items]
@@ -199,7 +208,7 @@ export default function PesModule() {
         ? items.filter((x) => x.branch === branchFilter)
         : items;
     return [
-      { label: "Все", value: "__all__" },
+      { label: "Все ПО", value: "__all__" },
       ...Array.from(new Set(subset.map((x) => x.po).filter(Boolean))).map((x) => ({ label: x, value: x })),
     ];
   }, [items, branchFilter]);
@@ -224,6 +233,39 @@ export default function PesModule() {
     const source = destinationType === "tp" ? destinations.tp : destinations.assembly;
     return source.map((x) => ({ label: `${x.title} — ${x.address}`, value: x.id }));
   }, [destinations, destinationType]);
+
+  const selectedItems = useMemo(
+    () => items.filter((x) => selected.includes(x.id)),
+    [items, selected]
+  );
+
+  const isAllowedTransition = (action, item) => {
+    const st = item?.effectiveStatus;
+    if (action === "dispatch") return st === "ready";
+    if (action === "reroute") return ["command_sent", "delayed", "en_route"].includes(st);
+    if (action === "cancel") return ["command_sent", "delayed", "en_route"].includes(st);
+    if (action === "depart") return ["command_sent", "delayed"].includes(st);
+    if (action === "connect") return st === "en_route";
+    if (action === "ready") return ["connected", "repair"].includes(st);
+    if (action === "repair") return st !== "repair";
+    return true;
+  };
+
+  const actionState = (action) => {
+    if (!canManage) return { disabled: true, reason: "Режим просмотра" };
+    if (!selectedItems.length) return { disabled: true, reason: "Сначала отметьте хотя бы одну ПЭС" };
+    if (["dispatch", "reroute"].includes(action) && !destinationId) {
+      return { disabled: true, reason: "Выберите точку назначения" };
+    }
+    const invalid = selectedItems.find((x) => !isAllowedTransition(action, x));
+    if (invalid) {
+      return {
+        disabled: true,
+        reason: `ПЭС №${invalid.number}: недопустимый статус для этой операции`,
+      };
+    }
+    return { disabled: false, reason: "" };
+  };
 
   const toggleSelected = (id) => {
     if (!canManage) return;
@@ -405,6 +447,114 @@ export default function PesModule() {
         </Col>
       </Row>
 
+      {canManage ? (
+        <Card size="small" style={{ marginBottom: 12 }}>
+          <Space direction="vertical" style={{ width: "100%" }} size={8}>
+            <Text strong>
+              Команда на ПЭС ({mode === "multi" ? "множественный" : "одиночный"} выбор), выбрано: {selected.length}
+            </Text>
+            <Alert
+              type="info"
+              showIcon
+              message="Как работать: 1) отметьте ПЭС галочкой на карточке, 2) выберите точку назначения, 3) нажмите нужную кнопку операции. Комментарий отправляется вместе с командой."
+            />
+            <Row gutter={[8, 8]}>
+              <Col xs={24} md={8}>
+                <Select
+                  value={destinationType}
+                  onChange={setDestinationType}
+                  disabled={mode === "multi" || sending}
+                  options={[
+                    { value: "assembly", label: "Точка сбора ПЭС" },
+                    { value: "tp", label: "ТП (только одиночный выбор)" },
+                  ]}
+                  style={{ width: "100%" }}
+                />
+              </Col>
+              <Col xs={24} md={16}>
+                <Select
+                  showSearch
+                  value={destinationId}
+                  onChange={setDestinationId}
+                  options={destinationOptions}
+                  placeholder="Точка назначения"
+                  optionFilterProp="label"
+                  disabled={sending}
+                  style={{ width: "100%" }}
+                />
+              </Col>
+            </Row>
+            <Input.TextArea
+              rows={2}
+              placeholder="Комментарий к операции (уйдет в уведомление Telegram)"
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              disabled={sending}
+            />
+            <Space wrap>
+              <Button
+                type="primary"
+                onClick={() => runAction("dispatch")}
+                loading={sending}
+                disabled={actionState("dispatch").disabled || sending}
+                title={actionState("dispatch").reason}
+              >
+                Команда на выезд
+              </Button>
+              <Button
+                onClick={() => runAction("reroute")}
+                loading={sending}
+                disabled={actionState("reroute").disabled || sending}
+                title={actionState("reroute").reason}
+              >
+                Корректировка маршрута
+              </Button>
+              <Button
+                onClick={() => runAction("cancel")}
+                loading={sending}
+                disabled={actionState("cancel").disabled || sending}
+                title={actionState("cancel").reason}
+              >
+                Отмена выезда
+              </Button>
+              <Divider type="vertical" />
+              <Button
+                onClick={() => runAction("depart")}
+                loading={sending}
+                disabled={actionState("depart").disabled || sending}
+                title={actionState("depart").reason}
+              >
+                Фактический выезд
+              </Button>
+              <Button
+                onClick={() => runAction("connect")}
+                loading={sending}
+                disabled={actionState("connect").disabled || sending}
+                title={actionState("connect").reason}
+              >
+                Подключена
+              </Button>
+              <Button
+                onClick={() => runAction("ready")}
+                loading={sending}
+                disabled={actionState("ready").disabled || sending}
+                title={actionState("ready").reason}
+              >
+                Вернуть в резерв
+              </Button>
+              <Button
+                onClick={() => runAction("repair")}
+                loading={sending}
+                disabled={actionState("repair").disabled || sending}
+                title={actionState("repair").reason}
+              >
+                В ремонт
+              </Button>
+            </Space>
+          </Space>
+        </Card>
+      ) : null}
+
       <Card size="small" style={{ marginBottom: 12 }}>
         <Row gutter={[8, 8]}>
           <Col xs={24} md={7}>
@@ -434,7 +584,7 @@ export default function PesModule() {
               value={statusFilter}
               onChange={setStatusFilter}
               options={[
-                { label: "Все", value: "__all__" },
+                { label: "Все статусы", value: "__all__" },
                 ...Object.entries(STATUS_META).map(([value, meta]) => ({
                   value,
                   label: meta.label,
@@ -448,73 +598,6 @@ export default function PesModule() {
           </Col>
         </Row>
       </Card>
-
-      {canManage ? (
-        <Card size="small" style={{ marginBottom: 12 }}>
-          <Space direction="vertical" style={{ width: "100%" }} size={8}>
-            <Text strong>
-              Команда на ПЭС ({mode === "multi" ? "множественный" : "одиночный"} выбор), выбрано: {selected.length}
-            </Text>
-            <Row gutter={[8, 8]}>
-              <Col xs={24} md={8}>
-                <Select
-                  value={destinationType}
-                  onChange={setDestinationType}
-                  disabled={mode === "multi" || sending}
-                  options={[
-                    { value: "assembly", label: "Точка сбора ПЭС" },
-                    { value: "tp", label: "ТП (только одиночный выбор)" },
-                  ]}
-                  style={{ width: "100%" }}
-                />
-              </Col>
-              <Col xs={24} md={16}>
-                <Select
-                  showSearch
-                  value={destinationId}
-                  onChange={setDestinationId}
-                  options={destinationOptions}
-                  placeholder="Точка назначения"
-                  optionFilterProp="label"
-                  disabled={sending}
-                  style={{ width: "100%" }}
-                />
-              </Col>
-            </Row>
-            <Input.TextArea
-              rows={2}
-              placeholder="Комментарий (для отмены/корректировки)"
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              disabled={sending}
-            />
-            <Space wrap>
-              <Button type="primary" onClick={() => runAction("dispatch")} loading={sending}>
-                Команда на выезд
-              </Button>
-              <Button onClick={() => runAction("reroute")} loading={sending}>
-                Корректировка маршрута
-              </Button>
-              <Button onClick={() => runAction("cancel")} loading={sending}>
-                Отмена выезда
-              </Button>
-              <Divider type="vertical" />
-              <Button onClick={() => runAction("depart")} loading={sending}>
-                Фактический выезд
-              </Button>
-              <Button onClick={() => runAction("connect")} loading={sending}>
-                Подключена
-              </Button>
-              <Button onClick={() => runAction("ready")} loading={sending}>
-                Вернуть в резерв
-              </Button>
-              <Button onClick={() => runAction("repair")} loading={sending}>
-                В ремонт
-              </Button>
-            </Space>
-          </Space>
-        </Card>
-      ) : null}
 
       {filteredItems.length === 0 ? (
         <Card>
