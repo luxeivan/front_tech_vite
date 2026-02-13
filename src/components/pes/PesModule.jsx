@@ -3,7 +3,6 @@ import {
   Alert,
   Button,
   Card,
-  Checkbox,
   Col,
   Divider,
   Empty,
@@ -13,6 +12,7 @@ import {
   Select,
   Space,
   Tag,
+  Tooltip,
   Typography,
   notification,
 } from "antd";
@@ -21,15 +21,17 @@ import { useNavigate } from "react-router-dom";
 import useAuth from "../../stores/useAuth";
 import { buildAuditHeaders, logAuditEvent } from "../../utils/auditLogger";
 
+import "./PesModule.css";
+
 const { Title, Text } = Typography;
 
 const STATUS_META = {
-  ready: { label: "Готова к выезду", color: "green" },
-  command_sent: { label: "Дана команда", color: "cyan" },
-  delayed: { label: "Задержка выезда", color: "magenta" },
-  en_route: { label: "В пути", color: "gold" },
-  connected: { label: "Подключена", color: "red" },
-  repair: { label: "В ремонте", color: "default" },
+  ready: { label: "Готова к выезду (в резерве)" },
+  command_sent: { label: "Дана команда на выезд" },
+  delayed: { label: "Задержка выезда" },
+  en_route: { label: "В пути" },
+  connected: { label: "Подключена (в работе)" },
+  repair: { label: "В ремонте" },
 };
 
 function getBackendBase() {
@@ -38,35 +40,122 @@ function getBackendBase() {
   return (a || b).replace(/\/$/, "");
 }
 
-function PesCard({ item, selected, onToggle, selectable }) {
-  const meta = STATUS_META[item.effectiveStatus] || STATUS_META.ready;
+function PesTile({ item, selected, onToggle, selectable }) {
+  const status = item?.effectiveStatus || "ready";
+  const meta = STATUS_META[status] || STATUS_META.ready;
+
+  const className = [
+    "pes-tile",
+    `pes-tile--${status}`,
+    selected ? "pes-tile--selected" : "",
+    selectable ? "" : "pes-tile--disabled",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const tooltip = (
+    <div className="pes-tile-tooltip">
+      <div>
+        <b>ПЭС №{item.number}</b>
+      </div>
+      <div>{item.name || "—"}</div>
+      <div>
+        {item.branch || "—"} / {item.po || "—"}
+      </div>
+      <div>Мощность: {item.powerKw ?? "—"} кВт</div>
+      <div>Телефон диспетчера: {item.dispatcherPhone || "—"}</div>
+      <div>Статус: {meta.label}</div>
+    </div>
+  );
+
   return (
-    <Card
-      size="small"
-      title={
-        <Flex justify="space-between" align="center">
-          <Space size={8}>
-            {selectable ? (
-              <Checkbox checked={selected} onChange={() => onToggle(item.id)} />
-            ) : null}
-            <Text strong>ПЭС №{item.number}</Text>
-          </Space>
-          <Tag color={meta.color}>{meta.label}</Tag>
-        </Flex>
-      }
-      bodyStyle={{ padding: 12 }}
-      style={{ borderRadius: 12, minHeight: 186 }}
-    >
-      <Space direction="vertical" size={2} style={{ width: "100%" }}>
-        <Text>{item.name}</Text>
-        <Text type="secondary">{item.branch}</Text>
-        <Text type="secondary">{item.po}</Text>
-        <Text>Мощность: {item.powerKw} кВт</Text>
-        <Text type="secondary">
-          Телефон диспетчера: {item.dispatcherPhone || "—"}
-        </Text>
-      </Space>
-    </Card>
+    <Tooltip title={tooltip} placement="top" mouseEnterDelay={0.1}>
+      <div
+        className={className}
+        role={selectable ? "button" : "group"}
+        tabIndex={selectable ? 0 : -1}
+        onClick={() => {
+          if (!selectable) return;
+          onToggle(item.id);
+        }}
+        onKeyDown={(e) => {
+          if (!selectable) return;
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onToggle(item.id);
+          }
+        }}
+      >
+        {selected ? <div className="pes-tile__check">✓</div> : null}
+        <div className="pes-tile__number">№{item.number}</div>
+        <div className="pes-tile__power">
+          {item.powerKw != null ? `${item.powerKw} кВт` : "—"}
+        </div>
+      </div>
+    </Tooltip>
+  );
+}
+
+function sortPesNumber(a, b) {
+  const an = Number.parseInt(String(a?.number || ""), 10);
+  const bn = Number.parseInt(String(b?.number || ""), 10);
+  if (Number.isFinite(an) && Number.isFinite(bn) && an !== bn) return an - bn;
+  return String(a?.number || "").localeCompare(String(b?.number || ""), "ru");
+}
+
+function buildGrouped(items) {
+  const byBranch = new Map();
+  for (const it of items) {
+    const branch = it.branch || "—";
+    const po = it.po || "—";
+    if (!byBranch.has(branch)) byBranch.set(branch, new Map());
+    const byPo = byBranch.get(branch);
+    if (!byPo.has(po)) byPo.set(po, []);
+    byPo.get(po).push(it);
+  }
+
+  return Array.from(byBranch.entries())
+    .sort(([a], [b]) => a.localeCompare(b, "ru"))
+    .map(([branch, poMap]) => {
+      const pos = Array.from(poMap.entries())
+        .sort(([a], [b]) => a.localeCompare(b, "ru"))
+        .map(([po, list]) => ({
+          po,
+          items: [...list].sort(sortPesNumber),
+        }));
+      const count = pos.reduce((acc, x) => acc + x.items.length, 0);
+      return { branch, pos, count };
+    });
+}
+
+function PesTilesBoard({ items, selected, onToggle, selectable }) {
+  const grouped = useMemo(() => buildGrouped(items), [items]);
+  return (
+    <div className="pes-board">
+      {grouped.map((b) => (
+        <div key={b.branch} className="pes-branch">
+          <div className="pes-branch__title">
+            {b.branch} <span className="pes-branch__count">({b.count})</span>
+          </div>
+          {b.pos.map((p) => (
+            <div key={`${b.branch}__${p.po}`} className="pes-po">
+              <div className="pes-po__title">{p.po}</div>
+              <div className="pes-tiles">
+                {p.items.map((it) => (
+                  <PesTile
+                    key={it.id}
+                    item={it}
+                    selected={selected.includes(it.id)}
+                    onToggle={onToggle}
+                    selectable={selectable}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -431,10 +520,10 @@ export default function PesModule() {
           <Tag color="green">Готова: {filteredSummary.ready}</Tag>
         </Col>
         <Col>
-          <Tag color="cyan">Команда: {filteredSummary.commandSent}</Tag>
+          <Tag color="blue">Команда: {filteredSummary.commandSent}</Tag>
         </Col>
         <Col>
-          <Tag color="magenta">Задержка: {filteredSummary.delayed}</Tag>
+          <Tag color="blue">Задержка: {filteredSummary.delayed}</Tag>
         </Col>
         <Col>
           <Tag color="gold">В пути: {filteredSummary.enRoute}</Tag>
@@ -456,7 +545,7 @@ export default function PesModule() {
             <Alert
               type="info"
               showIcon
-              message="Как работать: 1) отметьте ПЭС галочкой на карточке, 2) выберите точку назначения, 3) нажмите нужную кнопку операции. Комментарий отправляется вместе с командой."
+              message="Как работать: 1) выберите ПЭС кликом по плиткам, 2) выберите точку назначения, 3) нажмите нужную кнопку операции. Комментарий отправляется вместе с командой."
             />
             <Row gutter={[8, 8]}>
               <Col xs={24} md={8}>
@@ -604,18 +693,12 @@ export default function PesModule() {
           <Empty description="По текущим фильтрам ПЭС не найдены" />
         </Card>
       ) : (
-        <Row gutter={[10, 10]}>
-          {filteredItems.map((item) => (
-            <Col key={item.id} xs={24} sm={12} lg={8} xl={6}>
-              <PesCard
-                item={item}
-                selected={selected.includes(item.id)}
-                onToggle={toggleSelected}
-                selectable={canManage && !sending}
-              />
-            </Col>
-          ))}
-        </Row>
+        <PesTilesBoard
+          items={filteredItems}
+          selected={selected}
+          onToggle={toggleSelected}
+          selectable={canManage && !sending}
+        />
       )}
     </div>
   );
