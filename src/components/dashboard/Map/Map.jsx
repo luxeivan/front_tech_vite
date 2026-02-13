@@ -515,6 +515,21 @@ export default function MapPanel({
       { center, duration: 450 },
       { zoom: Math.max(currentZoom, 14), duration: 450 }
     );
+
+    // Открываем popup сразу у найденной ПЭС, чтобы не путать с соседними маркерами.
+    const popupHtml = feature.get?.("_popupHtml") || "";
+    const contentEl = overlayContentRef.current;
+    const overlay = overlayRef.current;
+    if (contentEl && overlay) {
+      contentEl.innerHTML =
+        popupHtml ||
+        `<div><b>${feature.get("name") || "ПЭС"}</b><br/>ID: ${feature.get("id") || "—"}</div>`;
+      overlay.setPosition(center);
+    }
+
+    message.success(
+      `Найдена ПЭС ID ${feature.get("id")}: ${feature.get("name") || "без имени"}`
+    );
   };
 
   return (
