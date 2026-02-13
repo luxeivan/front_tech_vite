@@ -479,26 +479,54 @@ export default function MapPanel({
     return () => stop();
   }, []);
 
-  const findPesFeatureById = (rawId) => {
-    const id = String(rawId || "").trim();
-    if (!id || !pesSourceRef.current) return null;
-    const features = pesSourceRef.current.getFeatures?.() || [];
-    return (
-      features.find((f) => String(f?.get?.("id") ?? "") === id) ||
-      null
-    );
+  const parsePesNumber = (raw) => {
+    const txt = String(raw || "").trim();
+    if (!txt) return null;
+    const mWithSign = txt.match(/№\s*(\d{1,4})/i);
+    if (mWithSign) return Number(mWithSign[1]);
+    const mDigits = txt.match(/^(\d{1,6})$/);
+    if (mDigits) return Number(mDigits[1]);
+    return null;
   };
 
-  const focusPesById = () => {
-    const id = String(pesSearchId || "").trim();
-    if (!id) {
-      message.warning("Введите ID ПЭС");
+  const extractModelNumber = (modelText) => {
+    const txt = String(modelText || "");
+    const m = txt.match(/№\s*(\d{1,4})/i);
+    if (!m) return null;
+    const n = Number(m[1]);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  const findPesFeature = (rawQuery) => {
+    const query = String(rawQuery || "").trim();
+    if (!query || !pesSourceRef.current) return { feature: null, by: null };
+    const features = pesSourceRef.current.getFeatures?.() || [];
+
+    const byId = features.find((f) => String(f?.get?.("id") ?? "") === query);
+    if (byId) return { feature: byId, by: "id" };
+
+    const qNum = parsePesNumber(query);
+    if (!Number.isFinite(qNum)) return { feature: null, by: null };
+
+    const byModelNum = features.find((f) => {
+      const modelNum = extractModelNumber(f?.get?.("model"));
+      return Number.isFinite(modelNum) && modelNum === qNum;
+    });
+    if (byModelNum) return { feature: byModelNum, by: "modelNumber", qNum };
+
+    return { feature: null, by: null };
+  };
+
+  const focusPes = () => {
+    const query = String(pesSearchId || "").trim();
+    if (!query) {
+      message.warning("Введите ID ПЭС или номер (например 54087 / 77 / №77)");
       return;
     }
 
-    const feature = findPesFeatureById(id);
+    const { feature, by, qNum } = findPesFeature(query);
     if (!feature) {
-      message.info(`ПЭС с ID ${id} пока не найдена на карте`);
+      message.info(`ПЭС по запросу "${query}" пока не найдена на карте`);
       return;
     }
 
@@ -527,9 +555,15 @@ export default function MapPanel({
       overlay.setPosition(center);
     }
 
-    message.success(
-      `Найдена ПЭС ID ${feature.get("id")}: ${feature.get("name") || "без имени"}`
-    );
+    if (by === "id") {
+      message.success(
+        `Найдена ПЭС ID ${feature.get("id")}: ${feature.get("name") || "без имени"}`
+      );
+    } else if (by === "modelNumber") {
+      message.success(
+        `Найдена ПЭС по №${qNum} (ID ${feature.get("id")}): ${feature.get("name") || "без имени"}`
+      );
+    }
   };
 
   return (
@@ -580,11 +614,11 @@ export default function MapPanel({
           <Input
             value={pesSearchId}
             onChange={(e) => setPesSearchId(e.target.value)}
-            onPressEnter={focusPesById}
-            placeholder="Поиск ПЭС по ID (например 54087)"
+            onPressEnter={focusPes}
+            placeholder="Поиск ПЭС: ID или № из model (54087 / 77 / №77)"
             style={{ width: 320, maxWidth: "100%" }}
           />
-          <Button type="primary" onClick={focusPesById}>
+          <Button type="primary" onClick={focusPes}>
             Найти ПЭС
           </Button>
         </Space>
