@@ -86,11 +86,7 @@ function PesTile({ item, selected, onToggle, selectable }) {
           }
         }}
       >
-        {selected ? <div className="pes-tile__check">✓</div> : null}
         <div className="pes-tile__number">№{item.number}</div>
-        <div className="pes-tile__power">
-          {item.powerKw != null ? `${item.powerKw} кВт` : "—"}
-        </div>
       </div>
     </Tooltip>
   );
