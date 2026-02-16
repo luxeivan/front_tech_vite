@@ -1,16 +1,18 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Button,
   Card,
   Col,
   Divider,
+  Drawer,
   Empty,
   Flex,
   Input,
   Row,
   Select,
   Space,
+  Table,
   Tag,
   Tooltip,
   Typography,
@@ -28,7 +30,7 @@ const { Title, Text } = Typography;
 const STATUS_META = {
   ready: { label: "Готова к выезду (в резерве)" },
   command_sent: { label: "Дана команда на выезд" },
-  delayed: { label: "Задержка выезда" },
+  delay: { label: "Задержка выезда" },
   en_route: { label: "В пути" },
   connected: { label: "Подключена (в работе)" },
   repair: { label: "В ремонте" },
@@ -166,12 +168,27 @@ function getActionMeta(action) {
   return { title: "Операция", description: "Операция выполнена." };
 }
 
+function statusLabel(status) {
+  const normalized = String(status || "")
+    .trim()
+    .toLowerCase()
+    .replace(/,+$/, "");
+  return STATUS_META[normalized]?.label || status || "—";
+}
+
+function formatDateTime(value) {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+  return d.toLocaleString("ru-RU");
+}
+
 function calcSummary(items) {
   const s = {
     total: items.length,
     ready: 0,
     commandSent: 0,
-    delayed: 0,
+    delay: 0,
     enRoute: 0,
     connected: 0,
     repair: 0,
@@ -180,7 +197,7 @@ function calcSummary(items) {
   items.forEach((x) => {
     if (x.effectiveStatus === "ready") s.ready += 1;
     else if (x.effectiveStatus === "command_sent") s.commandSent += 1;
-    else if (x.effectiveStatus === "delayed") s.delayed += 1;
+    else if (x.effectiveStatus === "delay") s.delay += 1;
     else if (x.effectiveStatus === "en_route") s.enRoute += 1;
     else if (x.effectiveStatus === "connected") s.connected += 1;
     else if (x.effectiveStatus === "repair") s.repair += 1;
@@ -208,6 +225,13 @@ export default function PesModule() {
   const [destinationId, setDestinationId] = useState(undefined);
   const [comment, setComment] = useState("");
   const [sending, setSending] = useState(false);
+  const destinationsReqRef = useRef(0);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyItems, setHistoryItems] = useState([]);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyPageSize, setHistoryPageSize] = useState(20);
+  const [historyTotal, setHistoryTotal] = useState(0);
 
   const canManage = user?.view_role === "standart";
   const mode = selected.length > 1 ? "multi" : "single";
@@ -242,11 +266,14 @@ export default function PesModule() {
   };
 
   const loadDestinations = async (nextMode, branch) => {
+    const reqId = ++destinationsReqRef.current;
+    setDestinationId(undefined);
     try {
       const base = getBackendBase();
       const { data } = await axios.get(`${base}/services/pes/module/destinations`, {
         params: { mode: nextMode, branch: branch || undefined },
       });
+      if (reqId !== destinationsReqRef.current) return;
       const next = {
         assembly: Array.isArray(data?.assembly) ? data.assembly : [],
         tp: Array.isArray(data?.tp) ? data.tp : [],
@@ -255,9 +282,45 @@ export default function PesModule() {
       if (nextMode === "multi") {
         setDestinationType("assembly");
       }
-      setDestinationId(undefined);
     } catch {
+      if (reqId !== destinationsReqRef.current) return;
       setDestinations({ assembly: [], tp: [] });
+    }
+  };
+
+  const loadHistory = async ({ nextPage = historyPage, nextPageSize = historyPageSize } = {}) => {
+    try {
+      setHistoryLoading(true);
+      const base = getBackendBase();
+      const params = {
+        page: nextPage,
+        pageSize: nextPageSize,
+      };
+      if (branchFilter !== "__all__") params.branch = branchFilter;
+      if (poFilter !== "__all__") params.po = poFilter;
+
+      const { data } = await axios.get(`${base}/services/pes/module/history`, {
+        params,
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("jwt") || ""}`,
+          ...buildAuditHeaders(user, "/pes"),
+        },
+      });
+
+      const rows = Array.isArray(data?.items) ? data.items : [];
+      const pg = data?.pagination || {};
+      setHistoryItems(rows);
+      setHistoryPage(Number(pg.page || nextPage));
+      setHistoryPageSize(Number(pg.pageSize || nextPageSize));
+      setHistoryTotal(Number(pg.total || rows.length));
+    } catch (e) {
+      notification.error({
+        message: "Не удалось загрузить историю",
+        description: e?.response?.data?.message || e?.message || "Ошибка чтения истории операций ПЭС.",
+        placement: "topRight",
+      });
+    } finally {
+      setHistoryLoading(false);
     }
   };
 
@@ -278,6 +341,11 @@ export default function PesModule() {
   useEffect(() => {
     loadDestinations(mode, destinationBranch);
   }, [mode, destinationBranch]);
+
+  useEffect(() => {
+    if (!historyOpen) return;
+    loadHistory({ nextPage: 1, nextPageSize: historyPageSize });
+  }, [historyOpen]);
 
   const branchOptions = useMemo(
     () => [
@@ -327,9 +395,9 @@ export default function PesModule() {
   const isAllowedTransition = (action, item) => {
     const st = item?.effectiveStatus;
     if (action === "dispatch") return st === "ready";
-    if (action === "reroute") return ["command_sent", "delayed", "en_route"].includes(st);
-    if (action === "cancel") return ["command_sent", "delayed", "en_route"].includes(st);
-    if (action === "depart") return ["command_sent", "delayed"].includes(st);
+    if (action === "reroute") return ["command_sent", "delay", "en_route"].includes(st);
+    if (action === "cancel") return ["command_sent", "delay", "en_route"].includes(st);
+    if (action === "depart") return ["command_sent", "delay"].includes(st);
     if (action === "connect") return st === "en_route";
     if (action === "ready") return ["connected", "repair"].includes(st);
     if (action === "repair") return st !== "repair";
@@ -389,6 +457,18 @@ export default function PesModule() {
         description: "Для этой операции нужно выбрать точку назначения.",
         placement: "topRight",
       });
+      return;
+    }
+    if (
+      ["dispatch", "reroute"].includes(action) &&
+      !destinationOptions.some((x) => x.value === destinationId)
+    ) {
+      notification.warning({
+        message: "Точка назначения устарела",
+        description: "Список точек обновился. Выберите точку назначения заново.",
+        placement: "topRight",
+      });
+      await loadDestinations(mode, destinationBranch);
       return;
     }
 
@@ -452,6 +532,9 @@ export default function PesModule() {
       setSelected([]);
       setDestinationId(undefined);
       await loadItems();
+      if (historyOpen) {
+        await loadHistory({ nextPage: 1, nextPageSize: historyPageSize });
+      }
     } catch (e) {
       notification.error({
         message: "Ошибка операции",
@@ -464,11 +547,55 @@ export default function PesModule() {
     }
   };
 
+  const historyColumns = [
+    {
+      title: "Время",
+      dataIndex: "eventTime",
+      width: 180,
+      render: (v) => formatDateTime(v),
+    },
+    {
+      title: "Операция",
+      dataIndex: "action",
+      width: 180,
+      render: (v) => getActionMeta(v).title,
+    },
+    {
+      title: "ПЭС",
+      key: "pes",
+      width: 220,
+      render: (_, row) => (
+        <div>
+          <div>
+            <b>№{row?.pes?.number || "—"}</b> {row?.pes?.name || ""}
+          </div>
+          <Text type="secondary">{row?.pes?.branch || row?.branch || "—"}</Text>
+        </div>
+      ),
+    },
+    {
+      title: "Статус",
+      key: "status",
+      width: 260,
+      render: (_, row) => `${statusLabel(row?.statusFrom)} → ${statusLabel(row?.statusTo)}`,
+    },
+    {
+      title: "Назначение",
+      key: "destination",
+      render: (_, row) => row?.destinationTitle || row?.destinationAddress || "—",
+    },
+    {
+      title: "Комментарий",
+      dataIndex: "comment",
+      render: (v) => v || "—",
+    },
+  ];
+
   return (
-    <div>
-      <Flex justify="space-between" align="center" style={{ marginBottom: 12 }}>
+    <div className="pes-module">
+      <Flex justify="space-between" align="center" style={{ marginBottom: 8 }}>
         <Space>
-          <Button onClick={() => navigate("/")}>К журналу ТН</Button>
+          <Button size="small" onClick={() => navigate("/")}>К журналу ТН</Button>
           <Title level={3} style={{ margin: 0 }}>
             Модуль ПЭС
           </Title>
@@ -477,7 +604,10 @@ export default function PesModule() {
           <Tag color={canManage ? "green" : "blue"}>
             {canManage ? "Режим управления" : "Режим просмотра"}
           </Tag>
-          <Button onClick={loadItems} loading={loading}>
+          <Button size="small" onClick={() => setHistoryOpen(true)}>
+            История операций
+          </Button>
+          <Button size="small" onClick={loadItems} loading={loading}>
             Обновить
           </Button>
         </Space>
@@ -487,7 +617,7 @@ export default function PesModule() {
         <Alert
           type="error"
           showIcon
-          style={{ marginBottom: 12 }}
+          style={{ marginBottom: 8 }}
           message={error}
         />
       )}
@@ -495,7 +625,7 @@ export default function PesModule() {
         <Alert
           type="warning"
           showIcon
-          style={{ marginBottom: 12 }}
+          style={{ marginBottom: 8 }}
           message="Telegram-уведомления пока не настроены (работаем в режиме подготовки)."
         />
       )}
@@ -503,12 +633,12 @@ export default function PesModule() {
         <Alert
           type="info"
           showIcon
-          style={{ marginBottom: 12 }}
+          style={{ marginBottom: 8 }}
           message="Роль supergeneral: только просмотр (управление ПЭС заблокировано)."
         />
       )}
 
-      <Row gutter={[8, 8]} style={{ marginBottom: 12 }}>
+      <Row gutter={[6, 6]} style={{ marginBottom: 8 }}>
         <Col>
           <Tag>Всего: {filteredSummary.total}</Tag>
         </Col>
@@ -519,7 +649,7 @@ export default function PesModule() {
           <Tag color="blue">Команда: {filteredSummary.commandSent}</Tag>
         </Col>
         <Col>
-          <Tag color="blue">Задержка: {filteredSummary.delayed}</Tag>
+          <Tag color="blue">Задержка: {filteredSummary.delay}</Tag>
         </Col>
         <Col>
           <Tag color="gold">В пути: {filteredSummary.enRoute}</Tag>
@@ -533,12 +663,13 @@ export default function PesModule() {
       </Row>
 
       {canManage ? (
-        <Card size="small" style={{ marginBottom: 12 }}>
-          <Space direction="vertical" style={{ width: "100%" }} size={8}>
+        <Card size="small" style={{ marginBottom: 8 }} className="pes-card pes-card--command">
+          <Space direction="vertical" style={{ width: "100%" }} size={6}>
             <Text strong>
               Команда на ПЭС ({mode === "multi" ? "множественный" : "одиночный"} выбор), выбрано: {selected.length}
             </Text>
             <Alert
+              className="pes-help-alert"
               type="info"
               showIcon
               message="Как работать: 1) выберите ПЭС кликом по плиткам, 2) выберите точку назначения, 3) нажмите нужную кнопку операции. Комментарий отправляется вместе с командой."
@@ -546,6 +677,7 @@ export default function PesModule() {
             <Row gutter={[8, 8]}>
               <Col xs={24} md={8}>
                 <Select
+                  size="small"
                   value={destinationType}
                   onChange={setDestinationType}
                   disabled={mode === "multi" || sending}
@@ -558,6 +690,7 @@ export default function PesModule() {
               </Col>
               <Col xs={24} md={16}>
                 <Select
+                  size="small"
                   showSearch
                   value={destinationId}
                   onChange={setDestinationId}
@@ -570,14 +703,16 @@ export default function PesModule() {
               </Col>
             </Row>
             <Input.TextArea
-              rows={2}
+              autoSize={{ minRows: 1, maxRows: 2 }}
               placeholder="Комментарий к операции (уйдет в уведомление Telegram)"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               disabled={sending}
+              className="pes-command-comment"
             />
             <Space wrap>
               <Button
+                size="small"
                 type="primary"
                 onClick={() => runAction("dispatch")}
                 loading={sending}
@@ -587,6 +722,7 @@ export default function PesModule() {
                 Команда на выезд
               </Button>
               <Button
+                size="small"
                 onClick={() => runAction("reroute")}
                 loading={sending}
                 disabled={actionState("reroute").disabled || sending}
@@ -595,6 +731,7 @@ export default function PesModule() {
                 Корректировка маршрута
               </Button>
               <Button
+                size="small"
                 onClick={() => runAction("cancel")}
                 loading={sending}
                 disabled={actionState("cancel").disabled || sending}
@@ -604,6 +741,7 @@ export default function PesModule() {
               </Button>
               <Divider type="vertical" />
               <Button
+                size="small"
                 onClick={() => runAction("depart")}
                 loading={sending}
                 disabled={actionState("depart").disabled || sending}
@@ -612,6 +750,7 @@ export default function PesModule() {
                 Фактический выезд
               </Button>
               <Button
+                size="small"
                 onClick={() => runAction("connect")}
                 loading={sending}
                 disabled={actionState("connect").disabled || sending}
@@ -620,6 +759,7 @@ export default function PesModule() {
                 Подключена
               </Button>
               <Button
+                size="small"
                 onClick={() => runAction("ready")}
                 loading={sending}
                 disabled={actionState("ready").disabled || sending}
@@ -628,6 +768,7 @@ export default function PesModule() {
                 Вернуть в резерв
               </Button>
               <Button
+                size="small"
                 onClick={() => runAction("repair")}
                 loading={sending}
                 disabled={actionState("repair").disabled || sending}
@@ -640,10 +781,11 @@ export default function PesModule() {
         </Card>
       ) : null}
 
-      <Card size="small" style={{ marginBottom: 12 }}>
+      <Card size="small" style={{ marginBottom: 8 }} className="pes-card pes-card--filters">
         <Row gutter={[8, 8]}>
           <Col xs={24} md={7}>
             <Select
+              size="small"
               placeholder="Филиал"
               options={branchOptions}
               value={branchFilter}
@@ -656,6 +798,7 @@ export default function PesModule() {
           </Col>
           <Col xs={24} md={7}>
             <Select
+              size="small"
               placeholder="ПО"
               options={poOptions}
               value={poFilter}
@@ -665,6 +808,7 @@ export default function PesModule() {
           </Col>
           <Col xs={24} md={7}>
             <Select
+              size="small"
               placeholder="Статус"
               value={statusFilter}
               onChange={setStatusFilter}
@@ -679,7 +823,7 @@ export default function PesModule() {
             />
           </Col>
           <Col xs={24} md={3}>
-            <Button block onClick={resetFilters}>Сбросить</Button>
+            <Button size="small" block onClick={resetFilters}>Сбросить</Button>
           </Col>
         </Row>
       </Card>
@@ -696,6 +840,37 @@ export default function PesModule() {
           selectable={canManage && !sending}
         />
       )}
+
+      <Drawer
+        title="История операций ПЭС"
+        width={1200}
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        extra={
+          <Button onClick={() => loadHistory()} loading={historyLoading}>
+            Обновить
+          </Button>
+        }
+      >
+        <Table
+          rowKey={(row) => row.id}
+          columns={historyColumns}
+          dataSource={historyItems}
+          loading={historyLoading}
+          size="small"
+          scroll={{ x: 1100 }}
+          pagination={{
+            current: historyPage,
+            pageSize: historyPageSize,
+            total: historyTotal,
+            showSizeChanger: true,
+            pageSizeOptions: [20, 50, 100],
+            onChange: (nextPage, nextPageSize) => {
+              loadHistory({ nextPage, nextPageSize });
+            },
+          }}
+        />
+      </Drawer>
     </div>
   );
 }

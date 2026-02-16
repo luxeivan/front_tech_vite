@@ -1,19 +1,39 @@
+.pes-module .ant-card {
+  border-radius: 10px;
+}
+
+.pes-module .pes-card .ant-card-body {
+  padding: 10px 12px;
+}
+
+.pes-module .pes-help-alert {
+  margin-bottom: 0;
+}
+
+.pes-module .pes-help-alert .ant-alert-message {
+  font-size: 12px;
+}
+
+.pes-module .pes-command-comment {
+  line-height: 1.2;
+}
+
 .pes-board {
-  column-width: 420px;
-  column-gap: 14px;
+  column-width: 350px;
+  column-gap: 10px;
 }
 
 .pes-branch {
   display: inline-block;
   width: 100%;
   break-inside: avoid;
-  margin: 0 0 10px;
+  margin: 0 0 8px;
 }
 
 .pes-branch__title {
   font-weight: 700;
-  font-size: 13px;
-  margin-bottom: 4px;
+  font-size: 12px;
+  margin-bottom: 2px;
 }
 
 .pes-branch__count {
@@ -23,23 +43,23 @@
 
 .pes-po__title {
   font-weight: 600;
-  font-size: 11px;
-  margin: 6px 0 4px;
+  font-size: 10px;
+  margin: 4px 0 2px;
   color: rgba(0, 0, 0, 0.65);
 }
 
 .pes-tiles {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 5px;
 }
 
 .pes-tile {
   position: relative;
-  width: 74px;
-  height: 28px;
-  border-radius: 8px;
-  padding: 4px 6px;
+  width: 68px;
+  height: 24px;
+  border-radius: 7px;
+  padding: 2px 4px;
   border: 1px solid rgba(0, 0, 0, 0.12);
   cursor: pointer;
   user-select: none;
@@ -65,7 +85,7 @@
 .pes-tile__number {
   font-weight: 800;
   line-height: 1.05;
-  font-size: 14px;
+  font-size: 13px;
   color: rgba(0, 0, 0, 0.9);
 }
 
@@ -111,7 +131,7 @@
   }
 }
 
-.pes-tile--delayed {
+.pes-tile--delay {
   background: #4096ff;
   animation: pes-tile-blink 1s ease-in-out infinite;
 }
