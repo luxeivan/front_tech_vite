@@ -28,7 +28,7 @@ const { Title, Text } = Typography;
 const STATUS_META = {
   ready: { label: "Готова к выезду (в резерве)" },
   command_sent: { label: "Дана команда на выезд" },
-  delayed: { label: "Задержка выезда" },
+  delay: { label: "Задержка выезда" },
   en_route: { label: "В пути" },
   connected: { label: "Подключена (в работе)" },
   repair: { label: "В ремонте" },
@@ -171,7 +171,7 @@ function calcSummary(items) {
     total: items.length,
     ready: 0,
     commandSent: 0,
-    delayed: 0,
+    delay: 0,
     enRoute: 0,
     connected: 0,
     repair: 0,
@@ -180,7 +180,7 @@ function calcSummary(items) {
   items.forEach((x) => {
     if (x.effectiveStatus === "ready") s.ready += 1;
     else if (x.effectiveStatus === "command_sent") s.commandSent += 1;
-    else if (x.effectiveStatus === "delayed") s.delayed += 1;
+    else if (x.effectiveStatus === "delay") s.delay += 1;
     else if (x.effectiveStatus === "en_route") s.enRoute += 1;
     else if (x.effectiveStatus === "connected") s.connected += 1;
     else if (x.effectiveStatus === "repair") s.repair += 1;
@@ -327,9 +327,9 @@ export default function PesModule() {
   const isAllowedTransition = (action, item) => {
     const st = item?.effectiveStatus;
     if (action === "dispatch") return st === "ready";
-    if (action === "reroute") return ["command_sent", "delayed", "en_route"].includes(st);
-    if (action === "cancel") return ["command_sent", "delayed", "en_route"].includes(st);
-    if (action === "depart") return ["command_sent", "delayed"].includes(st);
+    if (action === "reroute") return ["command_sent", "delay", "en_route"].includes(st);
+    if (action === "cancel") return ["command_sent", "delay", "en_route"].includes(st);
+    if (action === "depart") return ["command_sent", "delay"].includes(st);
     if (action === "connect") return st === "en_route";
     if (action === "ready") return ["connected", "repair"].includes(st);
     if (action === "repair") return st !== "repair";
@@ -519,7 +519,7 @@ export default function PesModule() {
           <Tag color="blue">Команда: {filteredSummary.commandSent}</Tag>
         </Col>
         <Col>
-          <Tag color="blue">Задержка: {filteredSummary.delayed}</Tag>
+          <Tag color="blue">Задержка: {filteredSummary.delay}</Tag>
         </Col>
         <Col>
           <Tag color="gold">В пути: {filteredSummary.enRoute}</Tag>

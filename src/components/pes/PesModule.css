@@ -111,7 +111,7 @@
   }
 }
 
-.pes-tile--delayed {
+.pes-tile--delay {
   background: #4096ff;
   animation: pes-tile-blink 1s ease-in-out infinite;
 }
