@@ -5,12 +5,14 @@ import {
   Card,
   Col,
   Divider,
+  Drawer,
   Empty,
   Flex,
   Input,
   Row,
   Select,
   Space,
+  Table,
   Tag,
   Tooltip,
   Typography,
@@ -166,6 +168,21 @@ function getActionMeta(action) {
   return { title: "Операция", description: "Операция выполнена." };
 }
 
+function statusLabel(status) {
+  const normalized = String(status || "")
+    .trim()
+    .toLowerCase()
+    .replace(/,+$/, "");
+  return STATUS_META[normalized]?.label || status || "—";
+}
+
+function formatDateTime(value) {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+  return d.toLocaleString("ru-RU");
+}
+
 function calcSummary(items) {
   const s = {
     total: items.length,
@@ -208,6 +225,12 @@ export default function PesModule() {
   const [destinationId, setDestinationId] = useState(undefined);
   const [comment, setComment] = useState("");
   const [sending, setSending] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyItems, setHistoryItems] = useState([]);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyPageSize, setHistoryPageSize] = useState(20);
+  const [historyTotal, setHistoryTotal] = useState(0);
 
   const canManage = user?.view_role === "standart";
   const mode = selected.length > 1 ? "multi" : "single";
@@ -261,6 +284,42 @@ export default function PesModule() {
     }
   };
 
+  const loadHistory = async ({ nextPage = historyPage, nextPageSize = historyPageSize } = {}) => {
+    try {
+      setHistoryLoading(true);
+      const base = getBackendBase();
+      const params = {
+        page: nextPage,
+        pageSize: nextPageSize,
+      };
+      if (branchFilter !== "__all__") params.branch = branchFilter;
+      if (poFilter !== "__all__") params.po = poFilter;
+
+      const { data } = await axios.get(`${base}/services/pes/module/history`, {
+        params,
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("jwt") || ""}`,
+          ...buildAuditHeaders(user, "/pes"),
+        },
+      });
+
+      const rows = Array.isArray(data?.items) ? data.items : [];
+      const pg = data?.pagination || {};
+      setHistoryItems(rows);
+      setHistoryPage(Number(pg.page || nextPage));
+      setHistoryPageSize(Number(pg.pageSize || nextPageSize));
+      setHistoryTotal(Number(pg.total || rows.length));
+    } catch (e) {
+      notification.error({
+        message: "Не удалось загрузить историю",
+        description: e?.response?.data?.message || e?.message || "Ошибка чтения истории операций ПЭС.",
+        placement: "topRight",
+      });
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadItems();
     loadConfig();
@@ -278,6 +337,11 @@ export default function PesModule() {
   useEffect(() => {
     loadDestinations(mode, destinationBranch);
   }, [mode, destinationBranch]);
+
+  useEffect(() => {
+    if (!historyOpen) return;
+    loadHistory({ nextPage: 1, nextPageSize: historyPageSize });
+  }, [historyOpen]);
 
   const branchOptions = useMemo(
     () => [
@@ -452,6 +516,9 @@ export default function PesModule() {
       setSelected([]);
       setDestinationId(undefined);
       await loadItems();
+      if (historyOpen) {
+        await loadHistory({ nextPage: 1, nextPageSize: historyPageSize });
+      }
     } catch (e) {
       notification.error({
         message: "Ошибка операции",
@@ -463,6 +530,50 @@ export default function PesModule() {
       setSending(false);
     }
   };
+
+  const historyColumns = [
+    {
+      title: "Время",
+      dataIndex: "eventTime",
+      width: 180,
+      render: (v) => formatDateTime(v),
+    },
+    {
+      title: "Операция",
+      dataIndex: "action",
+      width: 180,
+      render: (v) => getActionMeta(v).title,
+    },
+    {
+      title: "ПЭС",
+      key: "pes",
+      width: 220,
+      render: (_, row) => (
+        <div>
+          <div>
+            <b>№{row?.pes?.number || "—"}</b> {row?.pes?.name || ""}
+          </div>
+          <Text type="secondary">{row?.pes?.branch || row?.branch || "—"}</Text>
+        </div>
+      ),
+    },
+    {
+      title: "Статус",
+      key: "status",
+      width: 260,
+      render: (_, row) => `${statusLabel(row?.statusFrom)} → ${statusLabel(row?.statusTo)}`,
+    },
+    {
+      title: "Назначение",
+      key: "destination",
+      render: (_, row) => row?.destinationTitle || row?.destinationAddress || "—",
+    },
+    {
+      title: "Комментарий",
+      dataIndex: "comment",
+      render: (v) => v || "—",
+    },
+  ];
 
   return (
     <div>
@@ -477,6 +588,9 @@ export default function PesModule() {
           <Tag color={canManage ? "green" : "blue"}>
             {canManage ? "Режим управления" : "Режим просмотра"}
           </Tag>
+          <Button onClick={() => setHistoryOpen(true)}>
+            История операций
+          </Button>
           <Button onClick={loadItems} loading={loading}>
             Обновить
           </Button>
@@ -696,6 +810,37 @@ export default function PesModule() {
           selectable={canManage && !sending}
         />
       )}
+
+      <Drawer
+        title="История операций ПЭС"
+        width={1200}
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        extra={
+          <Button onClick={() => loadHistory()} loading={historyLoading}>
+            Обновить
+          </Button>
+        }
+      >
+        <Table
+          rowKey={(row) => row.id}
+          columns={historyColumns}
+          dataSource={historyItems}
+          loading={historyLoading}
+          size="small"
+          scroll={{ x: 1100 }}
+          pagination={{
+            current: historyPage,
+            pageSize: historyPageSize,
+            total: historyTotal,
+            showSizeChanger: true,
+            pageSizeOptions: [20, 50, 100],
+            onChange: (nextPage, nextPageSize) => {
+              loadHistory({ nextPage, nextPageSize });
+            },
+          }}
+        />
+      </Drawer>
     </div>
   );
 }
