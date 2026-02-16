@@ -592,10 +592,10 @@ export default function PesModule() {
   ];
 
   return (
-    <div>
-      <Flex justify="space-between" align="center" style={{ marginBottom: 12 }}>
+    <div className="pes-module">
+      <Flex justify="space-between" align="center" style={{ marginBottom: 8 }}>
         <Space>
-          <Button onClick={() => navigate("/")}>К журналу ТН</Button>
+          <Button size="small" onClick={() => navigate("/")}>К журналу ТН</Button>
           <Title level={3} style={{ margin: 0 }}>
             Модуль ПЭС
           </Title>
@@ -604,10 +604,10 @@ export default function PesModule() {
           <Tag color={canManage ? "green" : "blue"}>
             {canManage ? "Режим управления" : "Режим просмотра"}
           </Tag>
-          <Button onClick={() => setHistoryOpen(true)}>
+          <Button size="small" onClick={() => setHistoryOpen(true)}>
             История операций
           </Button>
-          <Button onClick={loadItems} loading={loading}>
+          <Button size="small" onClick={loadItems} loading={loading}>
             Обновить
           </Button>
         </Space>
@@ -617,7 +617,7 @@ export default function PesModule() {
         <Alert
           type="error"
           showIcon
-          style={{ marginBottom: 12 }}
+          style={{ marginBottom: 8 }}
           message={error}
         />
       )}
@@ -625,7 +625,7 @@ export default function PesModule() {
         <Alert
           type="warning"
           showIcon
-          style={{ marginBottom: 12 }}
+          style={{ marginBottom: 8 }}
           message="Telegram-уведомления пока не настроены (работаем в режиме подготовки)."
         />
       )}
@@ -633,12 +633,12 @@ export default function PesModule() {
         <Alert
           type="info"
           showIcon
-          style={{ marginBottom: 12 }}
+          style={{ marginBottom: 8 }}
           message="Роль supergeneral: только просмотр (управление ПЭС заблокировано)."
         />
       )}
 
-      <Row gutter={[8, 8]} style={{ marginBottom: 12 }}>
+      <Row gutter={[6, 6]} style={{ marginBottom: 8 }}>
         <Col>
           <Tag>Всего: {filteredSummary.total}</Tag>
         </Col>
@@ -663,12 +663,13 @@ export default function PesModule() {
       </Row>
 
       {canManage ? (
-        <Card size="small" style={{ marginBottom: 12 }}>
-          <Space direction="vertical" style={{ width: "100%" }} size={8}>
+        <Card size="small" style={{ marginBottom: 8 }} className="pes-card pes-card--command">
+          <Space direction="vertical" style={{ width: "100%" }} size={6}>
             <Text strong>
               Команда на ПЭС ({mode === "multi" ? "множественный" : "одиночный"} выбор), выбрано: {selected.length}
             </Text>
             <Alert
+              className="pes-help-alert"
               type="info"
               showIcon
               message="Как работать: 1) выберите ПЭС кликом по плиткам, 2) выберите точку назначения, 3) нажмите нужную кнопку операции. Комментарий отправляется вместе с командой."
@@ -676,6 +677,7 @@ export default function PesModule() {
             <Row gutter={[8, 8]}>
               <Col xs={24} md={8}>
                 <Select
+                  size="small"
                   value={destinationType}
                   onChange={setDestinationType}
                   disabled={mode === "multi" || sending}
@@ -688,6 +690,7 @@ export default function PesModule() {
               </Col>
               <Col xs={24} md={16}>
                 <Select
+                  size="small"
                   showSearch
                   value={destinationId}
                   onChange={setDestinationId}
@@ -700,14 +703,16 @@ export default function PesModule() {
               </Col>
             </Row>
             <Input.TextArea
-              rows={2}
+              autoSize={{ minRows: 1, maxRows: 2 }}
               placeholder="Комментарий к операции (уйдет в уведомление Telegram)"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               disabled={sending}
+              className="pes-command-comment"
             />
             <Space wrap>
               <Button
+                size="small"
                 type="primary"
                 onClick={() => runAction("dispatch")}
                 loading={sending}
@@ -717,6 +722,7 @@ export default function PesModule() {
                 Команда на выезд
               </Button>
               <Button
+                size="small"
                 onClick={() => runAction("reroute")}
                 loading={sending}
                 disabled={actionState("reroute").disabled || sending}
@@ -725,6 +731,7 @@ export default function PesModule() {
                 Корректировка маршрута
               </Button>
               <Button
+                size="small"
                 onClick={() => runAction("cancel")}
                 loading={sending}
                 disabled={actionState("cancel").disabled || sending}
@@ -734,6 +741,7 @@ export default function PesModule() {
               </Button>
               <Divider type="vertical" />
               <Button
+                size="small"
                 onClick={() => runAction("depart")}
                 loading={sending}
                 disabled={actionState("depart").disabled || sending}
@@ -742,6 +750,7 @@ export default function PesModule() {
                 Фактический выезд
               </Button>
               <Button
+                size="small"
                 onClick={() => runAction("connect")}
                 loading={sending}
                 disabled={actionState("connect").disabled || sending}
@@ -750,6 +759,7 @@ export default function PesModule() {
                 Подключена
               </Button>
               <Button
+                size="small"
                 onClick={() => runAction("ready")}
                 loading={sending}
                 disabled={actionState("ready").disabled || sending}
@@ -758,6 +768,7 @@ export default function PesModule() {
                 Вернуть в резерв
               </Button>
               <Button
+                size="small"
                 onClick={() => runAction("repair")}
                 loading={sending}
                 disabled={actionState("repair").disabled || sending}
@@ -770,10 +781,11 @@ export default function PesModule() {
         </Card>
       ) : null}
 
-      <Card size="small" style={{ marginBottom: 12 }}>
+      <Card size="small" style={{ marginBottom: 8 }} className="pes-card pes-card--filters">
         <Row gutter={[8, 8]}>
           <Col xs={24} md={7}>
             <Select
+              size="small"
               placeholder="Филиал"
               options={branchOptions}
               value={branchFilter}
@@ -786,6 +798,7 @@ export default function PesModule() {
           </Col>
           <Col xs={24} md={7}>
             <Select
+              size="small"
               placeholder="ПО"
               options={poOptions}
               value={poFilter}
@@ -795,6 +808,7 @@ export default function PesModule() {
           </Col>
           <Col xs={24} md={7}>
             <Select
+              size="small"
               placeholder="Статус"
               value={statusFilter}
               onChange={setStatusFilter}
@@ -809,7 +823,7 @@ export default function PesModule() {
             />
           </Col>
           <Col xs={24} md={3}>
-            <Button block onClick={resetFilters}>Сбросить</Button>
+            <Button size="small" block onClick={resetFilters}>Сбросить</Button>
           </Col>
         </Row>
       </Card>
