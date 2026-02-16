@@ -634,7 +634,7 @@ export default function PesModule() {
           type="info"
           showIcon
           style={{ marginBottom: 8 }}
-          message="Роль supergeneral: только просмотр (управление ПЭС заблокировано)."
+          message="Режим наблюдателя: можно смотреть, но управлять ПЭС нельзя 🙂"
         />
       )}
 
