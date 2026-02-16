@@ -1,5 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import styles from "./Portal404.module.css";
 
 const allPaths = [
@@ -23,6 +24,8 @@ const allPaths = [
 const petals = allPaths.slice(0, -1);
 
 export default function Portal404() {
+  const navigate = useNavigate();
+
   return (
     <div className={styles.container}>
       <div className={styles.visualRow}>
@@ -68,16 +71,47 @@ export default function Portal404() {
         </motion.span>
       </div>
       <motion.div
+        className={styles.content}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 2.2, duration: 0.6 }}
+      >
+        <motion.h1
+          className={styles.title}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 2.3, duration: 0.45 }}
+        >
+          404: страница не найдена
+        </motion.h1>
+        <motion.p
+          className={styles.subtitle}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 2.45, duration: 0.45 }}
+        >
+          Похоже, ссылка ушла на плановый ремонт. Вернитесь на главную — там всё под контролем 🙂⚡
+        </motion.p>
+        <motion.button
+          type="button"
+          className={styles.homeBtn}
+          onClick={() => navigate("/")}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 2.6, duration: 0.45 }}
+          whileHover={{ y: -1 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          Вернуться на главную
+        </motion.button>
+      </motion.div>
+      <motion.div
         className={styles.tagline}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 2.5, duration: 1 }}
+        transition={{ delay: 2.8, duration: 0.6 }}
       >
-        <p>
-          Разработчик нового портала аварийных отключений «МосОблЭнерго»
-          трудится в поте лица, чтобы вы скорее могли потыкать все кнопочки и
-          пощупать функционал нашего нового сайта! 🚫🔌
-        </p>
+        ЖТН Мособлэнерго • работаем 24/7
       </motion.div>
     </div>
   );
