@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Button,
@@ -225,6 +225,7 @@ export default function PesModule() {
   const [destinationId, setDestinationId] = useState(undefined);
   const [comment, setComment] = useState("");
   const [sending, setSending] = useState(false);
+  const destinationsReqRef = useRef(0);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyItems, setHistoryItems] = useState([]);
@@ -265,11 +266,14 @@ export default function PesModule() {
   };
 
   const loadDestinations = async (nextMode, branch) => {
+    const reqId = ++destinationsReqRef.current;
+    setDestinationId(undefined);
     try {
       const base = getBackendBase();
       const { data } = await axios.get(`${base}/services/pes/module/destinations`, {
         params: { mode: nextMode, branch: branch || undefined },
       });
+      if (reqId !== destinationsReqRef.current) return;
       const next = {
         assembly: Array.isArray(data?.assembly) ? data.assembly : [],
         tp: Array.isArray(data?.tp) ? data.tp : [],
@@ -278,8 +282,8 @@ export default function PesModule() {
       if (nextMode === "multi") {
         setDestinationType("assembly");
       }
-      setDestinationId(undefined);
     } catch {
+      if (reqId !== destinationsReqRef.current) return;
       setDestinations({ assembly: [], tp: [] });
     }
   };
@@ -453,6 +457,18 @@ export default function PesModule() {
         description: "Для этой операции нужно выбрать точку назначения.",
         placement: "topRight",
       });
+      return;
+    }
+    if (
+      ["dispatch", "reroute"].includes(action) &&
+      !destinationOptions.some((x) => x.value === destinationId)
+    ) {
+      notification.warning({
+        message: "Точка назначения устарела",
+        description: "Список точек обновился. Выберите точку назначения заново.",
+        placement: "topRight",
+      });
+      await loadDestinations(mode, destinationBranch);
       return;
     }
 
