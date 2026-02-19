@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Card, Empty } from "antd";
 import { useNavigate } from "react-router-dom";
 import pesModuleLogic from "../js/pesModuleLogic"; // Оркестрация UI-логики модуля ПЭС.
@@ -13,6 +13,20 @@ import "../css/PesModule.css";
 
 export default function PesModule() {
   const navigate = useNavigate();
+  const [easterActive, setEasterActive] = useState(false);
+  const secretIndexRef = useRef(0);
+  const easterTimerRef = useRef(null);
+
+  const SECRET_SEQUENCE = useMemo(
+    () => [
+      "arrowup",
+      "arrowdown",
+      "arrowleft",
+      "arrowright",
+      ..."мособлэнерго".split(""),
+    ],
+    []
+  );
 
   const {
     canManage,
@@ -73,8 +87,45 @@ export default function PesModule() {
     []
   );
 
+  useEffect(() => {
+    const normalizeKey = (rawKey) => {
+      const key = String(rawKey || "").toLowerCase();
+      if (key === "arrowup") return "arrowup";
+      if (key === "arrowdown") return "arrowdown";
+      if (key === "arrowleft") return "arrowleft";
+      if (key === "arrowright") return "arrowright";
+      if (key.length === 1) return key;
+      return "";
+    };
+
+    const onKeyDown = (e) => {
+      const token = normalizeKey(e.key);
+      if (!token) return;
+
+      const nextExpected = SECRET_SEQUENCE[secretIndexRef.current];
+      if (token === nextExpected) {
+        secretIndexRef.current += 1;
+        if (secretIndexRef.current >= SECRET_SEQUENCE.length) {
+          secretIndexRef.current = 0;
+          setEasterActive(true);
+          if (easterTimerRef.current) clearTimeout(easterTimerRef.current);
+          easterTimerRef.current = setTimeout(() => setEasterActive(false), 10000);
+        }
+        return;
+      }
+
+      secretIndexRef.current = token === SECRET_SEQUENCE[0] ? 1 : 0;
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      if (easterTimerRef.current) clearTimeout(easterTimerRef.current);
+    };
+  }, [SECRET_SEQUENCE]);
+
   return (
-    <div className="pes-module">
+    <div className={`pes-module${easterActive ? " pes-module--easter" : ""}`}>
       <PesHeader
         canManage={canManage}
         loading={loading}
@@ -102,6 +153,26 @@ export default function PesModule() {
           style={{ marginBottom: 8 }}
           message="Режим наблюдателя: можно смотреть, но управлять ПЭС нельзя 🙂"
         />
+      )}
+
+      {easterActive && (
+        <Alert
+          type="success"
+          showIcon
+          style={{ marginBottom: 8 }}
+          message="Корги устроили аварийные учения: хаос-режим на 10 секунд."
+        />
+      )}
+
+      {easterActive && (
+        <div className="pes-easter-corgi-layer" aria-hidden="true">
+          <span className="pes-easter-corgi pes-easter-corgi--1">🐶</span>
+          <span className="pes-easter-corgi pes-easter-corgi--2">🐕</span>
+          <span className="pes-easter-corgi pes-easter-corgi--3">🐶</span>
+          <span className="pes-easter-corgi pes-easter-corgi--4">🐕</span>
+          <span className="pes-easter-corgi pes-easter-corgi--5">🐶</span>
+          <span className="pes-easter-corgi pes-easter-corgi--6">🐕</span>
+        </div>
       )}
 
       {canManage ? (
