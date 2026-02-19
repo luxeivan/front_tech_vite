@@ -29,7 +29,7 @@
   break-inside: avoid;
   margin: 0 0 8px;
   padding: 6px 6px 4px;
-  border: 1px solid rgba(9, 109, 217, 0.28);
+  border: 2px solid rgba(9, 109, 217, 0.28);
   border-radius: 8px;
   background: rgba(240, 247, 255, 0.35);
 }
@@ -38,7 +38,7 @@
   font-weight: 700;
   font-size: 12px;
   margin-bottom: 3px;
-  color: #0b3d6f;
+  color: #f29c06;
 }
 
 .pes-branch__count {

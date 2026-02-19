@@ -1,0 +1,47 @@
+import { create } from "zustand";
+import axios from "axios";
+
+function getBackendBase() {
+  const a = String(import.meta.env.VITE_URL_BACKEND_SERVICES || "").trim();
+  const b = String(import.meta.env.VITE_URL_BACKEND || "").trim();
+  return (a || b).replace(/\/$/, "");
+}
+
+const usePesDestinationsStore = create((set, get) => ({
+  destinations: { assembly: [], tp: [] },
+  destinationType: "assembly",
+  destinationId: undefined,
+  requestSeq: 0,
+
+  setDestinationType: (value) => set({ destinationType: value }),
+  setDestinationId: (value) => set({ destinationId: value }),
+
+  // Загрузка точек сбора/ТП для выбранного режима и филиала.
+  loadDestinations: async (mode, branch) => {
+    const nextSeq = get().requestSeq + 1;
+    set({ requestSeq: nextSeq, destinationId: undefined });
+
+    try {
+      const base = getBackendBase();
+      const { data } = await axios.get(`${base}/services/pes/module/destinations`, {
+        params: { mode, branch: branch || undefined },
+      });
+
+      if (get().requestSeq !== nextSeq) return;
+
+      const next = {
+        assembly: Array.isArray(data?.assembly) ? data.assembly : [],
+        tp: Array.isArray(data?.tp) ? data.tp : [],
+      };
+
+      const patch = { destinations: next };
+      if (mode === "multi") patch.destinationType = "assembly";
+      set(patch);
+    } catch {
+      if (get().requestSeq !== nextSeq) return;
+      set({ destinations: { assembly: [], tp: [] } });
+    }
+  },
+}));
+
+export default usePesDestinationsStore;

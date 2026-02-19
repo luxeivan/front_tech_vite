@@ -8,7 +8,7 @@ import AuthForm from "./components/AuthForm";
 import TableTN from "./components/main/TableTN";
 import Dashboard from "./components/dashboard/Dashboard";
 import Portal404 from "./components/Portal404/Portal404";
-import PesModule from "./components/pes/PesModule";
+import PesModule from "./components/pes/jsx/PesModule";
 import { logAuditBeacon, logAuditEvent } from "./utils/auditLogger";
 
 function AuditTracker() {
