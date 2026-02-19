@@ -57,6 +57,11 @@ export default function pesModuleLogic() {
   } = usePesDestinationsStore();
 
   const destinationBranch = useMemo(() => {
+    // Для массовых операций всегда разрешаем точки всех филиалов.
+    // Это нужно для сценария, когда ПЭС из разных филиалов отправляют
+    // на точку сбора проблемного филиала.
+    if (mode === "multi") return "";
+
     if (selected.length === 1) {
       const item = items.find((x) => x.id === selected[0]);
       if (item?.branch) return item.branch;
@@ -67,7 +72,11 @@ export default function pesModuleLogic() {
 
   const destinationOptions = useMemo(() => {
     const source = destinationType === "tp" ? destinations.tp : destinations.assembly;
-    return source.map((x) => ({ label: `${x.title} — ${x.address}`, value: x.id }));
+    return source.map((x) => {
+      const branchPo = [x.branch, x.po].filter(Boolean).join(" / ");
+      const prefix = branchPo ? `[${branchPo}] ` : "";
+      return { label: `${prefix}${x.title} — ${x.address}`, value: x.id };
+    });
   }, [destinations, destinationType]);
 
   const showHistoryError = (e) => {
