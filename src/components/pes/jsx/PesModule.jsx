@@ -35,6 +35,12 @@ export default function PesModule() {
     destinationId,
     setDestinationId,
     destinationOptions,
+    tpBranchFilter,
+    setTpBranchFilter,
+    tpPoFilter,
+    setTpPoFilter,
+    tpBranchOptions,
+    tpPoOptions,
 
     comment,
     setComment,
@@ -108,6 +114,12 @@ export default function PesModule() {
           destinationId={destinationId}
           setDestinationId={setDestinationId}
           destinationOptions={destinationOptions}
+          tpBranchFilter={tpBranchFilter}
+          setTpBranchFilter={setTpBranchFilter}
+          tpPoFilter={tpPoFilter}
+          setTpPoFilter={setTpPoFilter}
+          tpBranchOptions={tpBranchOptions}
+          tpPoOptions={tpPoOptions}
           comment={comment}
           setComment={setComment}
           actionState={actionState}

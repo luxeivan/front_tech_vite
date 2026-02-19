@@ -12,6 +12,12 @@ export default function PesCommandCard({
   destinationId,
   setDestinationId,
   destinationOptions,
+  tpBranchFilter,
+  setTpBranchFilter,
+  tpPoFilter,
+  setTpPoFilter,
+  tpBranchOptions,
+  tpPoOptions,
   comment,
   setComment,
   actionState,
@@ -45,19 +51,66 @@ export default function PesCommandCard({
               style={{ width: "100%" }}
             />
           </Col>
-          <Col xs={24} md={16}>
-            <Select
-              size="small"
-              showSearch
-              value={destinationId}
-              onChange={setDestinationId}
-              options={destinationOptions}
-              placeholder="Точка назначения"
-              optionFilterProp="label"
-              disabled={sending}
-              style={{ width: "100%" }}
-            />
-          </Col>
+          {destinationType === "tp" ? (
+            <>
+              <Col xs={24} md={5}>
+                <Select
+                  size="small"
+                  value={tpBranchFilter}
+                  onChange={(v) => {
+                    setTpBranchFilter(v);
+                    setTpPoFilter("__all__");
+                    setDestinationId(undefined);
+                  }}
+                  options={tpBranchOptions}
+                  placeholder="Филиал"
+                  disabled={sending}
+                  style={{ width: "100%" }}
+                />
+              </Col>
+              <Col xs={24} md={5}>
+                <Select
+                  size="small"
+                  value={tpPoFilter}
+                  onChange={(v) => {
+                    setTpPoFilter(v);
+                    setDestinationId(undefined);
+                  }}
+                  options={tpPoOptions}
+                  placeholder="ПО"
+                  disabled={sending}
+                  style={{ width: "100%" }}
+                />
+              </Col>
+              <Col xs={24} md={6}>
+                <Select
+                  size="small"
+                  showSearch
+                  value={destinationId}
+                  onChange={setDestinationId}
+                  options={destinationOptions}
+                  placeholder="ТП"
+                  optionFilterProp="label"
+                  disabled={sending}
+                  style={{ width: "100%" }}
+                />
+              </Col>
+            </>
+          ) : (
+            <Col xs={24} md={16}>
+              <Select
+                size="small"
+                showSearch
+                value={destinationId}
+                onChange={setDestinationId}
+                options={destinationOptions}
+                placeholder="Точка назначения"
+                optionFilterProp="label"
+                disabled={sending}
+                style={{ width: "100%" }}
+              />
+            </Col>
+          )}
         </Row>
 
         <Input.TextArea

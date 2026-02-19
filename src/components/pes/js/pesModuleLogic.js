@@ -26,6 +26,9 @@ export default function pesModuleLogic() {
   const [comment, setComment] = useState("");
   const [sending, setSending] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  // UI: каскадные фильтры для поиска ТП.
+  const [tpBranchFilter, setTpBranchFilter] = useState("__all__");
+  const [tpPoFilter, setTpPoFilter] = useState("__all__");
 
   const canManage = user?.view_role === "standart";
   const mode = selected.length > 1 ? "multi" : "single";
@@ -71,13 +74,36 @@ export default function pesModuleLogic() {
   }, [selected, items, branchFilter]);
 
   const destinationOptions = useMemo(() => {
-    const source = destinationType === "tp" ? destinations.tp : destinations.assembly;
+    const source =
+      destinationType === "tp"
+        ? destinations.tp.filter((x) => {
+            if (tpBranchFilter !== "__all__" && x.branch !== tpBranchFilter) return false;
+            if (tpPoFilter !== "__all__" && x.po !== tpPoFilter) return false;
+            return true;
+          })
+        : destinations.assembly;
     return source.map((x) => {
       const branchPo = [x.branch, x.po].filter(Boolean).join(" / ");
       const prefix = branchPo ? `[${branchPo}] ` : "";
       return { label: `${prefix}${x.title} — ${x.address}`, value: x.id };
     });
-  }, [destinations, destinationType]);
+  }, [destinations, destinationType, tpBranchFilter, tpPoFilter]);
+
+  // Опции филиалов для каскадного выбора ТП.
+  const tpBranchOptions = useMemo(() => {
+    const values = Array.from(new Set((destinations.tp || []).map((x) => x.branch).filter(Boolean)));
+    return [{ label: "Все филиалы", value: "__all__" }, ...values.map((x) => ({ label: x, value: x }))];
+  }, [destinations.tp]);
+
+  // Опции ПО для каскадного выбора ТП (зависят от выбранного филиала).
+  const tpPoOptions = useMemo(() => {
+    const subset =
+      tpBranchFilter === "__all__"
+        ? destinations.tp || []
+        : (destinations.tp || []).filter((x) => x.branch === tpBranchFilter);
+    const values = Array.from(new Set(subset.map((x) => x.po).filter(Boolean)));
+    return [{ label: "Все ПО", value: "__all__" }, ...values.map((x) => ({ label: x, value: x }))];
+  }, [destinations.tp, tpBranchFilter]);
 
   const showHistoryError = (e) => {
     notification.error({
@@ -106,6 +132,26 @@ export default function pesModuleLogic() {
   useEffect(() => {
     loadDestinations(mode, destinationBranch);
   }, [mode, destinationBranch, loadDestinations]);
+
+  // Валидируем каскадные фильтры ТП при обновлении справочника.
+  useEffect(() => {
+    const branchSet = new Set((destinations.tp || []).map((x) => x.branch).filter(Boolean));
+    if (tpBranchFilter !== "__all__" && !branchSet.has(tpBranchFilter)) {
+      setTpBranchFilter("__all__");
+      setTpPoFilter("__all__");
+      return;
+    }
+
+    const poSet = new Set(
+      (destinations.tp || [])
+        .filter((x) => tpBranchFilter === "__all__" || x.branch === tpBranchFilter)
+        .map((x) => x.po)
+        .filter(Boolean)
+    );
+    if (tpPoFilter !== "__all__" && !poSet.has(tpPoFilter)) {
+      setTpPoFilter("__all__");
+    }
+  }, [destinations.tp, tpBranchFilter, tpPoFilter]);
 
   useEffect(() => {
     if (!historyOpen) return;
@@ -312,6 +358,12 @@ export default function pesModuleLogic() {
     destinationId,
     setDestinationId,
     destinationOptions,
+    tpBranchFilter,
+    setTpBranchFilter,
+    tpPoFilter,
+    setTpPoFilter,
+    tpBranchOptions,
+    tpPoOptions,
 
     comment,
     setComment,
