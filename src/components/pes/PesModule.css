@@ -56,7 +56,7 @@
 
 .pes-tile {
   position: relative;
-  width: 68px;
+  width: 84px;
   height: 24px;
   border-radius: 7px;
   padding: 2px 4px;
@@ -84,9 +84,24 @@
 
 .pes-tile__number {
   font-weight: 800;
-  line-height: 1.05;
+  line-height: 1;
   font-size: 13px;
   color: rgba(0, 0, 0, 0.9);
+}
+
+.pes-tile__top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 3px;
+}
+
+.pes-tile__power {
+  font-size: 9px;
+  line-height: 1;
+  font-weight: 700;
+  color: rgba(0, 0, 0, 0.82);
+  white-space: nowrap;
 }
 
 .pes-tile--selected {
@@ -115,7 +130,9 @@
 }
 
 .pes-tile--command_sent .pes-tile__number,
-.pes-tile--connected .pes-tile__number {
+.pes-tile--connected .pes-tile__number,
+.pes-tile--command_sent .pes-tile__power,
+.pes-tile--connected .pes-tile__power {
   color: rgba(255, 255, 255, 0.96);
 }
 

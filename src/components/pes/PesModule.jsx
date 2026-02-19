@@ -36,6 +36,12 @@ const STATUS_META = {
   repair: { label: "В ремонте" },
 };
 
+function formatPowerKw(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "—";
+  return Number.isInteger(n) ? String(n) : String(n).replace(".", ",");
+}
+
 function getBackendBase() {
   const a = String(import.meta.env.VITE_URL_BACKEND_SERVICES || "").trim();
   const b = String(import.meta.env.VITE_URL_BACKEND || "").trim();
@@ -64,7 +70,7 @@ function PesTile({ item, selected, onToggle, selectable }) {
       <div>
         {item.branch || "—"} / {item.po || "—"}
       </div>
-      <div>Мощность: {item.powerKw ?? "—"} кВт</div>
+      <div>Мощность: {formatPowerKw(item.powerKw)} кВт</div>
       <div>Телефон диспетчера: {item.dispatcherPhone || "—"}</div>
       <div>Статус: {meta.label}</div>
     </div>
@@ -88,7 +94,10 @@ function PesTile({ item, selected, onToggle, selectable }) {
           }
         }}
       >
-        <div className="pes-tile__number">№{item.number}</div>
+        <div className="pes-tile__top">
+          <span className="pes-tile__number">№{item.number}</span>
+          <span className="pes-tile__power">{formatPowerKw(item.powerKw)}кВт</span>
+        </div>
       </div>
     </Tooltip>
   );
