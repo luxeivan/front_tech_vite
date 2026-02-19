@@ -24,12 +24,12 @@ export default function PesCommandCard({
           Команда на ПЭС ({mode === "multi" ? "множественный" : "одиночный"} выбор), выбрано: {selectedCount}
         </Text>
 
-        <Alert
+        {/* <Alert
           className="pes-help-alert"
           type="info"
           showIcon
           message="Как работать: 1) выберите ПЭС кликом по плиткам, 2) выберите точку назначения, 3) нажмите нужную кнопку операции. Комментарий отправляется вместе с командой."
-        />
+        /> */}
 
         <Row gutter={[8, 8]}>
           <Col xs={24} md={8}>

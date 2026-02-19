@@ -80,14 +80,14 @@ export default function PesModule() {
 
       {error && <Alert type="error" showIcon style={{ marginBottom: 8 }} message={error} />}
 
-      {config && !config.telegramConfigured && (
+      {/* {config && !config.telegramConfigured && (
         <Alert
           type="warning"
           showIcon
           style={{ marginBottom: 8 }}
           message="Telegram-уведомления пока не настроены (работаем в режиме подготовки)."
         />
-      )}
+      )} */}
 
       {!canManage && (
         <Alert
