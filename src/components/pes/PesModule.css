@@ -28,12 +28,17 @@
   width: 100%;
   break-inside: avoid;
   margin: 0 0 8px;
+  padding: 6px 6px 4px;
+  border: 1px solid rgba(9, 109, 217, 0.28);
+  border-radius: 8px;
+  background: rgba(240, 247, 255, 0.35);
 }
 
 .pes-branch__title {
   font-weight: 700;
   font-size: 12px;
-  margin-bottom: 2px;
+  margin-bottom: 3px;
+  color: #0b3d6f;
 }
 
 .pes-branch__count {
