@@ -13,7 +13,7 @@ import {
   createView,
   setAccidentFeatures,
   setActiveBaseLayer,
-} from "./olLayers";
+} from "../js/olLayers"; // OpenLayers-обвязка: слои, попапы, вьюпорт.
 
 import arrTp from "../../../tp.json";
 import tpNashe from "../../../assets/tpNashe.svg";
@@ -23,7 +23,14 @@ import {
   startPesPolling,
   getPesEndpointFromEnv,
   PES_POLL_MS_DEFAULT,
-} from "./pesLayer";
+} from "../js/pesLayer"; // Слой и polling ПЭС для карты.
+import {
+  buildInParams,
+  encodeStrapiQuery,
+  pickLatLon,
+  parsePesNumber,
+  extractModelNumber,
+} from "../js/mapPanel.utils"; // Утилиты запросов и поиска ПЭС.
 
 export default function MapPanel({
   height = "100%",
@@ -34,45 +41,6 @@ export default function MapPanel({
   fiasCollection = "adress",
   fiasOwners = {},
 }) {
-  const buildInParams = (field, values) => {
-    const params = {};
-    params[`filters[${field}][$in]`] = values;
-    return params;
-  };
-
-  const encodeStrapiQuery = (params) => {
-    const parts = [];
-    const push = (k, v) =>
-      parts.push(`${encodeURIComponent(k)}=${encodeURIComponent(v)}`);
-    for (const [key, value] of Object.entries(params)) {
-      if (Array.isArray(value))
-        value.forEach((v, i) => push(`${key}[${i}]`, v));
-      else push(key, value);
-    }
-    return parts.join("&");
-  };
-
-  const pickLatLon = (obj) => {
-    if (!obj) return null;
-    const a = obj.attributes ? obj.attributes : obj;
-    const latRaw =
-      a.lat ??
-      a.latitude ??
-      a.geo_lat ??
-      a.geoLat ??
-      (Array.isArray(a?.coords) ? a.coords[0] : undefined);
-    const lonRaw =
-      a.lon ??
-      a.longitude ??
-      a.geo_lon ??
-      a.geoLon ??
-      (Array.isArray(a?.coords) ? a.coords[1] : undefined);
-    const lat = typeof latRaw === "number" ? latRaw : parseFloat(latRaw);
-    const lon = typeof lonRaw === "number" ? lonRaw : parseFloat(lonRaw);
-    if (Number.isFinite(lat) && Number.isFinite(lon)) return { lat, lon };
-    return null;
-  };
-
   const [zoom, setZoom] = useState(initialState?.zoom ?? 8);
   const cacheRef = useRef(new Map());
   const abortRef = useRef(null);
@@ -478,24 +446,6 @@ export default function MapPanel({
 
     return () => stop();
   }, []);
-
-  const parsePesNumber = (raw) => {
-    const txt = String(raw || "").trim();
-    if (!txt) return null;
-    const mWithSign = txt.match(/№\s*(\d{1,4})/i);
-    if (mWithSign) return Number(mWithSign[1]);
-    const mDigits = txt.match(/^(\d{1,6})$/);
-    if (mDigits) return Number(mDigits[1]);
-    return null;
-  };
-
-  const extractModelNumber = (modelText) => {
-    const txt = String(modelText || "");
-    const m = txt.match(/№\s*(\d{1,4})/i);
-    if (!m) return null;
-    const n = Number(m[1]);
-    return Number.isFinite(n) ? n : null;
-  };
 
   const findPesFeature = (rawQuery) => {
     const query = String(rawQuery || "").trim();

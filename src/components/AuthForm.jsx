@@ -11,19 +11,16 @@ export default function AuthForm() {
     setErrorMsg(null);
     setLoading(true);
 
-    // Сохраним старый jwt, чтобы понять — залогинились мы или нет
     const beforeJwt = localStorage.getItem("jwt") || "";
 
     try {
       await authing(values.identifier, values.password);
 
       const afterJwt = localStorage.getItem("jwt") || "";
-      // Если jwt не появился/не изменился — считаем, что авторизация неуспешна
       if (!afterJwt || afterJwt === beforeJwt) {
         setErrorMsg("Неверный логин или пароль");
       }
     } catch (_) {
-      // На случай, если authing начнёт пробрасывать ошибки
       setErrorMsg("Неверный логин или пароль");
     } finally {
       setLoading(false);

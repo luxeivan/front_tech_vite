@@ -1,0 +1,75 @@
+.dashboard-page {
+  width: 100%;
+  min-height: 100vh;
+  background: #f7f9fc;
+}
+
+.dashboard-page__hero {
+  background: linear-gradient(90deg, #eaf4ff 0%, #f9fbff 50%, #ffffff 100%);
+  border-bottom: 1px solid #eef3f8;
+}
+
+.dashboard-page__container {
+  max-width: min(100vw, 2400px);
+  width: 100%;
+  margin: 0 auto;
+  padding: 12px 16px;
+}
+
+.dashboard-page__title-wrap {
+  text-align: center;
+  margin-top: 8px;
+}
+
+.dashboard-page__title {
+  margin: 0;
+  text-align: center;
+  color: #1575bc;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  font-size: clamp(18px, 2vw, 26px);
+}
+
+.dashboard-page__now {
+  display: block;
+  font-weight: 600;
+  color: #1575bc;
+  margin-top: 6px;
+}
+
+.dashboard-page__content {
+  max-width: min(100vw, 2400px);
+  width: 100%;
+  margin: 0 auto;
+  padding: 12px 16px 20px;
+}
+
+.dashboard-page__grid {
+  display: grid;
+  align-items: start;
+}
+
+.dashboard-page__loading {
+  width: 100%;
+  justify-content: center;
+  margin-top: 40px;
+}
+
+.dashboard-page__error {
+  text-align: center;
+}
+
+.dashboard-page__map-card {
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 10px 28px rgba(18, 31, 53, 0.06);
+}
+
+.dashboard-page__map-title {
+  font-weight: 700;
+  color: #1575bc;
+}
+
+.dashboard-page__dynamics {
+  margin-top: 12px;
+}

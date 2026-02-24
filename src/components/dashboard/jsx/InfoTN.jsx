@@ -8,7 +8,20 @@ import {
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import axios from "axios";
-const URL = import.meta.env.VITE_URL_BACKEND;
+import {
+  URL,
+  toNumber,
+  pick,
+  pickAny,
+  isOpenTN,
+  districtName,
+  guidOf,
+  tnNumber,
+  startDate,
+  formatDateTime,
+  recoveryDate,
+  dayKey0808,
+} from "../js/dashboardCommon"; // Общие хелперы dashboard.
 
 /**
  * InfoTN — БЛОК 1: "Информация о ТН"
@@ -19,61 +32,6 @@ const URL = import.meta.env.VITE_URL_BACKEND;
  */
 
 const { Title } = Typography;
-
-/* ---------------- helpers ---------------- */
-const toNumber = (v) => {
-  const val = v != null && typeof v === "object" && "value" in v ? v.value : v;
-  const n = Number(val);
-  return Number.isFinite(n) ? n : 0;
-};
-
-const pick = (obj, key) =>
-  obj?.[key] ?? obj?.data?.[key] ?? obj?.data?.data?.[key] ?? null;
-
-// like pick, but tries several alternative keys and returns the first non-null/undefined
-const pickAny = (obj, keys) => {
-  const arr = Array.isArray(keys) ? keys : [keys];
-  for (const k of arr) {
-    const v = pick(obj, k);
-    if (v !== null && v !== undefined) return v;
-  }
-  return null;
-};
-
-const isOpenTN = (row) => {
-  const v =
-    row?.isActive ??
-    row?.data?.isActive ??
-    row?.data?.data?.isActive ??
-    row?.attributes?.isActive ??
-    (row?.attributes && row.attributes.isActive?.value);
-  return v === true || v === 1 || v === "true";
-};
-
-const districtName = (row) =>
-  pick(row, "DISTRICT") || row?.dispCenter || row?.district || null;
-
-const guidOf = (row) =>
-  pick(row, "guid") ||
-  pick(row, "VIOLATION_GUID_STR") ||
-  row?.guid ||
-  row?.VIOLATION_GUID_STR ||
-  null;
-
-const tnNumber = (row) => pick(row, "number") ?? row?.number ?? null;
-const startDate = (row) =>
-  pick(row, "createDateTime") ?? pick(row, "F81_060_EVENTDATETIME") ?? null;
-const formatDateTime = (v) =>
-  v ? dayjs(v).format("DD.MM.YYYY HH:mm:ss") : "—";
-
-const recoveryDate = (row) =>
-  pick(row, "F81_290_RECOVERYDATETIME") ??
-  pick(row, "F81_070_RESTOR_SUPPLAYDATETIME") ??
-  null;
-
-// Рабочие сутки 08:00→08:00: приводим дату к ключу суток со сдвигом -8ч
-const dayKey0808 = (v) =>
-  v ? dayjs(v).subtract(8, "hour").format("YYYY-MM-DD") : null;
 
 /* ---------------- компонент ---------------- */
 export default function InfoTN({ rows = [], rows7d = [] }) {

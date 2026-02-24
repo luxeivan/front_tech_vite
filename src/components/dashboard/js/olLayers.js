@@ -1,4 +1,3 @@
-// /src/components/dashboard/olLayers.js
 import OlMap from "ol/Map";
 import View from "ol/View";
 import TileLayer from "ol/layer/Tile";
@@ -18,9 +17,6 @@ import Fill from "ol/style/Fill";
 import Stroke from "ol/style/Stroke";
 import { containsCoordinate } from "ol/extent";
 
-/**
- * Base layers (OSM / Carto / Terrain / Topo / RGIS / Yandex / 2GIS)
- */
 export function createBaseLayers({ onProviderError } = {}) {
   const baseLayers = {
     osm: new TileLayer({
@@ -105,7 +101,6 @@ export function createBaseLayers({ onProviderError } = {}) {
     });
   };
 
-  // Два провайдера, где ошибки встречаются чаще (ключ/лимиты/блокировки)
   hookTileErrors("stamenTerrain");
   hookTileErrors("openTopoMap");
 
@@ -128,9 +123,6 @@ export function setActiveBaseLayer(baseLayers, activeKey) {
   });
 }
 
-/**
- * Popup overlay (DOM-based)
- */
 export function createPopupOverlay() {
   const container = document.createElement("div");
   Object.assign(container.style, {
@@ -187,9 +179,6 @@ export function createPopupOverlay() {
   };
 }
 
-/**
- * OL View + OL Map
- */
 export function createView({ initialState }) {
   const lat = initialState?.center?.[0] ?? 55.751244;
   const lon = initialState?.center?.[1] ?? 37.618423;
@@ -214,13 +203,11 @@ export function createOlMap({
     layers: [...Object.values(baseLayers || {}), ...(layers || [])],
     overlays,
     view,
-    controls: [], // мы рисуем свои контролы
+    controls: [], 
   });
 }
 
-/**
- * TP layer (cluster + icon style)
- */
+
 export function createTpLayer({
   tpNashe,
   tpNeNashe,

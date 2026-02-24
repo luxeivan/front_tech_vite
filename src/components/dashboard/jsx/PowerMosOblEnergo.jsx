@@ -9,6 +9,14 @@ import {
   ToolOutlined,
 } from "@ant-design/icons";
 import axios from "axios";
+import {
+  URL,
+  toNumber,
+  pick,
+  pickAny,
+  isOpenTN,
+  uniqueSorted,
+} from "../js/dashboardCommon"; // Общие хелперы dashboard.
 
 /**
  * Компонент "Задействовано сил и средств Мособлэнерго"
@@ -16,43 +24,6 @@ import axios from "axios";
  * Данные тянутся только из открытых ТН (isActive=true),
  * агрегируются и выводятся компактными карточками (Chip).
  */
-
-const URL = import.meta.env.VITE_URL_BACKEND;
-
-/* ------------ helpers ------------ */
-const toNumber = (v) => {
-  const val = v != null && typeof v === "object" && "value" in v ? v.value : v;
-  const n = Number(val);
-  return Number.isFinite(n) ? n : 0;
-};
-
-const pick = (obj, key) =>
-  obj?.[key] ?? obj?.data?.[key] ?? obj?.data?.data?.[key] ?? null;
-
-// tries several keys, returns first non-null/undefined
-const pickAny = (obj, keys) => {
-  const arr = Array.isArray(keys) ? keys : [keys];
-  for (const k of arr) {
-    const v = pick(obj, k);
-    if (v !== null && v !== undefined) return v;
-  }
-  return null;
-};
-
-const isOpenTN = (row) => {
-  const v =
-    row?.isActive ??
-    row?.data?.isActive ??
-    row?.data?.data?.isActive ??
-    row?.attributes?.isActive ??
-    (row?.attributes && row.attributes.isActive?.value);
-
-  return v === true || v === 1 || v === "true";
-};
-
-/* ------------ unique sorted lists helpers ------------ */
-const uniqueSorted = (arr) =>
-  Array.from(new Set(arr.filter(Boolean).map((s) => String(s).replace(/\s+/g, " ").trim()))).sort((a,b) => a.localeCompare(b, "ru", { sensitivity: "base" }));
 
 const renderList = (items, heading) => (
   <div style={{ maxHeight: 260, overflow: "auto", paddingRight: 8 }}>

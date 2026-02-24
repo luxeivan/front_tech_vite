@@ -12,8 +12,8 @@ export default function Header() {
       align="center"
       style={{
         padding: "12px 20px",
-        backgroundColor: "#fff", // белый фон вместо синего
-        borderBottom: "1px solid #eaeaea", // тонкая сероватая линия снизу для аккуратности
+        backgroundColor: "#fff",
+        borderBottom: "1px solid #eaeaea", 
       }}
     >
       <Image src={logo} preview={false} height={40} />
