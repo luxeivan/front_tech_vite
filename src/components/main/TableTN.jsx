@@ -462,7 +462,8 @@ export default function TableTN() {
   const firstScanDoneRef = React.useRef(false);
 
   // === Journal send status state ===
-  const { getUserMe } = useAuth((s) => s);
+  const { user, getUserMe } = useAuth((s) => s);
+  const showJournal = user?.view_role === "standart";
   const [sendStatus, setSendStatus] = useState({ byGuid: {}, byNumber: {} });
   const loadSendStatus = React.useCallback(async () => {
     try {
@@ -879,23 +880,6 @@ export default function TableTN() {
       <WelcomeHeader totalOpened={openedCount} loadingOpened={loadingOpenedCount} />
 
       <TableTNActionsBar
-        onDashboard={() => {
-          console.log("[actions] dashboard");
-        }}
-        onReset={() => {
-          setDate(null);
-          setSelectedStatuses(["открыта"]);
-          setPagination({ page: 1, pageSize: defaultPageSize });
-        }}
-        onAiAnalytics={() => {
-          setAiItems(listFiltered);
-          setShowAi(true);
-        }}
-        onToggleSound={() => {
-          setSound((v) => !v);
-        }}
-        soundEnabled={sound}
-        onOpenJournal={() => setIsJournalOpen(true)}
       />
 
       {/* БЛОК ФИЛЬТРОВ */}
@@ -918,16 +902,42 @@ export default function TableTN() {
           setPagination((p) => ({ ...p, page: 1 }));
         }}
         rightExtra={
-          <Button
-            disabled={isLoadingTns}
-            onClick={() => {
-              getTns({ date });
-              loadOpenedCount({ date });
-              loadSendStatus();
-            }}
-          >
-            <ReloadOutlined />
-          </Button>
+          <Flex gap={8} wrap justify="flex-end">
+            <Button
+              onClick={() => {
+                setDate(null);
+                setSelectedStatuses(["открыта"]);
+                setPagination({ page: 1, pageSize: defaultPageSize });
+              }}
+            >
+              Сброс
+            </Button>
+            <Tooltip title={sound ? "Звук включен" : "Звук выключен"}>
+              <Button
+                onClick={() => {
+                  setSound((v) => !v);
+                }}
+                aria-label={sound ? "Выключить звук" : "Включить звук"}
+              >
+                {sound ? "🔔" : "🔕"}
+              </Button>
+            </Tooltip>
+            {showJournal && (
+              <Button onClick={() => setIsJournalOpen(true)}>
+                Журнал отправки
+              </Button>
+            )}
+            <Button
+              disabled={isLoadingTns}
+              onClick={() => {
+                getTns({ date });
+                loadOpenedCount({ date });
+                loadSendStatus();
+              }}
+            >
+              <ReloadOutlined />
+            </Button>
+          </Flex>
         }
       />
 
