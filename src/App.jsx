@@ -5,10 +5,11 @@ import {
   Navigate,
   useLocation,
 } from "react-router-dom";
-import { Button, Spin, Typography } from "antd";
+import { Spin } from "antd";
 import { useEffect, useState } from "react";
 import useAuth from "./stores/useAuth";
 import Header from "./components/Header";
+import Footer from "./components/Footer";
 import AuthForm from "./components/AuthForm";
 import TableTN from "./components/main/TableTN";
 import DashboardPage from "./pages/dashboard/DashboardPage";
@@ -65,7 +66,7 @@ function AuditTracker() {
 }
 
 function App() {
-  const { authing, isAuth, exit, getJwt, fieldsSetting, getFieldsSetting } =
+  const { isAuth, getJwt, getFieldsSetting } =
     useAuth((store) => store);
   const [authChecked, setAuthChecked] = useState(false);
   useEffect(() => {
@@ -95,12 +96,14 @@ function App() {
   return (
     <BrowserRouter>
       <AuditTracker />
-      <Header />
-      <Routes>
-        {/* Главная: форма логина или таблица ТН */}
-        <Route path="/" element={authOk ? <TableTN /> : <AuthForm />} />
+      <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+        <Header />
+        <main style={{ flex: 1 }}>
+          <Routes>
+            {/* Главная: форма логина или таблица ТН */}
+            <Route path="/" element={authOk ? <TableTN /> : <AuthForm />} />
 
-        {/* Дашборд: защищённая страница */}
+            {/* Дашборд: защищённая страница */}
           <Route
             path="/dashboard"
             element={
@@ -110,19 +113,22 @@ function App() {
             }
           />
 
-        <Route
-          path="/pes"
-          element={
-            <Protected>
-              <PesPage />
-            </Protected>
-          }
-        />
+            <Route
+              path="/pes"
+              element={
+                <Protected>
+                  <PesPage />
+                </Protected>
+              }
+            />
 
-        {/* Фоллбек */}
-        {/* <Route path="*" element={<Navigate to="/" replace />} /> */}
-        <Route path="*" element={<Portal404 />} />
-      </Routes>
+            {/* Фоллбек */}
+            {/* <Route path="*" element={<Navigate to="/" replace />} /> */}
+            <Route path="*" element={<Portal404 />} />
+          </Routes>
+        </main>
+        <Footer />
+      </div>
     </BrowserRouter>
   );
 }
