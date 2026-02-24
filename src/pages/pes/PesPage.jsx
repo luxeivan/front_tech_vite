@@ -1,17 +1,17 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Card, Empty } from "antd";
 import { useNavigate } from "react-router-dom";
-import pesModuleLogic from "../js/pesModuleLogic"; // Оркестрация UI-логики модуля ПЭС.
-import { STATUS_META } from "../js/pesModuleMeta"; // Справочник статусов для фильтра и подписей.
-import PesTilesBoard from "./PesTilesBoard"; // Плиточная доска всех ПЭС.
-import PesHeader from "./PesHeader"; // Верхняя панель: заголовок, режим, счетчики, действия.
-import PesCommandCard from "./PesCommandCard"; // Карточка команд: выбор назначения, комментарий, кнопки операций.
-import PesFiltersCard from "./PesFiltersCard"; // Карточка фильтров: филиал, ПО, статус.
-import PesHistoryDrawer from "./PesHistoryDrawer"; // Выдвижной журнал истории операций ПЭС.
+import pesModuleLogic from "../../components/pes/js/pesModuleLogic"; // Оркестрация UI-логики модуля ПЭС.
+import { STATUS_META } from "../../components/pes/js/pesModuleMeta"; // Справочник статусов для фильтра и подписей.
+import PesTilesBoard from "../../components/pes/jsx/PesTilesBoard"; // Плиточная доска всех ПЭС.
+import PesHeader from "../../components/pes/jsx/PesHeader"; // Верхняя панель: заголовок, режим, счетчики, действия.
+import PesCommandCard from "../../components/pes/jsx/PesCommandCard"; // Карточка команд: выбор назначения, комментарий, кнопки операций.
+import PesFiltersCard from "../../components/pes/jsx/PesFiltersCard"; // Карточка фильтров: филиал, ПО, статус.
+import PesHistoryDrawer from "../../components/pes/jsx/PesHistoryDrawer"; // Выдвижной журнал истории операций ПЭС.
 
-import "../css/PesModule.css";
+import "../../components/pes/css/PesModule.css";
 
-export default function PesModule() {
+export default function PesPage() {
   const navigate = useNavigate();
   const [easterActive, setEasterActive] = useState(false);
   const secretIndexRef = useRef(0);
