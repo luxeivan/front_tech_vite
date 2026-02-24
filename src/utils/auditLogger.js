@@ -28,7 +28,6 @@ function humanAction(action) {
     page_leave: "Закрыл/покинул страницу",
     click_dashboard: "Перешел на дашборд",
     click_reset_filters: "Сбросил фильтры",
-    click_ai_analytics: "Открыл AI-аналитику",
     open_send_journal: "Открыл журнал отправки",
     toggle_sound: "Переключил звук",
     tn_field_edit: "Изменил поле ТН",

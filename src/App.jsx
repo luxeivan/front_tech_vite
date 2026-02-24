@@ -1,7 +1,12 @@
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
 import { Button, Spin, Typography } from "antd";
 import { useEffect, useState } from "react";
-import Container from "./components/Container";
 import useAuth from "./stores/useAuth";
 import Header from "./components/Header";
 import AuthForm from "./components/AuthForm";
@@ -24,9 +29,15 @@ function AuditTracker() {
         action: "page_view",
         entity: "ui",
       },
-      user
+      user,
     );
-  }, [isAuth, location.pathname, user?.username, user?.fullName, user?.view_role]);
+  }, [
+    isAuth,
+    location.pathname,
+    user?.username,
+    user?.fullName,
+    user?.view_role,
+  ]);
 
   useEffect(() => {
     if (!isAuth || !user) return;
@@ -37,12 +48,18 @@ function AuditTracker() {
           action: "page_leave",
           entity: "ui",
         },
-        user
+        user,
       );
     };
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [isAuth, location.pathname, user?.username, user?.fullName, user?.view_role]);
+  }, [
+    isAuth,
+    location.pathname,
+    user?.username,
+    user?.fullName,
+    user?.view_role,
+  ]);
 
   return null;
 }
@@ -79,35 +96,33 @@ function App() {
     <BrowserRouter>
       <AuditTracker />
       <Header />
-      <Container>
-        <Routes>
-          {/* Главная: форма логина или таблица ТН */}
-          <Route path="/" element={authOk ? <TableTN /> : <AuthForm />} />
+      <Routes>
+        {/* Главная: форма логина или таблица ТН */}
+        <Route path="/" element={authOk ? <TableTN /> : <AuthForm />} />
 
-          {/* Дашборд: защищённая страница */}
-          <Route
-            path="/dashboard"
-            element={
-              <Protected>
-                <Dashboard />
-              </Protected>
-            }
-          />
+        {/* Дашборд: защищённая страница */}
+        <Route
+          path="/dashboard"
+          element={
+            <Protected>
+              <Dashboard />
+            </Protected>
+          }
+        />
 
-          <Route
-            path="/pes"
-            element={
-              <Protected>
-                <PesPage />
-              </Protected>
-            }
-          />
+        <Route
+          path="/pes"
+          element={
+            <Protected>
+              <PesPage />
+            </Protected>
+          }
+        />
 
-          {/* Фоллбек */}
-          {/* <Route path="*" element={<Navigate to="/" replace />} /> */}
-          <Route path="*" element={<Portal404 />} />
-        </Routes>
-      </Container>
+        {/* Фоллбек */}
+        {/* <Route path="*" element={<Navigate to="/" replace />} /> */}
+        <Route path="*" element={<Portal404 />} />
+      </Routes>
     </BrowserRouter>
   );
 }

@@ -21,7 +21,6 @@ import { ReloadOutlined } from "@ant-design/icons";
 import useAuth from "../../stores/useAuth";
 import TableTNActionsBar from "./TableTNActionsBar";
 import TNModal from "./TNModal";
-import AiAnalyticsModal from "../ai/AiAnalyticsModal";
 import JournalOpenModal from "../journalOpen/JournalOpenModal";
 import ruRU from "antd/locale/ru_RU";
 import "dayjs/locale/ru";
@@ -449,8 +448,6 @@ export default function TableTN() {
   const [sound, setSound] = useState(false);
   const [selectedStatuses, setSelectedStatuses] = useState(["открыта"]);
 
-  const [showAi, setShowAi] = useState(false);
-  const [aiItems, setAiItems] = useState([]); // снапшот данных для модалки ИИ
   const [refreshLocked, setRefreshLocked] = useState(false); // флажок блокировки автообновлений
   const [searchNumber, setSearchNumber] = useState("");
   const [searchGuid, setSearchGuid] = useState("");
@@ -518,14 +515,13 @@ export default function TableTN() {
       // console.log(`ТН ${id}: статус = "открыта"`);
     });
 
-    // console.log("=== ВСЕ ТН (для будущей AI-Аналитики) ===");
     all.forEach((tn, i) => {});
     console.log("Всего ТН:", all.length);
   }, [tns?.data, isLoadingTns]);
 
   useEffect(() => {
-    setRefreshLocked(showAi || Boolean(isOpenModalTN));
-  }, [showAi, isOpenModalTN]);
+    setRefreshLocked(Boolean(isOpenModalTN));
+  }, [isOpenModalTN]);
 
   useEffect(() => {
     const a = audioRef.current;
@@ -994,13 +990,6 @@ export default function TableTN() {
       <JournalOpenModal
         open={isJournalOpen}
         onClose={() => setIsJournalOpen(false)}
-      />
-
-      <AiAnalyticsModal
-        open={showAi}
-        onClose={() => setShowAi(false)}
-        items={aiItems}
-        title={date ? `За ${date.format("DD.MM.YYYY")}` : "Все выбранные ТН"}
       />
     </ConfigProvider>
   );
