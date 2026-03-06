@@ -71,6 +71,8 @@ export default function PesCommandCard({
               <Col xs={24} md={5}>
                 <Select
                   size="small"
+                  showSearch
+                  optionFilterProp="label"
                   value={tpPoFilter}
                   onChange={(v) => {
                     setTpPoFilter(v);

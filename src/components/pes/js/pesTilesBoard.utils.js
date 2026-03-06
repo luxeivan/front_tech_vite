@@ -1,5 +1,29 @@
+export const PRIORITY_PES_NUMBERS = new Set([
+  "001", "025", "038", "060", "062", "071", "074", "076", "077", "081",
+  "085", "086", "105", "106", "107", "109", "110", "111", "112", "114",
+  "117", "120", "121", "122", "123", "124", "125", "126", "127", "128",
+  "129", "130", "132", "133", "134", "138", "139", "140", "142", "143",
+  "144",
+]);
+
+function normPesNumber(v) {
+  const s = String(v || "").replace(/\D+/g, "");
+  return s ? s.padStart(3, "0") : "";
+}
+
+function priorityRank(item) {
+  const isPriority = PRIORITY_PES_NUMBERS.has(normPesNumber(item?.number));
+  const status = String(item?.effectiveStatus || item?.status || "ready");
+  if (isPriority && status === "ready") return 0;
+  if (status === "ready") return 1;
+  if (isPriority) return 2;
+  return 3;
+}
+
 // Сортировка ПЭС по номеру (число, затем строка).
 export function sortPesNumber(a, b) {
+  const pr = priorityRank(a) - priorityRank(b);
+  if (pr !== 0) return pr;
   const an = Number.parseInt(String(a?.number || ""), 10);
   const bn = Number.parseInt(String(b?.number || ""), 10);
   if (Number.isFinite(an) && Number.isFinite(bn) && an !== bn) return an - bn;

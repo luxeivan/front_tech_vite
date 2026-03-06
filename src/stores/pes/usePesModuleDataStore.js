@@ -20,6 +20,15 @@ const usePesModuleDataStore = create((set, get) => ({
   historyPageSize: 20,
   historyTotal: 0,
 
+  applyUpdated: (updated) => {
+    const list = Array.isArray(updated) ? updated : [];
+    if (!list.length) return;
+    const byId = new Map(list.map((x) => [String(x.id), x]));
+    set((state) => ({
+      items: (state.items || []).map((it) => byId.get(String(it.id)) || it),
+    }));
+  },
+
   // Текущие данные ПЭС.
   loadItems: async (user) => {
     try {

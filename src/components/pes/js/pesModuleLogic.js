@@ -13,6 +13,24 @@ function getBackendBase() {
   return (a || b).replace(/\/$/, "");
 }
 
+function ruSort(a, b) {
+  return String(a || "").localeCompare(String(b || ""), "ru");
+}
+
+function makeScopedPoValue(branch, po) {
+  return `${String(branch || "").trim()}|||${String(po || "").trim()}`;
+}
+
+function parseScopedPoValue(value) {
+  const raw = String(value || "");
+  const i = raw.indexOf("|||");
+  if (i < 0) return null;
+  return {
+    branch: raw.slice(0, i),
+    po: raw.slice(i + 3),
+  };
+}
+
 export default function pesModuleLogic() {
   const user = useAuth((s) => s.user);
 
@@ -47,6 +65,7 @@ export default function pesModuleLogic() {
     historyPageSize,
     historyTotal,
     loadHistory,
+    applyUpdated,
   } = usePesModuleDataStore();
 
   // Store: точки назначения.
@@ -78,7 +97,14 @@ export default function pesModuleLogic() {
       destinationType === "tp"
         ? destinations.tp.filter((x) => {
             if (tpBranchFilter !== "__all__" && x.branch !== tpBranchFilter) return false;
-            if (tpPoFilter !== "__all__" && x.po !== tpPoFilter) return false;
+            if (tpPoFilter !== "__all__") {
+              const scoped = parseScopedPoValue(tpPoFilter);
+              if (scoped) {
+                if (x.branch !== scoped.branch || x.po !== scoped.po) return false;
+              } else if (x.po !== tpPoFilter) {
+                return false;
+              }
+            }
             return true;
           })
         : destinations.assembly;
@@ -101,8 +127,42 @@ export default function pesModuleLogic() {
       tpBranchFilter === "__all__"
         ? destinations.tp || []
         : (destinations.tp || []).filter((x) => x.branch === tpBranchFilter);
-    const values = Array.from(new Set(subset.map((x) => x.po).filter(Boolean)));
-    return [{ label: "Все ПО", value: "__all__" }, ...values.map((x) => ({ label: x, value: x }))];
+
+    // В рамках конкретного филиала оставляем плоский список ПО.
+    if (tpBranchFilter !== "__all__") {
+      const values = Array.from(new Set(subset.map((x) => x.po).filter(Boolean))).sort(ruSort);
+      return [
+        { label: "Все ПО", value: "__all__" },
+        ...values.map((po) => ({
+          label: `${po} — ${tpBranchFilter}`,
+          value: makeScopedPoValue(tpBranchFilter, po),
+        })),
+      ];
+    }
+
+    // При "Все филиалы" группируем ПО по филиалам.
+    const byBranch = new Map();
+    for (const row of subset) {
+      const branch = String(row?.branch || "").trim();
+      const po = String(row?.po || "").trim();
+      if (!branch || !po) continue;
+      if (!byBranch.has(branch)) byBranch.set(branch, new Set());
+      byBranch.get(branch).add(po);
+    }
+
+    const groups = Array.from(byBranch.keys())
+      .sort(ruSort)
+      .map((branch) => ({
+        label: branch,
+        options: Array.from(byBranch.get(branch))
+          .sort(ruSort)
+          .map((po) => ({
+            label: `${po} — ${branch}`,
+            value: makeScopedPoValue(branch, po),
+          })),
+      }));
+
+    return [{ label: "Все ПО", value: "__all__" }, ...groups];
   }, [destinations.tp, tpBranchFilter]);
 
   const showHistoryError = (e) => {
@@ -145,7 +205,12 @@ export default function pesModuleLogic() {
     const poSet = new Set(
       (destinations.tp || [])
         .filter((x) => tpBranchFilter === "__all__" || x.branch === tpBranchFilter)
-        .map((x) => x.po)
+        .map((x) => {
+          const branch = String(x?.branch || "").trim();
+          const po = String(x?.po || "").trim();
+          if (!branch || !po) return null;
+          return makeScopedPoValue(branch, po);
+        })
         .filter(Boolean)
     );
     if (tpPoFilter !== "__all__" && !poSet.has(tpPoFilter)) {
@@ -167,21 +232,57 @@ export default function pesModuleLogic() {
   );
 
   const poOptions = useMemo(() => {
-    const subset =
-      branchFilter && branchFilter !== "__all__"
-        ? items.filter((x) => x.branch === branchFilter)
-        : items;
-    return [
-      { label: "Все ПО", value: "__all__" },
-      ...Array.from(new Set(subset.map((x) => x.po).filter(Boolean))).map((x) => ({ label: x, value: x })),
-    ];
+    // В рамках конкретного филиала оставляем плоский список ПО.
+    if (branchFilter && branchFilter !== "__all__") {
+      const values = Array.from(
+        new Set(items.filter((x) => x.branch === branchFilter).map((x) => x.po).filter(Boolean))
+      ).sort(ruSort);
+      return [
+        { label: "Все ПО", value: "__all__" },
+        ...values.map((po) => ({
+          label: `${po} — ${branchFilter}`,
+          value: makeScopedPoValue(branchFilter, po),
+        })),
+      ];
+    }
+
+    // При "Все филиалы" группируем ПО по филиалам.
+    const byBranch = new Map();
+    for (const row of items) {
+      const branch = String(row?.branch || "").trim();
+      const po = String(row?.po || "").trim();
+      if (!branch || !po) continue;
+      if (!byBranch.has(branch)) byBranch.set(branch, new Set());
+      byBranch.get(branch).add(po);
+    }
+
+    const groups = Array.from(byBranch.keys())
+      .sort(ruSort)
+      .map((branch) => ({
+        label: branch,
+        options: Array.from(byBranch.get(branch))
+          .sort(ruSort)
+          .map((po) => ({
+            label: `${po} — ${branch}`,
+            value: makeScopedPoValue(branch, po),
+          })),
+      }));
+
+    return [{ label: "Все ПО", value: "__all__" }, ...groups];
   }, [items, branchFilter]);
 
   const filteredItems = useMemo(
     () =>
       items.filter((x) => {
         if (branchFilter !== "__all__" && x.branch !== branchFilter) return false;
-        if (poFilter !== "__all__" && x.po !== poFilter) return false;
+        if (poFilter !== "__all__") {
+          const scoped = parseScopedPoValue(poFilter);
+          if (scoped) {
+            if (x.branch !== scoped.branch || x.po !== scoped.po) return false;
+          } else if (x.po !== poFilter) {
+            return false;
+          }
+        }
         if (statusFilter !== "__all__" && x.effectiveStatus !== statusFilter) return false;
         return true;
       }),
@@ -277,7 +378,14 @@ export default function pesModuleLogic() {
     try {
       setSending(true);
       const base = getBackendBase();
-      const payload = { action, pesIds: selected, destinationType, destinationId, comment };
+      const safeDestinationType = mode === "multi" ? "assembly" : destinationType;
+      const payload = {
+        action,
+        pesIds: selected,
+        destinationType: safeDestinationType,
+        destinationId,
+        comment,
+      };
       if (action === "depart") payload.actualDepartureAt = new Date().toISOString();
 
       const { data } = await axios.post(`${base}/services/pes/module/command`, payload, {
@@ -319,6 +427,7 @@ export default function pesModuleLogic() {
       setComment("");
       setSelected([]);
       setDestinationId(undefined);
+      applyUpdated(data?.updated);
       await loadItems(user);
       if (historyOpen) await refreshHistory({ nextPage: 1, nextPageSize: historyPageSize });
     } catch (e) {

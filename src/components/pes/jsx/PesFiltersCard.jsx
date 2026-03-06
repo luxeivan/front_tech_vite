@@ -33,6 +33,8 @@ export default function PesFiltersCard({
           <Select
             size="small"
             placeholder="ПО"
+            showSearch
+            optionFilterProp="label"
             options={poOptions}
             value={poFilter}
             onChange={setPoFilter}
