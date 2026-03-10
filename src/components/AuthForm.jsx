@@ -1,6 +1,9 @@
 import React from "react";
-import { Button, Form, Input, Alert } from "antd";
+import { Alert, Button, Form, Input, Typography } from "antd";
 import useAuth from "../stores/useAuth";
+import styles from "./AuthForm.module.css";
+
+const { Title, Text } = Typography;
 
 export default function AuthForm() {
   const { authing } = useAuth((store) => store);
@@ -28,54 +31,56 @@ export default function AuthForm() {
   };
 
   return (
-    <div
-      style={{
-        maxWidth: 800,
-        margin: "0 auto",
-        border: "1px solid #e5e7eb",
-        padding: 20,
-        borderRadius: 20,
-      }}
-    >
-      <Form
-        layout="vertical"
-        onFinish={onFinish}
-        onValuesChange={() => errorMsg && setErrorMsg(null)}
-      >
-        {errorMsg && (
-          <Alert
-            type="error"
-            showIcon
-            message={errorMsg}
-            style={{ marginBottom: 12 }}
-          />
-        )}
+    <div className={styles.page}>
+      <div className={styles.panel}>
+        <div className={styles.header}>
+          <Title level={3} className={styles.title}>
+            Вход в систему
+          </Title>
+          <Text type="secondary">Журнал технологических нарушений</Text>
+        </div>
 
-        <Form.Item
-          name="identifier"
-          label="Логин"
-          rules={[{ required: true, message: "Введите логин" }]}
-          validateStatus={errorMsg ? "error" : ""}
+        <Form
+          layout="vertical"
+          onFinish={onFinish}
+          onValuesChange={() => errorMsg && setErrorMsg(null)}
+          className={styles.form}
         >
-          <Input autoComplete="username" />
-        </Form.Item>
+          {errorMsg && (
+            <Alert
+              type="error"
+              showIcon
+              message={errorMsg}
+              style={{ marginBottom: 12 }}
+            />
+          )}
 
-        <Form.Item
-          name="password"
-          label="Пароль"
-          rules={[{ required: true, message: "Введите пароль" }]}
-          help={errorMsg ? "Проверьте логин и пароль" : undefined}
-          validateStatus={errorMsg ? "error" : ""}
-        >
-          <Input.Password autoComplete="current-password" />
-        </Form.Item>
+          <Form.Item
+            name="identifier"
+            label="Логин"
+            rules={[{ required: true, message: "Введите логин" }]}
+            validateStatus={errorMsg ? "error" : ""}
+          >
+            <Input autoComplete="username" size="large" />
+          </Form.Item>
 
-        <Form.Item>
-          <Button htmlType="submit" type="primary" loading={loading} block>
-            Вход
-          </Button>
-        </Form.Item>
-      </Form>
+          <Form.Item
+            name="password"
+            label="Пароль"
+            rules={[{ required: true, message: "Введите пароль" }]}
+            help={errorMsg ? "Проверьте логин и пароль" : undefined}
+            validateStatus={errorMsg ? "error" : ""}
+          >
+            <Input.Password autoComplete="current-password" size="large" />
+          </Form.Item>
+
+          <Form.Item className={styles.submitRow}>
+            <Button htmlType="submit" type="primary" loading={loading} block size="large">
+              Войти
+            </Button>
+          </Form.Item>
+        </Form>
+      </div>
     </div>
   );
 }

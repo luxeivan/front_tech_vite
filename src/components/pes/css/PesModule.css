@@ -164,21 +164,9 @@
 
 .pes-tile--priority {
   box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.65),
-    0 0 0 2px rgba(250, 173, 20, 0.75),
-    0 3px 8px rgba(135, 77, 0, 0.25);
-}
-
-.pes-tile--priority::after {
-  content: "";
-  position: absolute;
-  right: 3px;
-  top: 3px;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #ffd666;
-  box-shadow: 0 0 0 1px rgba(135, 77, 0, 0.35);
+    inset 0 0 0 2px rgba(255, 255, 255, 0.78),
+    0 0 0 3px rgba(250, 173, 20, 0.95),
+    0 4px 10px rgba(120, 63, 4, 0.35);
 }
 
 .pes-tile-tooltip {
