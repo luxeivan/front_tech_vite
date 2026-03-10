@@ -26,7 +26,10 @@ function humanAction(action) {
   const map = {
     page_view: "Открыл страницу",
     page_leave: "Закрыл/покинул страницу",
+    click_unplanned_tn: "Перешел в раздел Внеплановые ТН",
+    click_planned_tn: "Перешел в раздел Плановые ТН",
     click_dashboard: "Перешел на дашборд",
+    click_pes_module: "Перешел в модуль ПЭС",
     click_reset_filters: "Сбросил фильтры",
     open_send_journal: "Открыл журнал отправки",
     toggle_sound: "Переключил звук",

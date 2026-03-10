@@ -1,0 +1,44 @@
+.header {
+  padding: 12px 20px;
+  background: #fff;
+  border-bottom: 1px solid #eaeaea;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.leftSide {
+  min-width: 0;
+  flex: 1 1 640px;
+}
+
+.navWrap {
+  row-gap: 8px;
+}
+
+.logo :global(img) {
+  object-fit: contain;
+}
+
+.logoutBtn {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 1024px) {
+  .header {
+    padding: 10px 14px;
+  }
+
+  .leftSide {
+    flex-basis: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .header {
+    gap: 10px;
+  }
+
+  .navWrap :global(.ant-btn) {
+    padding-inline: 10px;
+  }
+}

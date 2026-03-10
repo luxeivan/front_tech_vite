@@ -15,6 +15,7 @@ import TableTN from "./components/main/TableTN";
 import DashboardPage from "./pages/dashboard/DashboardPage";
 import Portal404 from "./components/Portal404/Portal404";
 import PesPage from "./pages/pes/PesPage";
+import PlannedPage from "./pages/planned/PlannedPage";
 import { logAuditBeacon, logAuditEvent } from "./utils/auditLogger";
 
 function AuditTracker() {
@@ -118,6 +119,14 @@ function App() {
               element={
                 <Protected>
                   <PesPage />
+                </Protected>
+              }
+            />
+            <Route
+              path="/planned"
+              element={
+                <Protected>
+                  <PlannedPage />
                 </Protected>
               }
             />

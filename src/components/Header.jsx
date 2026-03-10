@@ -1,27 +1,70 @@
-import { Button, Flex, Image } from "antd";
+import { Button, Flex, Image, message } from "antd";
 import React from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import useAuth from "../stores/useAuth";
+import { logAuditEvent } from "../utils/auditLogger";
 import logo from "../img/logoBlue.svg";
+import styles from "./Header.module.css";
 
 export default function Header() {
-  const { isAuth, exit } = useAuth((store) => store);
+  const { isAuth, exit, user } = useAuth((store) => store);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const goTo = (path, action) => {
+    logAuditEvent({ page: location.pathname, action, entity: "button" }, user);
+    navigate(path);
+  };
+
+  // TODO: замена логотипа в одном месте.
+  const LOGO_SRC = logo;
 
   return (
     <Flex
       justify="space-between"
       align="center"
-      style={{
-        padding: "12px 20px",
-        backgroundColor: "#fff",
-        borderBottom: "1px solid #eaeaea", 
-      }}
+      className={styles.header}
     >
-      <Image src={logo} preview={false} height={40} />
-      {isAuth && (
-        <Button type="primary" danger onClick={() => exit()}>
+      <Flex align="center" gap={20} className={styles.leftSide}>
+        <Image src={LOGO_SRC} preview={false} height={44} className={styles.logo} />
+        {isAuth && (
+          <Flex gap={8} wrap className={styles.navWrap}>
+            <Button
+              type={location.pathname === "/" ? "primary" : "default"}
+              onClick={() => goTo("/", "click_unplanned_tn")}
+            >
+              Внеплановые ТН
+            </Button>
+            <Button
+              type={location.pathname === "/planned" ? "primary" : "default"}
+              onClick={() => {
+                goTo("/planned", "click_planned_tn");
+                message.info("Раздел «Плановые ТН» в разработке");
+              }}
+            >
+              Плановые ТН
+            </Button>
+            <Button
+              type={location.pathname === "/dashboard" ? "primary" : "default"}
+              onClick={() => goTo("/dashboard", "click_dashboard")}
+            >
+              Дашборд
+            </Button>
+            <Button
+              type={location.pathname === "/pes" ? "primary" : "default"}
+              onClick={() => goTo("/pes", "click_pes_module")}
+            >
+              Модуль ПЭС
+            </Button>
+          </Flex>
+        )}
+      </Flex>
+
+      {isAuth ? (
+        <Button type="primary" danger onClick={() => exit()} className={styles.logoutBtn}>
           Выйти
         </Button>
-      )}
+      ) : null}
     </Flex>
   );
 }

@@ -1,7 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Typography, Row, Col, Card, Space, Spin, Skeleton, Button } from "antd";
-import { HomeOutlined } from "@ant-design/icons";
-import { useNavigate } from "react-router-dom";
+import { Typography, Card, Space, Spin, Skeleton } from "antd";
 import dayjs from "dayjs";
 import axios from "axios";
 
@@ -24,7 +22,6 @@ import "../../components/dashboard/css/DashboardPage.css";
 const { Title, Text } = Typography;
 
 export default function DashboardPage() {
-  const navigate = useNavigate();
   const headerRef = useRef(null);
   const [mapHeight, setMapHeight] = useState(420);
 
@@ -127,14 +124,6 @@ export default function DashboardPage() {
     <div className="dashboard-page">
       <div ref={headerRef} className="dashboard-page__hero">
         <div className="dashboard-page__container">
-          <Row align="middle" justify="start">
-            <Col>
-              <Button onClick={() => navigate("/")} icon={<HomeOutlined />}>
-                На главную
-              </Button>
-            </Col>
-          </Row>
-
           <div className="dashboard-page__title-wrap">
             <Title level={2} className="dashboard-page__title">
               ТЕХНОЛОГИЧЕСКИЕ НАРУШЕНИЯ В ЭЛЕКТРИЧЕСКИХ СЕТЯХ АО «МОСОБЛЭНЕРГО»
