@@ -2,13 +2,12 @@
 import React, { useMemo } from "react";
 import { Tooltip } from "antd";
 import { formatPowerKw, STATUS_META } from "../js/pesModuleMeta";
-import { buildGroupedPes, PRIORITY_PES_NUMBERS } from "../js/pesTilesBoard.utils";
+import { buildGroupedPes } from "../js/pesTilesBoard.utils";
 
 function PesTile({ item, selected, onToggle, selectable }) {
   const status = item?.effectiveStatus || "ready";
   const meta = STATUS_META[status] || STATUS_META.ready;
-  const numberKey = String(item?.number || "").replace(/\D+/g, "").padStart(3, "0");
-  const isPriority = PRIORITY_PES_NUMBERS.has(numberKey);
+  const isPriority = Boolean(item?.prioritet);
 
   const className = [
     "pes-tile",

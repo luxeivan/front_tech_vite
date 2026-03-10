@@ -11,6 +11,7 @@ export default function PesCommandCard({
   setDestinationType,
   destinationId,
   setDestinationId,
+  loadingDestinations,
   destinationOptions,
   tpBranchFilter,
   setTpBranchFilter,
@@ -64,6 +65,7 @@ export default function PesCommandCard({
                   }}
                   options={tpBranchOptions}
                   placeholder="Филиал"
+                  loading={loadingDestinations}
                   disabled={sending}
                   style={{ width: "100%" }}
                 />
@@ -80,6 +82,7 @@ export default function PesCommandCard({
                   }}
                   options={tpPoOptions}
                   placeholder="ПО"
+                  loading={loadingDestinations}
                   disabled={sending}
                   style={{ width: "100%" }}
                 />
@@ -93,6 +96,7 @@ export default function PesCommandCard({
                   options={destinationOptions}
                   placeholder="ТП"
                   optionFilterProp="label"
+                  loading={loadingDestinations}
                   disabled={sending}
                   style={{ width: "100%" }}
                 />
@@ -108,6 +112,7 @@ export default function PesCommandCard({
                 options={destinationOptions}
                 placeholder="Точка назначения"
                 optionFilterProp="label"
+                loading={loadingDestinations}
                 disabled={sending}
                 style={{ width: "100%" }}
               />

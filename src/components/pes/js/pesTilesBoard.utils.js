@@ -1,22 +1,13 @@
-export const PRIORITY_PES_NUMBERS = new Set([
-  "001", "025", "038", "060", "062", "071", "074", "076", "077", "081",
-  "085", "086", "105", "106", "107", "109", "110", "111", "112", "114",
-  "117", "120", "121", "122", "123", "124", "125", "126", "127", "128",
-  "129", "130", "132", "133", "134", "138", "139", "140", "142", "143",
-  "144",
-]);
-
-function normPesNumber(v) {
-  const s = String(v || "").replace(/\D+/g, "");
-  return s ? s.padStart(3, "0") : "";
+function isPriority(item) {
+  return Boolean(item?.prioritet);
 }
 
 function priorityRank(item) {
-  const isPriority = PRIORITY_PES_NUMBERS.has(normPesNumber(item?.number));
+  const priority = isPriority(item);
   const status = String(item?.effectiveStatus || item?.status || "ready");
-  if (isPriority && status === "ready") return 0;
+  if (priority && status === "ready") return 0;
   if (status === "ready") return 1;
-  if (isPriority) return 2;
+  if (priority) return 2;
   return 3;
 }
 

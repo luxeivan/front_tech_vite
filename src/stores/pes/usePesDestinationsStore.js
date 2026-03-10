@@ -9,22 +9,29 @@ function getBackendBase() {
 
 const usePesDestinationsStore = create((set, get) => ({
   destinations: { assembly: [], tp: [] },
+  tpHints: [],
   destinationType: "assembly",
   destinationId: undefined,
+  loadingDestinations: false,
   requestSeq: 0,
 
   setDestinationType: (value) => set({ destinationType: value }),
   setDestinationId: (value) => set({ destinationId: value }),
 
   // Загрузка точек сбора/ТП для выбранного режима и филиала.
-  loadDestinations: async (mode, branch) => {
+  loadDestinations: async (mode, branch, destinationType, po) => {
     const nextSeq = get().requestSeq + 1;
-    set({ requestSeq: nextSeq, destinationId: undefined });
+    set({ requestSeq: nextSeq, destinationId: undefined, loadingDestinations: true });
 
     try {
       const base = getBackendBase();
       const { data } = await axios.get(`${base}/services/pes/module/destinations`, {
-        params: { mode, branch: branch || undefined },
+        params: {
+          mode,
+          branch: branch || undefined,
+          destinationType: destinationType || undefined,
+          po: po || undefined,
+        },
       });
 
       if (get().requestSeq !== nextSeq) return;
@@ -33,13 +40,15 @@ const usePesDestinationsStore = create((set, get) => ({
         assembly: Array.isArray(data?.assembly) ? data.assembly : [],
         tp: Array.isArray(data?.tp) ? data.tp : [],
       };
+      const tpHints = Array.isArray(data?.tpHints) ? data.tpHints : [];
 
-      const patch = { destinations: next };
+      const patch = { destinations: next, tpHints };
       if (mode === "multi") patch.destinationType = "assembly";
+      patch.loadingDestinations = false;
       set(patch);
     } catch {
       if (get().requestSeq !== nextSeq) return;
-      set({ destinations: { assembly: [], tp: [] } });
+      set({ destinations: { assembly: [], tp: [] }, tpHints: [], loadingDestinations: false });
     }
   },
 }));

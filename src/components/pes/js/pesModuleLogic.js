@@ -71,99 +71,94 @@ export default function pesModuleLogic() {
   // Store: точки назначения.
   const {
     destinations,
+    tpHints,
     destinationType,
     setDestinationType,
     destinationId,
     setDestinationId,
+    loadingDestinations,
     loadDestinations,
   } = usePesDestinationsStore();
 
   const destinationBranch = useMemo(() => {
-    // Для массовых операций всегда разрешаем точки всех филиалов.
-    // Это нужно для сценария, когда ПЭС из разных филиалов отправляют
-    // на точку сбора проблемного филиала.
     if (mode === "multi") return "";
 
+    if (destinationType === "tp") {
+      if (tpBranchFilter !== "__all__") return tpBranchFilter;
+      if (selected.length === 1) {
+        const item = items.find((x) => x.id === selected[0]);
+        if (item?.branch) return item.branch;
+      }
+      return "";
+    }
+
+    // Для сборных точек в одиночном режиме можно подсказывать филиал
+    // по выбранной ПЭС/фильтру филиала.
     if (selected.length === 1) {
       const item = items.find((x) => x.id === selected[0]);
       if (item?.branch) return item.branch;
     }
     if (branchFilter !== "__all__") return branchFilter;
     return "";
-  }, [selected, items, branchFilter]);
+  }, [mode, destinationType, tpBranchFilter, selected, items, branchFilter]);
 
   const destinationOptions = useMemo(() => {
     const source =
       destinationType === "tp"
         ? destinations.tp.filter((x) => {
             if (tpBranchFilter !== "__all__" && x.branch !== tpBranchFilter) return false;
-            if (tpPoFilter !== "__all__") {
-              const scoped = parseScopedPoValue(tpPoFilter);
-              if (scoped) {
-                if (x.branch !== scoped.branch || x.po !== scoped.po) return false;
-              } else if (x.po !== tpPoFilter) {
-                return false;
-              }
-            }
             return true;
           })
         : destinations.assembly;
     return source.map((x) => {
-      const branchPo = [x.branch, x.po].filter(Boolean).join(" / ");
-      const prefix = branchPo ? `[${branchPo}] ` : "";
+      const showBranch = tpBranchFilter === "__all__";
+      const showPo = tpPoFilter === "__all__";
+      const branchPo = [
+        showBranch ? x.branch : "",
+        showPo ? x.po : "",
+      ]
+        .filter(Boolean)
+        .join(" / ");
+      const prefix = destinationType === "tp" && branchPo ? `[${branchPo}] ` : "";
       return { label: `${prefix}${x.title} — ${x.address}`, value: x.id };
     });
   }, [destinations, destinationType, tpBranchFilter, tpPoFilter]);
 
-  // Опции филиалов для каскадного выбора ТП.
+  // Опции филиалов для каскадного выбора ТП: отдельный "легкий" справочник.
   const tpBranchOptions = useMemo(() => {
-    const values = Array.from(new Set((destinations.tp || []).map((x) => x.branch).filter(Boolean)));
+    const values = Array.from(new Set((tpHints || []).map((x) => x.branch).filter(Boolean))).sort(ruSort);
     return [{ label: "Все филиалы", value: "__all__" }, ...values.map((x) => ({ label: x, value: x }))];
-  }, [destinations.tp]);
+  }, [tpHints]);
 
   // Опции ПО для каскадного выбора ТП (зависят от выбранного филиала).
   const tpPoOptions = useMemo(() => {
-    const subset =
-      tpBranchFilter === "__all__"
-        ? destinations.tp || []
-        : (destinations.tp || []).filter((x) => x.branch === tpBranchFilter);
-
-    // В рамках конкретного филиала оставляем плоский список ПО.
     if (tpBranchFilter !== "__all__") {
-      const values = Array.from(new Set(subset.map((x) => x.po).filter(Boolean))).sort(ruSort);
+      const row = (tpHints || []).find((x) => x.branch === tpBranchFilter);
+      const values = Array.from(new Set((row?.po || []).filter(Boolean))).sort(ruSort);
       return [
         { label: "Все ПО", value: "__all__" },
         ...values.map((po) => ({
-          label: `${po} — ${tpBranchFilter}`,
+          label: po,
           value: makeScopedPoValue(tpBranchFilter, po),
         })),
       ];
     }
 
-    // При "Все филиалы" группируем ПО по филиалам.
-    const byBranch = new Map();
-    for (const row of subset) {
-      const branch = String(row?.branch || "").trim();
-      const po = String(row?.po || "").trim();
-      if (!branch || !po) continue;
-      if (!byBranch.has(branch)) byBranch.set(branch, new Set());
-      byBranch.get(branch).add(po);
-    }
-
-    const groups = Array.from(byBranch.keys())
-      .sort(ruSort)
-      .map((branch) => ({
-        label: branch,
-        options: Array.from(byBranch.get(branch))
+    const groups = Array.from(tpHints || [])
+      .filter((x) => x?.branch)
+      .sort((a, b) => ruSort(a.branch, b.branch))
+      .map((row) => ({
+        label: row.branch,
+        options: Array.from(new Set((row?.po || []).filter(Boolean)))
           .sort(ruSort)
           .map((po) => ({
-            label: `${po} — ${branch}`,
-            value: makeScopedPoValue(branch, po),
+            label: po,
+            value: makeScopedPoValue(row.branch, po),
           })),
       }));
 
     return [{ label: "Все ПО", value: "__all__" }, ...groups];
-  }, [destinations.tp, tpBranchFilter]);
+  }, [tpHints, tpBranchFilter]);
 
   const showHistoryError = (e) => {
     notification.error({
@@ -190,33 +185,33 @@ export default function pesModuleLogic() {
   }, [user, loadItems, loadConfig]);
 
   useEffect(() => {
-    loadDestinations(mode, destinationBranch);
-  }, [mode, destinationBranch, loadDestinations]);
+    const scopedPo = parseScopedPoValue(tpPoFilter);
+    const destinationPo =
+      destinationType === "tp" && tpBranchFilter !== "__all__" && tpPoFilter !== "__all__"
+        ? scopedPo?.po || tpPoFilter
+        : "";
+    loadDestinations(mode, destinationBranch, destinationType, destinationPo);
+  }, [mode, destinationBranch, destinationType, tpBranchFilter, tpPoFilter, loadDestinations]);
 
   // Валидируем каскадные фильтры ТП при обновлении справочника.
   useEffect(() => {
-    const branchSet = new Set((destinations.tp || []).map((x) => x.branch).filter(Boolean));
+    const branchSet = new Set((tpBranchOptions || []).map((x) => x.value).filter((x) => x !== "__all__"));
     if (tpBranchFilter !== "__all__" && !branchSet.has(tpBranchFilter)) {
       setTpBranchFilter("__all__");
       setTpPoFilter("__all__");
       return;
     }
 
-    const poSet = new Set(
-      (destinations.tp || [])
-        .filter((x) => tpBranchFilter === "__all__" || x.branch === tpBranchFilter)
-        .map((x) => {
-          const branch = String(x?.branch || "").trim();
-          const po = String(x?.po || "").trim();
-          if (!branch || !po) return null;
-          return makeScopedPoValue(branch, po);
-        })
-        .filter(Boolean)
-    );
+    const flatten = [];
+    for (const opt of tpPoOptions || []) {
+      if (Array.isArray(opt?.options)) flatten.push(...opt.options);
+      else flatten.push(opt);
+    }
+    const poSet = new Set(flatten.map((x) => x?.value).filter((x) => x && x !== "__all__"));
     if (tpPoFilter !== "__all__" && !poSet.has(tpPoFilter)) {
       setTpPoFilter("__all__");
     }
-  }, [destinations.tp, tpBranchFilter, tpPoFilter]);
+  }, [tpBranchOptions, tpPoOptions, tpBranchFilter, tpPoFilter]);
 
   useEffect(() => {
     if (!historyOpen) return;
@@ -240,7 +235,7 @@ export default function pesModuleLogic() {
       return [
         { label: "Все ПО", value: "__all__" },
         ...values.map((po) => ({
-          label: `${po} — ${branchFilter}`,
+          label: po,
           value: makeScopedPoValue(branchFilter, po),
         })),
       ];
@@ -263,7 +258,7 @@ export default function pesModuleLogic() {
         options: Array.from(byBranch.get(branch))
           .sort(ruSort)
           .map((po) => ({
-            label: `${po} — ${branch}`,
+            label: po,
             value: makeScopedPoValue(branch, po),
           })),
       }));
@@ -371,7 +366,12 @@ export default function pesModuleLogic() {
         description: "Список точек обновился. Выберите точку назначения заново.",
         placement: "topRight",
       });
-      await loadDestinations(mode, destinationBranch);
+      const scopedPo = parseScopedPoValue(tpPoFilter);
+      const destinationPo =
+        destinationType === "tp" && tpBranchFilter !== "__all__" && tpPoFilter !== "__all__"
+          ? scopedPo?.po || tpPoFilter
+          : "";
+      await loadDestinations(mode, destinationBranch, destinationType, destinationPo);
       return;
     }
 
@@ -466,6 +466,7 @@ export default function pesModuleLogic() {
     setDestinationType,
     destinationId,
     setDestinationId,
+    loadingDestinations,
     destinationOptions,
     tpBranchFilter,
     setTpBranchFilter,
