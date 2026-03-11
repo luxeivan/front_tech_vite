@@ -34,7 +34,7 @@ export default function Header() {
               type={location.pathname === "/" ? "primary" : "default"}
               onClick={() => goTo("/", "click_unplanned_tn")}
             >
-              Авариные отключения
+              Аварийные отключения
             </Button>
             <Button
               type={location.pathname === "/planned" ? "primary" : "default"}
