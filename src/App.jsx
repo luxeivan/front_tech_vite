@@ -17,6 +17,7 @@ import Portal404 from "./components/Portal404/Portal404";
 import PesPage from "./pages/pes/PesPage";
 import PlannedPage from "./pages/planned/PlannedPage";
 import { logAuditBeacon, logAuditEvent } from "./utils/auditLogger";
+import styles from "./AppLayout.module.css";
 
 function AuditTracker() {
   const location = useLocation();
@@ -97,9 +98,9 @@ function App() {
   return (
     <BrowserRouter>
       <AuditTracker />
-      <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+      <div className={styles.appShell}>
         <Header />
-        <main style={{ flex: 1 }}>
+        <main className={styles.main}>
           <Routes>
             {/* Главная: форма логина или таблица ТН */}
             <Route path="/" element={authOk ? <TableTN /> : <AuthForm />} />

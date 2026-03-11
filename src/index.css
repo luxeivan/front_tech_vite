@@ -3,3 +3,15 @@
   margin: 0;
   box-sizing: border-box;
 }
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  color: var(--brand-text, #0f2447);
+  background: #fff;
+}

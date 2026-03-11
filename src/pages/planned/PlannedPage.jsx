@@ -30,19 +30,26 @@ export default function PlannedPage() {
         transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
       >
         {petals.map((d, i) => (
-          <path key={i} d={d} fill="#e37021" />
+          <path key={i} d={d} fill="var(--brand-orange)" />
         ))}
-        <circle cx="138.1" cy="150.1" r="90.4" fill="none" stroke="#e37021" strokeWidth="14" />
+        <circle
+          cx="138.1"
+          cy="150.1"
+          r="90.4"
+          fill="none"
+          stroke="var(--brand-orange)"
+          strokeWidth="14"
+        />
       </motion.svg>
 
-      <motion.h2
+      {/* <motion.h2
         className={styles.title}
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45 }}
       >
-        Плановые ТН на техобслуживании
-      </motion.h2>
+        Плановые отключения на техобслуживании
+      </motion.h2> */}
       <motion.p
         className={styles.subtitle}
         initial={{ opacity: 0, y: 8 }}
@@ -58,7 +65,7 @@ export default function PlannedPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, delay: 0.2 }}
       >
-        Пока можно вернуться во Внеплановые ТН, там всё под контролем.
+        Пока можно вернуться к "Аварийным отключениям", там всё под контролем.
       </motion.p>
     </div>
   );

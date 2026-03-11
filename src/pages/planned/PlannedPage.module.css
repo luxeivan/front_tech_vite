@@ -14,12 +14,12 @@
   width: clamp(240px, 38vw, 420px);
   height: auto;
   margin-bottom: 20px;
-  filter: drop-shadow(0 10px 20px rgba(227, 112, 33, 0.18));
+  filter: drop-shadow(0 10px 20px rgba(243, 112, 33, 0.2));
 }
 
 .title {
   margin: 0;
-  color: #0f172a;
+  color: var(--brand-text);
   font-size: clamp(1.4rem, 2.2vw, 2rem);
   line-height: 1.2;
 }
@@ -27,7 +27,7 @@
 .subtitle {
   margin: 12px 0 0;
   max-width: 720px;
-  color: #475569;
+  color: var(--brand-muted);
   font-size: clamp(0.95rem, 1.2vw, 1.05rem);
   line-height: 1.5;
 }

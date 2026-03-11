@@ -1,9 +1,24 @@
 .header {
-  padding: 12px 20px;
-  background: #fff;
-  border-bottom: 1px solid #eaeaea;
-  gap: 12px;
+  position: relative;
+  padding: 8px 16px;
+  background: linear-gradient(
+    180deg,
+    rgba(20, 164, 226, 0.06) 0%,
+    rgba(255, 255, 255, 1) 38%,
+    rgba(255, 255, 255, 1) 100%
+  );
+  gap: 8px;
   flex-wrap: wrap;
+}
+
+.header::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(0, 97, 170, 0.45), rgba(243, 112, 33, 0.45));
 }
 
 .leftSide {
@@ -12,11 +27,12 @@
 }
 
 .navWrap {
-  row-gap: 8px;
+  row-gap: 6px;
 }
 
 .logo :global(img) {
   object-fit: contain;
+  filter: drop-shadow(0 1px 1px rgba(0, 97, 170, 0.15));
 }
 
 .logoutBtn {
@@ -25,7 +41,7 @@
 
 @media (max-width: 1024px) {
   .header {
-    padding: 10px 14px;
+    padding: 7px 12px;
   }
 
   .leftSide {
@@ -37,14 +53,14 @@
   .header {
     flex-direction: column;
     align-items: flex-start;
-    gap: 10px;
+    gap: 8px;
   }
 
   .leftSide {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 10px;
+    gap: 8px;
     width: 100%;
   }
 

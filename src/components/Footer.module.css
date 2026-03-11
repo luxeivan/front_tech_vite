@@ -1,0 +1,38 @@
+.footer {
+  position: relative;
+  background: #fff;
+  padding: 6px 12px !important;
+}
+
+.footer::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(0, 97, 170, 0.45), rgba(243, 112, 33, 0.45));
+}
+
+.row {
+  width: 100%;
+  justify-content: center;
+  color: #6b778c;
+  font-size: 11px;
+  line-height: 1.1;
+}
+
+.row :global(.ant-typography) {
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .footer {
+    padding: 5px 8px !important;
+  }
+
+  .row {
+    font-size: 10px;
+    row-gap: 2px;
+  }
+}

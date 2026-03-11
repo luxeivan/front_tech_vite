@@ -1,30 +1,14 @@
 import React from "react";
 import dayjs from "dayjs";
 import { Layout, Space, Typography } from "antd";
+import styles from "./Footer.module.css";
 
 export default function Footer() {
   const currentYear = dayjs().year();
 
   return (
-    <Layout.Footer
-      style={{
-        background: "#fff",
-        borderTop: "1px solid #eaeaea",
-        padding: "10px 16px",
-      }}
-    >
-      <Space
-        size={8}
-        align="center"
-        wrap
-        style={{
-          width: "100%",
-          justifyContent: "center",
-          color: "#6b778c",
-          fontSize: 12,
-          lineHeight: 1.2,
-        }}
-      >
+    <Layout.Footer className={styles.footer}>
+      <Space size={8} align="center" wrap className={styles.row}>
         <Typography.Text type="secondary">АО «Мособлэнерго»</Typography.Text>
         <Typography.Text type="secondary">•</Typography.Text>
         <Typography.Text type="secondary">Журнал технологических нарушений</Typography.Text>

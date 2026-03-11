@@ -1,0 +1,19 @@
+.appShell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background:
+    linear-gradient(90deg, rgba(0, 97, 170, 0.38), rgba(243, 112, 33, 0.38)) top / 100% 1px no-repeat,
+    linear-gradient(90deg, rgba(0, 97, 170, 0.32), rgba(243, 112, 33, 0.32)) bottom / 100% 1px no-repeat,
+    linear-gradient(180deg, rgba(0, 97, 170, 0.32), rgba(243, 112, 33, 0.32)) left / 1px 100% no-repeat,
+    linear-gradient(180deg, rgba(0, 97, 170, 0.32), rgba(243, 112, 33, 0.32)) right / 1px 100% no-repeat,
+    #fff;
+}
+
+.main {
+  flex: 1;
+  background:
+    radial-gradient(circle at 6% 6%, rgba(0, 97, 170, 0.03) 0, rgba(0, 97, 170, 0) 30%),
+    radial-gradient(circle at 94% 94%, rgba(243, 112, 33, 0.035) 0, rgba(243, 112, 33, 0) 32%),
+    transparent;
+}

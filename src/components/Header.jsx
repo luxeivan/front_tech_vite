@@ -20,29 +20,30 @@ export default function Header() {
   const LOGO_SRC = logo;
 
   return (
-    <Flex
-      justify="space-between"
-      align="center"
-      className={styles.header}
-    >
+    <Flex justify="space-between" align="center" className={styles.header}>
       <Flex align="center" gap={20} className={styles.leftSide}>
-        <Image src={LOGO_SRC} preview={false} height={44} className={styles.logo} />
+        <Image
+          src={LOGO_SRC}
+          preview={false}
+          height={38}
+          className={styles.logo}
+        />
         {isAuth && (
           <Flex gap={8} wrap className={styles.navWrap}>
             <Button
               type={location.pathname === "/" ? "primary" : "default"}
               onClick={() => goTo("/", "click_unplanned_tn")}
             >
-              Внеплановые ТН
+              Авариные отключения
             </Button>
             <Button
               type={location.pathname === "/planned" ? "primary" : "default"}
               onClick={() => {
                 goTo("/planned", "click_planned_tn");
-                message.info("Раздел «Плановые ТН» в разработке");
+                message.info("Раздел «Плановые отключения» в разработке");
               }}
             >
-              Плановые ТН
+              Плановые отключения
             </Button>
             <Button
               type={location.pathname === "/dashboard" ? "primary" : "default"}
@@ -61,7 +62,12 @@ export default function Header() {
       </Flex>
 
       {isAuth ? (
-        <Button type="primary" danger onClick={() => exit()} className={styles.logoutBtn}>
+        <Button
+          type="primary"
+          danger
+          onClick={() => exit()}
+          className={styles.logoutBtn}
+        >
           Выйти
         </Button>
       ) : null}
