@@ -1,3 +1,7 @@
+.workRoot {
+  padding: 12px 16px;
+}
+
 .container {
   min-height: calc(100vh - 150px);
   margin: 0 auto;

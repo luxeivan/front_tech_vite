@@ -1,4 +1,4 @@
-import { Button, Flex, Image, message } from "antd";
+import { Button, Flex, Image } from "antd";
 import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import useAuth from "../stores/useAuth";
@@ -38,10 +38,7 @@ export default function Header() {
             </Button>
             <Button
               type={location.pathname === "/planned" ? "primary" : "default"}
-              onClick={() => {
-                goTo("/planned", "click_planned_tn");
-                message.info("Раздел «Плановые отключения» в разработке");
-              }}
+              onClick={() => goTo("/planned", "click_planned_tn")}
             >
               Плановые отключения
             </Button>

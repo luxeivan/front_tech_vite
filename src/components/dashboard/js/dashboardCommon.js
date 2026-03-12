@@ -77,6 +77,7 @@ export const classifySocialTyp = (t) => {
   if (x.includes("больниц")) return "hosp";
   if (x.includes("поликлин")) return "clinics";
   if (x.includes("котель")) return "boilers";
+  if (x.includes("кнс") || x.includes("канализац")) return "kns";
   if (x.includes("взу") || x.includes("скваж")) return "vzu";
   if (x.includes("внс")) return "vns";
   if (x.includes("ижс")) return "izhs";
@@ -147,6 +148,7 @@ export const getRowSzoCounts = (row) => {
   const base = {
     boilers: 0,
     ctp: 0,
+    kns: 0,
     hosp: 0,
     clinics: 0,
     schools: 0,
@@ -167,6 +169,7 @@ export const getRowSzoCounts = (row) => {
       hosp: new Set(),
       clinics: new Set(),
       boilers: new Set(),
+      kns: new Set(),
       vzu: new Set(),
       vns: new Set(),
       izhs: new Set(),
@@ -190,6 +193,7 @@ export const getRowSzoCounts = (row) => {
     base.kindergartens = num(
       raw.KINDERGARTENS_ALL ?? raw.KINDERGARTEN_ALL ?? raw.KINDERGARDENS_ALL
     );
+    base.kns = num(raw.KNS_ALL);
     base.vzu = num(raw.WELLS_ALL);
     base.vns = num(raw.VNS_ALL);
     base.mkd = num(raw.MKD_ALL);

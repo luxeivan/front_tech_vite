@@ -1,0 +1,19 @@
+.planned-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.planned-table--compact .ant-table-thead > tr > th,
+.planned-table--compact .ant-table-tbody > tr > td {
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
+.planned-table--compact .ant-tag {
+  margin-inline-end: 0;
+  font-size: 11px;
+  line-height: 16px;
+  padding-inline: 6px;
+}
