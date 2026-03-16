@@ -23,14 +23,14 @@ import useData from "../../../stores/useData";
 import TNModal from "../../main/TNModal";
 import JournalOpenModal from "../../journalOpen/JournalOpenModal";
 import {
-  STATUS_OPTIONS,
+  PLANNED_STATUS_OPTIONS,
+  PLANNED_STATUS_VALUES,
   SzoCell,
   buildSzoSummaryFromItem,
   extractGuid,
   formatDateTime,
   getField,
-  getStatusName,
-  isOpen,
+  getPlannedStatusName,
   parseJournalStatuses,
 } from "../js/plannedTable.utils";
 import "../css/PlannedTable.css";
@@ -123,7 +123,7 @@ function mapRow(item, sendStatus) {
     objectName: getField(item, "F81_041_ENERGOOBJECTNAME") ?? "—",
     addressList: getField(item, "ADDRESS_LIST") ?? "—",
     description: getField(item, "BRIGADE_ACTION") ?? "—",
-    statusName: getField(item, "STATUS_NAME") ?? "—",
+    statusName: getPlannedStatusName(item),
     szoTags: buildSzoSummaryFromItem(item),
     send,
     createTs: getCreateTs(item),
@@ -137,7 +137,7 @@ export default function PlannedTable() {
     pageSize: defaultPageSize,
   });
   const [date, setDate] = useState(null);
-  const [selectedStatuses, setSelectedStatuses] = useState([]);
+  const [selectedStatuses, setSelectedStatuses] = useState(PLANNED_STATUS_VALUES);
   const [searchNumber, setSearchNumber] = useState("");
   const [searchGuid, setSearchGuid] = useState("");
   const [sorter, setSorter] = useState({
@@ -221,11 +221,8 @@ export default function PlannedTable() {
 
     return rows
       .filter((item) => {
-        const status = getStatusName(item);
-        const openSelected =
-          selectedStatuses.length === 1 && selectedStatuses[0] === "открыта";
+        const status = getPlannedStatusName(item);
         if (selectedStatuses.length === 0) return true;
-        if (openSelected) return isOpen(item) || status === "открыта";
         return status ? selectedStatuses.includes(status) : false;
       })
       .filter((item) => {
@@ -441,7 +438,7 @@ export default function PlannedTable() {
               setSelectedStatuses(vals || []);
               setPagination((p) => ({ ...p, page: 1 }));
             }}
-            options={STATUS_OPTIONS}
+            options={PLANNED_STATUS_OPTIONS}
             dropdownMatchSelectWidth={false}
             maxTagCount={false}
           />
@@ -472,7 +469,7 @@ export default function PlannedTable() {
               setDate(null);
               setSearchNumber("");
               setSearchGuid("");
-              setSelectedStatuses([]);
+              setSelectedStatuses(PLANNED_STATUS_VALUES);
               setPagination({ page: 1, pageSize: defaultPageSize });
               lastDataKeyRef.current = null;
               fetchPrimaryData({ nextDate: null, force: true });
@@ -542,6 +539,7 @@ export default function PlannedTable() {
           }, 0);
         }}
         documentId={modalDocId}
+        mode="planned"
       />
 
       <JournalOpenModal

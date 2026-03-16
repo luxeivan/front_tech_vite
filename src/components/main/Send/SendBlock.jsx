@@ -8,7 +8,13 @@ import { buildAuditHeaders, logAuditEvent } from "../../../utils/auditLogger";
 
 const URL = import.meta.env.VITE_URL_BACKEND;
 
-export default function SendBlock({ tn, documentId, refresh }) {
+export default function SendBlock({
+  tn,
+  documentId,
+  refresh,
+  extraChannels = [],
+  extraChannelsHint = "",
+}) {
   const user = useAuth((s) => s.user);
   const [sentEdds, setSentEdds] = useState(false);
   const [sentMes, setSentMes] = useState(false);
@@ -16,6 +22,7 @@ export default function SendBlock({ tn, documentId, refresh }) {
   const [mesSelected, setMesSelected] = useState(true);
   const [sending, setSending] = useState(false);
   const [notice, setNotice] = useState(null);
+  const [extraSelected, setExtraSelected] = useState({});
 
   const showAlert = (type, text, autoHideMs = 6000) => {
     setNotice({ type, text });
@@ -64,6 +71,14 @@ export default function SendBlock({ tn, documentId, refresh }) {
     tn?.data,
     documentId,
   ]);
+
+  useEffect(() => {
+    const next = {};
+    extraChannels.forEach((channel) => {
+      next[channel.key] = Boolean(channel.checked);
+    });
+    setExtraSelected(next);
+  }, [documentId, extraChannels]);
 
   const eddsPayload = useMemo(() => buildEddsPayload(tn), [tn?.data]);
   const mesPayload = useMemo(() => buildMosEnergoSbytPayload(tn), [tn?.data]);
@@ -118,8 +133,11 @@ export default function SendBlock({ tn, documentId, refresh }) {
       // const toMes = mesSelected && !sentMes;
       const toEdds = eddsSelected;
       const toMes = mesSelected;
+      const activeExtraChannels = extraChannels.filter(
+        (channel) => extraSelected[channel.key]
+      );
 
-      if (!toEdds && !toMes) {
+      if (!toEdds && !toMes && activeExtraChannels.length === 0) {
         logAuditEvent({ action: "send_block_no_target", entity: "send_block", details: { documentId } }, user);
         showAlert("warning", "Выберите получателя перед отправкой");
         return;
@@ -227,6 +245,15 @@ export default function SendBlock({ tn, documentId, refresh }) {
         }
       }
 
+      if (activeExtraChannels.length > 0) {
+        const extraLabels = activeExtraChannels.map((channel) => channel.label).join(", ");
+        showAlert(
+          "info",
+          `Каналы ${extraLabels} выбраны. Боевая логика для них будет подключена следующим этапом.`,
+          8000
+        );
+      }
+
       await refresh?.();
     } catch (e) {
       console.error("Ошибка при отправке:", e);
@@ -251,7 +278,8 @@ export default function SendBlock({ tn, documentId, refresh }) {
   // const canSend =
   //   !sending && ((eddsSelected && !sentEdds) || (mesSelected && !sentMes));
 
-  const canSend = !sending && (eddsSelected || mesSelected);
+  const hasExtraSelected = extraChannels.some((channel) => extraSelected[channel.key]);
+  const canSend = !sending && (eddsSelected || mesSelected || hasExtraSelected);
 
   return (
     <div>
@@ -300,6 +328,22 @@ export default function SendBlock({ tn, documentId, refresh }) {
           МосЭнергоСбыт
         </Checkbox>
 
+        {extraChannels.map((channel) => (
+          <Checkbox
+            key={channel.key}
+            checked={Boolean(extraSelected[channel.key])}
+            disabled={Boolean(channel.disabled)}
+            onChange={(e) =>
+              setExtraSelected((prev) => ({
+                ...prev,
+                [channel.key]: e.target.checked,
+              }))
+            }
+          >
+            {channel.label}
+          </Checkbox>
+        ))}
+
         <Button
           type="primary"
           onClick={handleSend}
@@ -321,6 +365,12 @@ export default function SendBlock({ tn, documentId, refresh }) {
         После успешной отправки чекбокс блокируется. Проверяйте данные перед
         отправкой.
       </Typography.Paragraph>
+
+      {extraChannelsHint ? (
+        <Typography.Paragraph type="secondary" style={{ marginTop: -8, marginBottom: 0 }}>
+          {extraChannelsHint}
+        </Typography.Paragraph>
+      ) : null}
 
       <Divider style={{ margin: "8px 0 0" }} />
     </div>

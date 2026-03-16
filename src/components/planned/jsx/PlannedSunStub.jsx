@@ -48,17 +48,16 @@ export default function PlannedSunStub() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, delay: 0.1 }}
       >
-        Раздел уже подготовлен, осталось чуть-чуть магии с данными и сценариями.
-        Скоро здесь будет полноценная работа с плановыми отключениями.
+        Раздел в активной разработке
       </motion.p>
-      <motion.p
+      {/* <motion.p
         className={styles.tagline}
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, delay: 0.2 }}
       >
-        Пока можно вернуться к "Аварийным отключениям", там всё под контролем.
-      </motion.p>
+        Пока можно вернуться к "Аварийным отключениям".
+      </motion.p> */}
     </div>
   );
 }

@@ -3,11 +3,18 @@ import { Tag, Tooltip, Space } from "antd";
 
 export const URL = import.meta.env.VITE_URL_BACKEND;
 
-export const STATUS_OPTIONS = [
-  { label: "Открыта", value: "открыта" },
-  { label: "Запитана", value: "запитана" },
-  { label: "Удалена", value: "удалена" },
+export const PLANNED_STATUS_VALUES = [
+  "запланировано",
+  "начата",
+  "закрыта",
+  "удалена",
+];
+
+export const PLANNED_STATUS_OPTIONS = [
+  { label: "Запланировано", value: "запланировано" },
+  { label: "Начата", value: "начата" },
   { label: "Закрыта", value: "закрыта" },
+  { label: "Удалена", value: "удалена" },
 ];
 
 export function s(v) {
@@ -33,6 +40,34 @@ export function getStatusName(item) {
     if (typeof v === "string" && v.trim()) return v.trim().toLowerCase();
   }
   return null;
+}
+
+function hashString(value) {
+  const str = String(value || "");
+  let hash = 0;
+  for (let i = 0; i < str.length; i += 1) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+export function getPlannedStatusName(item) {
+  const rawStatus = getStatusName(item);
+  if (rawStatus && PLANNED_STATUS_VALUES.includes(rawStatus)) {
+    return rawStatus;
+  }
+
+  const seed =
+    getField(item, "documentId") ||
+    getField(item, "guid") ||
+    getField(item, "VIOLATION_GUID_STR") ||
+    getField(item, "id") ||
+    getField(item, "number") ||
+    "planned-status";
+
+  const idx = hashString(seed) % PLANNED_STATUS_VALUES.length;
+  return PLANNED_STATUS_VALUES[idx];
 }
 
 export function isOpen(item) {

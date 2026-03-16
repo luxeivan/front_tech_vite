@@ -15,12 +15,12 @@ export default function Footer() {
         <Typography.Text type="secondary">•</Typography.Text>
         <Typography.Text type="secondary">{`2025-${currentYear}`}</Typography.Text>
         <Typography.Text type="secondary">•</Typography.Text>
-        <Typography.Text type="secondary">
+        {/* <Typography.Text type="secondary">
           Разработчик:{" "}
           <Typography.Link href="https://t.me/Stanislav_Yanut" target="_blank">
             Станислав Януть
           </Typography.Link>
-        </Typography.Text>
+        </Typography.Text> */}
       </Space>
     </Layout.Footer>
   );

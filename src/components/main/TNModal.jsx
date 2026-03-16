@@ -8,15 +8,24 @@ import EditableField from "./EditableField";
 import SendBlock from "./Send/SendBlock";
 import { buildDescriptionTemplate } from "../../utils/descriptionTemplate";
 import { logAuditEvent } from "../../utils/auditLogger";
+import { PLANNED_EXTRA_SEND_CHANNELS } from "../planned/js/plannedSendChannels";
+import {
+  buildSzoSummaryFromItem,
+  formatDateTime,
+  getField,
+  getPlannedStatusName,
+  SzoCell,
+} from "../planned/js/plannedTable.utils";
 
 const URL = import.meta.env.VITE_URL_BACKEND;
 
-export default function TNModal({ open, documentId, onClose }) {
+export default function TNModal({ open, documentId, onClose, mode = "unplanned" }) {
   const { tn, getTn, isLoadingTn } = useData((s) => s);
   // const { fieldsSetting } = useAuth((s) => s);
   const fieldsSetting = useAuth((s) => s.fieldsSetting);
   const user = useAuth((s) => s.user);
   const canEdit = user?.view_role === "standart";
+  const isPlannedMode = mode === "planned";
 
   useEffect(() => {
     if (open && documentId) getTn(documentId);
@@ -122,6 +131,88 @@ export default function TNModal({ open, documentId, onClose }) {
       },
     };
   }, [tn, mergedJsonData, descriptionEffective, pesCountEffective, pesPowerEffective, reqBrigadesEffective, reqWorkersEffective, reqEquipmentEffective, reqEPSEffective]);
+
+  const plannedSummaryItems = useMemo(() => {
+    if (!isPlannedMode || !tnEffective) return [];
+
+    const source = tnEffective?.data || tnEffective;
+    const szoTags = buildSzoSummaryFromItem(source);
+
+    return [
+      {
+        key: "planned_number",
+        label: "№",
+        children:
+          getField(source, "F81_010_NUMB") ??
+          getField(source, "F81_010_NUMBER") ??
+          getField(source, "number") ??
+          "—",
+      },
+      {
+        key: "planned_type",
+        label: "Вид заявки",
+        children: getField(source, "VIOLATION_TYPE") || "—",
+      },
+      {
+        key: "planned_start_plan",
+        label: "Начало работ: план",
+        children: formatDateTime(getField(source, "F81_060_EVENTDATETIME")),
+      },
+      {
+        key: "planned_start_fact",
+        label: "Начало работ: факт",
+        children: formatDateTime(getField(source, "STARTDATETIME")),
+      },
+      {
+        key: "planned_end_plan",
+        label: "Окончание работ: план",
+        children: formatDateTime(
+          getField(source, "F81_070_RESTOR_SUPPLAYDATETIME")
+        ),
+      },
+      {
+        key: "planned_end_fact",
+        label: "Окончание работ: факт",
+        children: formatDateTime(getField(source, "F81_290_RECOVERYDATETIME")),
+      },
+      {
+        key: "planned_branch",
+        label: "Филиал",
+        children: getField(source, "OWN_SCNAME") || "—",
+      },
+      {
+        key: "planned_po",
+        label: "ПО",
+        children: getField(source, "SCNAME") || "—",
+      },
+      {
+        key: "planned_object",
+        label: "Объект",
+        children: getField(source, "F81_041_ENERGOOBJECTNAME") || "—",
+      },
+      {
+        key: "planned_address",
+        label: "Адреса",
+        children: getField(source, "ADDRESS_LIST") || "—",
+      },
+      {
+        key: "planned_szo",
+        label: "СЗО",
+        children: <SzoCell tags={szoTags} />,
+      },
+      {
+        key: "planned_description",
+        label: "Описание",
+        children: getField(source, "BRIGADE_ACTION") || "—",
+      },
+      {
+        key: "planned_status",
+        label: "Статус",
+        children: getPlannedStatusName(source) || "—",
+      },
+    ];
+  }, [isPlannedMode, tnEffective]);
+
   const handlerUpdateTn = async (name, value) => {
     const jwt = localStorage.getItem("jwt");
     if (!jwt) {
@@ -291,6 +382,8 @@ export default function TNModal({ open, documentId, onClose }) {
           tn={tnEffective}
           documentId={documentId}
           refresh={() => getTn(documentId)}
+          extraChannels={isPlannedMode ? PLANNED_EXTRA_SEND_CHANNELS : []}
+          extraChannelsHint=""
         />
       )}
 
@@ -306,184 +399,193 @@ export default function TNModal({ open, documentId, onClose }) {
               <Divider style={{ margin: "12px 0" }} />
 
               <Spin spinning={saving}>
-                {/* === ПЭС: показываем только два целевых поля (верхний уровень) === */}
-                <Descriptions
-                  column={1}
-                  labelStyle={{ width: 260 }}
-                  items={[
-                    {
-                      key: "PES_COUNT",
-                      label: "ПЭС (шт.)",
-                      children: (
-                        <EditableField
-                          editable
-                          canEdit={canEdit}
-                          name="PES_COUNT"
-                          value={pesCountEffective}
-                          handlerUpdateTn={(_, v) => handlerUpdatePesTop("PES_COUNT", v)}
-                          inputProps={{ style: { width: 160 } }}
-                        />
-                      ),
-                    },
-                    {
-                      key: "PES_POWER",
-                      label: "Мощность ПЭС (кВт)",
-                      children: (
-                        <EditableField
-                          editable
-                          canEdit={canEdit}
-                          name="PES_POWER"
-                          value={pesPowerEffective}
-                          handlerUpdateTn={(_, v) => handlerUpdatePesTop("PES_POWER", v)}
-                          inputProps={{ style: { width: 160 } }}
-                        />
-                      ),
-                    },
-                  ]}
-                />
-
-                <Descriptions
-                  column={1}
-                  labelStyle={{ width: 260 }}
-                  style={{ marginTop: 12 }}
-                  items={[
-                    {
-                      key: "required_brigades",
-                      label: "Потребность: Бригады",
-                      children: (
-                        <EditableField
-                          editable
-                          canEdit={canEdit}
-                          name="required_brigades"
-                          value={reqBrigadesEffective}
-                          handlerUpdateTn={(_, v) =>
-                            handlerUpdatePesTop("required_brigades", v)
-                          }
-                          inputProps={{ style: { width: 160 } }}
-                        />
-                      ),
-                    },
-                    {
-                      key: "required_workers",
-                      label: "Потребность: Человек",
-                      children: (
-                        <EditableField
-                          editable
-                          canEdit={canEdit}
-                          name="required_workers"
-                          value={reqWorkersEffective}
-                          handlerUpdateTn={(_, v) =>
-                            handlerUpdatePesTop("required_workers", v)
-                          }
-                          inputProps={{ style: { width: 160 } }}
-                        />
-                      ),
-                    },
-                    {
-                      key: "required_equipment",
-                      label: "Потребность: Техника",
-                      children: (
-                        <EditableField
-                          editable
-                          canEdit={canEdit}
-                          name="required_equipment"
-                          value={reqEquipmentEffective}
-                          handlerUpdateTn={(_, v) =>
-                            handlerUpdatePesTop("required_equipment", v)
-                          }
-                          inputProps={{ style: { width: 160 } }}
-                        />
-                      ),
-                    },
-                    {
-                      key: "required_emergency_power_supply",
-                      label: "Потребность: Резервные источники",
-                      children: (
-                        <EditableField
-                          editable
-                          canEdit={canEdit}
-                          name="required_emergency_power_supply"
-                          value={reqEPSEffective}
-                          handlerUpdateTn={(_, v) =>
-                            handlerUpdatePesTop(
-                              "required_emergency_power_supply",
-                              v
-                            )
-                          }
-                          inputProps={{ style: { width: 160 } }}
-                        />
-                      ),
-                    },
-                  ]}
-                />
-
-                {/* === Прочие поля из настроек (read-only) === */}
-                {Array.isArray(fieldsSetting) && fieldsSetting.length > 0 && (
+                {isPlannedMode && plannedSummaryItems.length > 0 && (
                   <Descriptions
                     column={1}
                     labelStyle={{ width: 260 }}
-                    style={{ marginTop: 12 }}
-                    items={fieldsSetting
-                      .filter(
-                        (it) =>
-                          it.nameModus !== "REASON_OPER" &&
-                          it.nameModus !== "PES_COUNT" &&
-                          it.nameModus !== "PES_POWER" &&
-                          it.nameModus !== "description" &&
-                          it.nameModus !== "required_brigades" &&
-                          it.nameModus !== "required_workers" &&
-                          it.nameModus !== "required_equipment" &&
-                          it.nameModus !== "required_emergency_power_supply"
-                      )
-                      .map((item) => ({
-                        key: item.nameModus || item.label,
-                        label: item.label,
-                        children: (
-                          <EditableField
-                            editable={false}
-                            canEdit={false}
-                            name={item.nameModus}
-                            value={mergedJsonData?.[item.nameModus]}
-                          />
-                        ),
-                      }))}
+                    items={plannedSummaryItems}
                   />
                 )}
 
-                {/* === Поле "Описание" — верхнеуровневый `description` (широкое поле) === */}
-                <Descriptions
-                  column={1}
-                  layout="vertical"
-                  style={{ marginTop: 12 }}
-                  items={[
-                    {
-                      key: "description",
-                      label: "Описание",
-                      labelStyle: { width: 260 },
-                      contentStyle: {
-                        display: "block",
-                        width: "100%",
-                        whiteSpace: "pre-wrap",
-                      },
-                      children: (
-                        <EditableField
-                          editable
-                          canEdit={canEdit}
-                          name="description"
-                          value={descriptionEffective}
-                          handlerUpdateTn={(_, v) => handlerUpdateDescription(v)}
-                          templateBuilder={() =>
-                            buildDescriptionTemplate(tn?.data?.data || {})
-                          }
-                          textAreaProps={{
-                            autoSize: { minRows: 18, maxRows: 60 },
-                            style: { width: "100%", minHeight: 320, lineHeight: 1.5 },
-                          }}
-                        />
-                      ),
-                    },
-                  ]}
-                />
+                {!isPlannedMode && (
+                  <>
+                    <Descriptions
+                      column={1}
+                      labelStyle={{ width: 260 }}
+                      items={[
+                        {
+                          key: "PES_COUNT",
+                          label: "ПЭС (шт.)",
+                          children: (
+                            <EditableField
+                              editable
+                              canEdit={canEdit}
+                              name="PES_COUNT"
+                              value={pesCountEffective}
+                              handlerUpdateTn={(_, v) => handlerUpdatePesTop("PES_COUNT", v)}
+                              inputProps={{ style: { width: 160 } }}
+                            />
+                          ),
+                        },
+                        {
+                          key: "PES_POWER",
+                          label: "Мощность ПЭС (кВт)",
+                          children: (
+                            <EditableField
+                              editable
+                              canEdit={canEdit}
+                              name="PES_POWER"
+                              value={pesPowerEffective}
+                              handlerUpdateTn={(_, v) => handlerUpdatePesTop("PES_POWER", v)}
+                              inputProps={{ style: { width: 160 } }}
+                            />
+                          ),
+                        },
+                      ]}
+                    />
+
+                    <Descriptions
+                      column={1}
+                      labelStyle={{ width: 260 }}
+                      style={{ marginTop: 12 }}
+                      items={[
+                        {
+                          key: "required_brigades",
+                          label: "Потребность: Бригады",
+                          children: (
+                            <EditableField
+                              editable
+                              canEdit={canEdit}
+                              name="required_brigades"
+                              value={reqBrigadesEffective}
+                              handlerUpdateTn={(_, v) =>
+                                handlerUpdatePesTop("required_brigades", v)
+                              }
+                              inputProps={{ style: { width: 160 } }}
+                            />
+                          ),
+                        },
+                        {
+                          key: "required_workers",
+                          label: "Потребность: Человек",
+                          children: (
+                            <EditableField
+                              editable
+                              canEdit={canEdit}
+                              name="required_workers"
+                              value={reqWorkersEffective}
+                              handlerUpdateTn={(_, v) =>
+                                handlerUpdatePesTop("required_workers", v)
+                              }
+                              inputProps={{ style: { width: 160 } }}
+                            />
+                          ),
+                        },
+                        {
+                          key: "required_equipment",
+                          label: "Потребность: Техника",
+                          children: (
+                            <EditableField
+                              editable
+                              canEdit={canEdit}
+                              name="required_equipment"
+                              value={reqEquipmentEffective}
+                              handlerUpdateTn={(_, v) =>
+                                handlerUpdatePesTop("required_equipment", v)
+                              }
+                              inputProps={{ style: { width: 160 } }}
+                            />
+                          ),
+                        },
+                        {
+                          key: "required_emergency_power_supply",
+                          label: "Потребность: Резервные источники",
+                          children: (
+                            <EditableField
+                              editable
+                              canEdit={canEdit}
+                              name="required_emergency_power_supply"
+                              value={reqEPSEffective}
+                              handlerUpdateTn={(_, v) =>
+                                handlerUpdatePesTop(
+                                  "required_emergency_power_supply",
+                                  v
+                                )
+                              }
+                              inputProps={{ style: { width: 160 } }}
+                            />
+                          ),
+                        },
+                      ]}
+                    />
+
+                    {Array.isArray(fieldsSetting) && fieldsSetting.length > 0 && (
+                      <Descriptions
+                        column={1}
+                        labelStyle={{ width: 260 }}
+                        style={{ marginTop: 12 }}
+                        items={fieldsSetting
+                          .filter(
+                            (it) =>
+                              it.nameModus !== "REASON_OPER" &&
+                              it.nameModus !== "PES_COUNT" &&
+                              it.nameModus !== "PES_POWER" &&
+                              it.nameModus !== "description" &&
+                              it.nameModus !== "required_brigades" &&
+                              it.nameModus !== "required_workers" &&
+                              it.nameModus !== "required_equipment" &&
+                              it.nameModus !== "required_emergency_power_supply"
+                          )
+                          .map((item) => ({
+                            key: item.nameModus || item.label,
+                            label: item.label,
+                            children: (
+                              <EditableField
+                                editable={false}
+                                canEdit={false}
+                                name={item.nameModus}
+                                value={mergedJsonData?.[item.nameModus]}
+                              />
+                            ),
+                          }))}
+                      />
+                    )}
+
+                    <Descriptions
+                      column={1}
+                      layout="vertical"
+                      style={{ marginTop: 12 }}
+                      items={[
+                        {
+                          key: "description",
+                          label: "Описание",
+                          labelStyle: { width: 260 },
+                          contentStyle: {
+                            display: "block",
+                            width: "100%",
+                            whiteSpace: "pre-wrap",
+                          },
+                          children: (
+                            <EditableField
+                              editable
+                              canEdit={canEdit}
+                              name="description"
+                              value={descriptionEffective}
+                              handlerUpdateTn={(_, v) => handlerUpdateDescription(v)}
+                              templateBuilder={() =>
+                                buildDescriptionTemplate(tn?.data?.data || {})
+                              }
+                              textAreaProps={{
+                                autoSize: { minRows: 18, maxRows: 60 },
+                                style: { width: "100%", minHeight: 320, lineHeight: 1.5 },
+                              }}
+                            />
+                          ),
+                        },
+                      ]}
+                    />
+                  </>
+                )}
               </Spin>
 
               <Divider style={{ margin: "12px 0" }} />
