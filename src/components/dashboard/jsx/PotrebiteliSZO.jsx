@@ -206,15 +206,14 @@ export default function PotrebiteliSZO({ rowsOpen, loadingExternal }) {
     snt: { icon: <ShopOutlined />, title: "СНТ", color: "#52c41a" },
   };
 
-  // Пары как в макете Миро: верх/низ в одной колонке
+  // Пары в нужном порядке: верхняя и нижняя строка по колонкам.
   const PAIRS = [
     ["boilers", "ctp"],
     ["hosp", "clinics"],
     ["vzu", "vns"],
-    ["kns", null],
     ["schools", "kindergartens"],
     ["mkd", "izhs"],
-    ["snt", null],
+    ["kns", "snt"],
   ];
 
   return (

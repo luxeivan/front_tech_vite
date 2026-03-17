@@ -4,7 +4,6 @@ import {
   ConfigProvider,
   DatePicker,
   Flex,
-  Input,
   Pagination,
   Select,
   Space,
@@ -23,8 +22,6 @@ import useData from "../../../stores/useData";
 import TNModal from "../../main/TNModal";
 import JournalOpenModal from "../../journalOpen/JournalOpenModal";
 import {
-  PLANNED_STATUS_OPTIONS,
-  PLANNED_STATUS_VALUES,
   SzoCell,
   buildSzoSummaryFromItem,
   extractGuid,
@@ -36,6 +33,9 @@ import {
 import "../css/PlannedTable.css";
 
 const defaultPageSize = 10;
+const ALL_BRANCHES = "__all__";
+const ALL_PO = "__all__";
+const SCOPED_PO_SEPARATOR = ":::";
 
 const SEND_CHANNELS = [
   { key: "edds", label: "ЕДДС" },
@@ -93,6 +93,23 @@ function getCreateTs(item) {
   return Number.isFinite(ts) ? ts : 0;
 }
 
+function ruSort(a, b) {
+  return String(a).localeCompare(String(b), "ru", {
+    sensitivity: "base",
+    numeric: true,
+  });
+}
+
+function makeScopedPoValue(branch, po) {
+  return `${branch}${SCOPED_PO_SEPARATOR}${po}`;
+}
+
+function parseScopedPoValue(value) {
+  if (typeof value !== "string" || !value.includes(SCOPED_PO_SEPARATOR)) return null;
+  const [branch, po] = value.split(SCOPED_PO_SEPARATOR);
+  return { branch, po };
+}
+
 function mapRow(item, sendStatus) {
   const plannedNum =
     getField(item, "F81_010_NUMB") ??
@@ -137,9 +154,8 @@ export default function PlannedTable() {
     pageSize: defaultPageSize,
   });
   const [date, setDate] = useState(null);
-  const [selectedStatuses, setSelectedStatuses] = useState(PLANNED_STATUS_VALUES);
-  const [searchNumber, setSearchNumber] = useState("");
-  const [searchGuid, setSearchGuid] = useState("");
+  const [selectedBranch, setSelectedBranch] = useState(ALL_BRANCHES);
+  const [selectedPo, setSelectedPo] = useState(ALL_PO);
   const [sorter, setSorter] = useState({
     field: "startPlan",
     order: "descend",
@@ -215,30 +231,81 @@ export default function PlannedTable() {
     return list.map((x) => (x?.attributes ? { id: x.id, ...x.attributes } : x));
   }, [tns?.data]);
 
-  const filtered = useMemo(() => {
-    const qNum = String(searchNumber || "").trim().toLowerCase();
-    const qGuid = String(searchGuid || "").trim().toLowerCase();
+  const poOptions = useMemo(() => {
+    if (selectedBranch !== ALL_BRANCHES) {
+      const values = Array.from(
+        new Set(
+          rows
+            .filter((item) => String(getField(item, "OWN_SCNAME") || "").trim() === selectedBranch)
+            .map((item) => String(getField(item, "SCNAME") || "").trim())
+            .filter(Boolean)
+        )
+      ).sort(ruSort);
 
+      return [
+        { label: "Все ПО", value: ALL_PO },
+        ...values.map((po) => ({
+          label: po,
+          value: makeScopedPoValue(selectedBranch, po),
+        })),
+      ];
+    }
+
+    const byBranch = new Map();
+    rows.forEach((item) => {
+      const branch = String(getField(item, "OWN_SCNAME") || "").trim();
+      const po = String(getField(item, "SCNAME") || "").trim();
+      if (!branch || !po) return;
+      if (!byBranch.has(branch)) byBranch.set(branch, new Set());
+      byBranch.get(branch).add(po);
+    });
+
+    const groups = Array.from(byBranch.keys())
+      .sort(ruSort)
+      .map((branch) => ({
+        label: branch,
+        options: Array.from(byBranch.get(branch))
+          .sort(ruSort)
+          .map((po) => ({
+            label: po,
+            value: makeScopedPoValue(branch, po),
+          })),
+      }));
+
+    return [{ label: "Все ПО", value: ALL_PO }, ...groups];
+  }, [rows, selectedBranch]);
+
+  const branchOptions = useMemo(() => {
+    const values = Array.from(
+      new Set(rows.map((item) => String(getField(item, "OWN_SCNAME") || "").trim()).filter(Boolean))
+    ).sort(ruSort);
+
+    return [{ label: "Все филиалы", value: ALL_BRANCHES }, ...values.map((branch) => ({
+      label: branch,
+      value: branch,
+    }))];
+  }, [rows]);
+
+  const filtered = useMemo(() => {
     return rows
       .filter((item) => {
-        const status = getPlannedStatusName(item);
-        if (selectedStatuses.length === 0) return true;
-        return status ? selectedStatuses.includes(status) : false;
-      })
-      .filter((item) => {
-        const numberStr = String(
-          getField(item, "F81_010_NUMB") ??
-            getField(item, "F81_010_NUMBER") ??
-            getField(item, "number") ??
-            ""
-        ).toLowerCase();
-        const guidStr = String(extractGuid(item) || "").toLowerCase();
-        const byNumber = qNum ? numberStr.includes(qNum) : true;
-        const byGuid = qGuid ? guidStr.includes(qGuid) : true;
-        return byNumber && byGuid;
+        const branch = String(getField(item, "OWN_SCNAME") || "").trim();
+        if (selectedBranch !== ALL_BRANCHES && branch !== selectedBranch) return false;
+
+        if (selectedPo !== ALL_PO) {
+          const po = String(getField(item, "SCNAME") || "").trim();
+          const scoped = parseScopedPoValue(selectedPo);
+          if (scoped) {
+            if (branch !== scoped.branch || po !== scoped.po) return false;
+          } else if (po !== selectedPo) {
+            return false;
+          }
+        }
+
+        return true;
       })
       .map((item) => mapRow(item, sendStatus));
-  }, [rows, selectedStatuses, searchNumber, searchGuid, sendStatus]);
+  }, [rows, selectedBranch, selectedPo, sendStatus]);
 
   const sorted = useMemo(() => {
     const arr = [...filtered];
@@ -278,6 +345,87 @@ export default function PlannedTable() {
 
   const startIndex = (pagination.page - 1) * pagination.pageSize;
   const dataSource = sorted.slice(startIndex, startIndex + pagination.pageSize);
+
+  const exportToExcel = useCallback(() => {
+    const rowsToExport = sorted.map((row) => ({
+      "№": row.number,
+      "Вид заявки": row.violationType,
+      "Начало работ (план)": row.startPlan,
+      "Начало работ (факт)": row.startFact,
+      "Окончание работ (план)": row.endPlan,
+      "Окончание работ (факт)": row.endFact,
+      "Филиал": row.branch,
+      "ПО": row.po,
+      "Объект": row.objectName,
+      "Адреса": row.addressList,
+      "СЗО": Array.isArray(row.szoTags) && row.szoTags.length > 0
+        ? row.szoTags.map((tag) => `${tag.label}: ${tag.count}`).join("; ")
+        : "—",
+      "Описание": row.description,
+      "Статус": row.statusName,
+      "Отправки": row.send
+        ? SEND_CHANNELS.map((channel) => `${channel.label}: ${row.send[channel.key] === true ? "да" : row.send[channel.key] === false ? "нет" : "—"}`).join("; ")
+        : "—",
+    }));
+
+    const headers = Object.keys(rowsToExport[0] || {
+      "№": "",
+      "Вид заявки": "",
+      "Начало работ (план)": "",
+      "Начало работ (факт)": "",
+      "Окончание работ (план)": "",
+      "Окончание работ (факт)": "",
+      "Филиал": "",
+      "ПО": "",
+      "Объект": "",
+      "Адреса": "",
+      "СЗО": "",
+      "Описание": "",
+      "Статус": "",
+      "Отправки": "",
+    });
+
+    const escapeHtml = (value) =>
+      String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;");
+
+    const headHtml = `<tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr>`;
+    const bodyHtml = rowsToExport
+      .map((row) => `<tr>${headers.map((header) => `<td>${escapeHtml(row[header])}</td>`).join("")}</tr>`)
+      .join("");
+
+    const html = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office"
+            xmlns:x="urn:schemas-microsoft-com:office:excel"
+            xmlns="http://www.w3.org/TR/REC-html40">
+        <head>
+          <meta charset="utf-8" />
+        </head>
+        <body>
+          <table border="1">
+            <thead>${headHtml}</thead>
+            <tbody>${bodyHtml}</tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    const blob = new Blob(["\ufeff", html], {
+      type: "application/vnd.ms-excel;charset=utf-8;",
+    });
+    const link = document.createElement("a");
+    const objectUrl = URL.createObjectURL(blob);
+    const datePart = date ? dayjs(date).format("YYYY-MM-DD") : dayjs().format("YYYY-MM-DD");
+    link.href = objectUrl;
+    link.download = `planovye-otklyucheniya-${datePart}.xls`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(objectUrl);
+  }, [sorted, date]);
 
   const columns = [
     {
@@ -425,51 +573,40 @@ export default function PlannedTable() {
             placeholder="Выберите дату"
             allowClear
           />
-          <Typography.Text style={{ whiteSpace: "nowrap" }}>
-            Статус ТН:
-          </Typography.Text>
           <Select
-            mode="multiple"
             allowClear
-            style={{ minWidth: 300 }}
-            placeholder="Выберите статус(ы)"
-            value={selectedStatuses}
-            onChange={(vals) => {
-              setSelectedStatuses(vals || []);
+            style={{ minWidth: 220 }}
+            placeholder="Все филиалы"
+            value={selectedBranch}
+            onChange={(val) => {
+              setSelectedBranch(val || ALL_BRANCHES);
+              setSelectedPo(ALL_PO);
               setPagination((p) => ({ ...p, page: 1 }));
             }}
-            options={PLANNED_STATUS_OPTIONS}
+            options={branchOptions}
             dropdownMatchSelectWidth={false}
-            maxTagCount={false}
           />
-          <Input
-            allowClear
-            placeholder="№ ТН…"
-            value={searchNumber}
-            onChange={(e) => {
-              setSearchNumber(e.target.value);
+          <Select
+            showSearch
+            optionFilterProp="label"
+            style={{ minWidth: 240 }}
+            placeholder="Все ПО"
+            value={selectedPo}
+            onChange={(val) => {
+              setSelectedPo(val || ALL_PO);
               setPagination((p) => ({ ...p, page: 1 }));
             }}
-            style={{ width: 140 }}
-          />
-          <Input
-            allowClear
-            placeholder="GUID…"
-            value={searchGuid}
-            onChange={(e) => {
-              setSearchGuid(e.target.value);
-              setPagination((p) => ({ ...p, page: 1 }));
-            }}
-            style={{ width: 240 }}
+            options={poOptions}
+            dropdownMatchSelectWidth={false}
           />
         </Flex>
         <Flex gap={8} wrap justify="flex-end">
+          <Button onClick={exportToExcel}>Выгрузка в Excel</Button>
           <Button
             onClick={() => {
               setDate(null);
-              setSearchNumber("");
-              setSearchGuid("");
-              setSelectedStatuses(PLANNED_STATUS_VALUES);
+              setSelectedBranch(ALL_BRANCHES);
+              setSelectedPo(ALL_PO);
               setPagination({ page: 1, pageSize: defaultPageSize });
               lastDataKeyRef.current = null;
               fetchPrimaryData({ nextDate: null, force: true });

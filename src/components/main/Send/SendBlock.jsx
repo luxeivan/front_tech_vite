@@ -14,6 +14,7 @@ export default function SendBlock({
   refresh,
   extraChannels = [],
   extraChannelsHint = "",
+  readOnly = false,
 }) {
   const user = useAuth((s) => s.user);
   const [sentEdds, setSentEdds] = useState(false);
@@ -307,6 +308,7 @@ export default function SendBlock({
         > */}
         <Checkbox
           checked={eddsSelected}
+          disabled={readOnly}
           onChange={(e) => setEddsSelected(e.target.checked)}
         >
           ЕДДС
@@ -323,6 +325,7 @@ export default function SendBlock({
 
         <Checkbox
           checked={mesSelected}
+          disabled={readOnly}
           onChange={(e) => setMesSelected(e.target.checked)}
         >
           МосЭнергоСбыт
@@ -332,7 +335,7 @@ export default function SendBlock({
           <Checkbox
             key={channel.key}
             checked={Boolean(extraSelected[channel.key])}
-            disabled={Boolean(channel.disabled)}
+            disabled={readOnly || Boolean(channel.disabled)}
             onChange={(e) =>
               setExtraSelected((prev) => ({
                 ...prev,
@@ -344,14 +347,16 @@ export default function SendBlock({
           </Checkbox>
         ))}
 
-        <Button
-          type="primary"
-          onClick={handleSend}
-          disabled={!canSend}
-          loading={sending}
-        >
-          Отправить
-        </Button>
+        {!readOnly && (
+          <Button
+            type="primary"
+            onClick={handleSend}
+            disabled={!canSend}
+            loading={sending}
+          >
+            Отправить
+          </Button>
+        )}
 
         {/* <Button onClick={handleTestEdds} disabled={sending || !eddsPayload}>
           Тест ЕДДС
@@ -362,8 +367,9 @@ export default function SendBlock({
       </Flex>
 
       <Typography.Paragraph type="secondary" style={{ marginTop: 6 }}>
-        После успешной отправки чекбокс блокируется. Проверяйте данные перед
-        отправкой.
+        {readOnly
+          ? "Для плановых отключений ручная отправка временно скрыта. Каналы показаны как уже отмеченные для демонстрации."
+          : "После успешной отправки чекбокс блокируется. Проверяйте данные перед отправкой."}
       </Typography.Paragraph>
 
       {extraChannelsHint ? (
