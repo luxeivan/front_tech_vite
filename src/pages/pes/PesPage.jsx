@@ -149,7 +149,7 @@ export default function PesPage() {
           type="info"
           showIcon
           style={{ marginBottom: 8 }}
-          message="Режим наблюдателя: можно смотреть, но управлять ПЭС нельзя 🙂"
+          message="Режим наблюдателя"
         />
       )}
 
