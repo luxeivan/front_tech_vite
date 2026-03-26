@@ -144,6 +144,7 @@ export function buildEddsPayload(tn) {
   // 🔒 Требование Заказчика: всегда отправлять фиксированные значения
   const fioWork = "Оперативный дежурный САЦ";
   const fioPhone = "+74957803976";
+  const shutdownReason = "Электропробой КЛ, ВЛ";
   // const descriptionSrc = raw.REASON_OPER ?? obj.REASON_OPER ?? raw.reason_oper ?? obj.reason_oper ?? null;
   // const description = clean(descriptionSrc);
 
@@ -322,6 +323,7 @@ export function buildEddsPayload(tn) {
   if (countPeople != null) out.count_people = String(Number(countPeople));
   if (fioWork) out.fio_response_work = String(fioWork);
   if (fioPhone) out.fio_response_phone = String(fioPhone);
+  if (shutdownReason) out.shutdown_reason = String(shutdownReason);
   if (description) out.description = String(description);
   if (Array.isArray(resources)) out.resources = resources.map(Number);
 
