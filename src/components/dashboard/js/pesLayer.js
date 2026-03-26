@@ -8,15 +8,12 @@ import Text from "ol/style/Text";
 import Fill from "ol/style/Fill";
 import Stroke from "ol/style/Stroke";
 
-// Import the SVG as text so we can recolor it (moving vs idle) without changing shape.
 import pesIconSvgRaw from "../../../assets/PES.svg?raw";
 
-// Размер ПЭС-иконки
 const PES_ICON_SCALE_MULT = 0.04;
 
 export const PES_POLL_MS_DEFAULT = 120_000;
 
-// If speed > threshold, treat the vehicle as "moving" and color it red.
 const PES_MOVING_SPEED_THRESHOLD = 0;
 const PES_ICON_COLOR_IDLE = "#000000";
 const PES_ICON_COLOR_MOVING = "#cf1322";
@@ -38,7 +35,6 @@ export const PES_ALLOWED_IDS = new Set([
 ]);
 
 export const pesIconDataUrl = (fillColor = PES_ICON_COLOR_IDLE) => {
-  // PES.svg uses a `style="fill:#000000"` declaration; replace it to recolor the icon.
   const patched = String(pesIconSvgRaw || "")
     .replace(/fill:\s*#000000/gi, `fill:${fillColor}`)
     .replace(/fill="#000000"/gi, `fill="${fillColor}"`);
@@ -89,14 +85,15 @@ export const createPesLayer = ({ getZoom, getFallbackZoom }) => {
 
       const name = (feature.get("name") || "").toString();
       const speed = Number(feature.get("speed") ?? 0);
-      const moving = Number.isFinite(speed) && speed > PES_MOVING_SPEED_THRESHOLD;
+      const moving =
+        Number.isFinite(speed) && speed > PES_MOVING_SPEED_THRESHOLD;
       const showLabel = z >= 12;
 
       return new Style({
         image: new Icon({
           src: moving ? PES_ICON_SRC_MOVING : PES_ICON_SRC_IDLE,
           imgSize: [64, 64],
-          opacity: 0.65,
+          opacity: 0.4,
           scale:
             (z < 10
               ? 0.55
@@ -131,10 +128,6 @@ export const createPesLayer = ({ getZoom, getFallbackZoom }) => {
   return { source, layer };
 };
 
-/**
- * Запускает поллинг ПЭС и обновляет source.
- * Возвращает stop() для корректного cleanup.
- */
 export const startPesPolling = ({
   source,
   endpoint,
@@ -156,7 +149,6 @@ export const startPesPolling = ({
       const json = await resp.json();
       const vehiclesRaw = Array.isArray(json?.vehicles) ? json.vehicles : [];
 
-      // Filter only real PES units by known IDs
       const vehicles = vehiclesRaw.filter((v) => {
         const idNum = typeof v?.id === "number" ? v.id : parseInt(v?.id, 10);
         return Number.isFinite(idNum) && PES_ALLOWED_IDS.has(idNum);
