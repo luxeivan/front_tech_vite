@@ -385,6 +385,7 @@ export default function TNModal({ open, documentId, onClose, mode = "unplanned" 
           extraChannels={isPlannedMode ? PLANNED_EXTRA_SEND_CHANNELS : []}
           extraChannelsHint=""
           readOnly={isPlannedMode}
+          mode={mode}
         />
       )}
 

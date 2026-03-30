@@ -1,8 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, Button, Checkbox, Divider, Flex, Typography } from "antd";
+import { Alert, Button, Checkbox, Divider, Drawer, Flex, Typography } from "antd";
 import axios from "axios";
 import { buildEddsPayload, sendToEdds } from "./Edds";
-import { buildMosEnergoSbytPayload, sendToMes } from "./MosEnergoSbyt";
+import {
+  buildMosEnergoSbytPayload,
+  sendToMes,
+  testMesAuth,
+} from "./MosEnergoSbyt";
 import useAuth from "../../../stores/useAuth";
 import { buildAuditHeaders, logAuditEvent } from "../../../utils/auditLogger";
 
@@ -15,6 +19,7 @@ export default function SendBlock({
   extraChannels = [],
   extraChannelsHint = "",
   readOnly = false,
+  mode = "unplanned",
 }) {
   const user = useAuth((s) => s.user);
   const [sentEdds, setSentEdds] = useState(false);
@@ -24,6 +29,11 @@ export default function SendBlock({
   const [sending, setSending] = useState(false);
   const [notice, setNotice] = useState(null);
   const [extraSelected, setExtraSelected] = useState({});
+  const [mesTestLoading, setMesTestLoading] = useState(false);
+  const [mesTestOpen, setMesTestOpen] = useState(false);
+  const [mesTestResult, setMesTestResult] = useState(null);
+
+  const isUnplannedMode = mode === "unplanned";
 
   const showAlert = (type, text, autoHideMs = 6000) => {
     setNotice({ type, text });
@@ -55,7 +65,7 @@ export default function SendBlock({
       });
       if (kv.length) parts.push(kv.join(" | "));
     }
-    return parts.join(" — ");
+    return parts.join(" - ");
   };
 
   useEffect(() => {
@@ -94,44 +104,54 @@ export default function SendBlock({
     );
   };
 
-  // const handleTestEdds = () => {
-  //   try {
-  //     if (!eddsPayload) {
-  //       showAlert("warning", "Нет данных для теста ЕДДС");
-  //       return;
-  //     }
-  //     console.log(
-  //       "ЕДДС: тестовый JSON без отправки →\n" +
-  //         JSON.stringify(eddsPayload, null, 2)
-  //     );
-  //     showAlert("success", "Тест ЕДДС: JSON выведен в консоль");
-  //   } catch (e) {
-  //     console.error("Тест ЕДДС: ошибка подготовки JSON:", e);
-  //     showAlert("error", "Тест ЕДДС: ошибка подготовки JSON");
-  //   }
-  // };
-
-  // const handleTestMes = () => {
-  //   try {
-  //     if (!mesPayload) {
-  //       showAlert("warning", "Нет данных для теста МосЭнергоСбыта");
-  //       return;
-  //     }
-  //     console.log(
-  //       "МосЭнергоСбыт: тестовый JSON без отправки →\n" +
-  //         JSON.stringify(mesPayload, null, 2)
-  //     );
-  //     showAlert("success", "Тест МосЭнергоСбыт: JSON выведен в консоль");
-  //   } catch (e) {
-  //     console.error("Тест МосЭнергоСбыт: ошибка подготовки JSON:", e);
-  //     showAlert("error", "Тест МосЭнергоСбыт: ошибка подготовки JSON");
-  //   }
-  // };
+  const handleTestMesAuth = async () => {
+    try {
+      setMesTestLoading(true);
+      setMesTestOpen(true);
+      const jwt = localStorage.getItem("jwt");
+      const resp = await testMesAuth(URL, jwt, buildAuditHeaders(user, "/"));
+      setMesTestResult(resp);
+      if (resp?.ok) {
+        showAlert("success", "МосЭнергоСбыт Тест: сессионный токен получен");
+      } else {
+        showAlert(
+          "error",
+          `МосЭнергоСбыт Тест: ${formatErrorDetails(resp) || "ошибка без деталей"}`
+        );
+      }
+      logAuditEvent(
+        {
+          action: "mes_auth_test",
+          entity: "mes",
+          entity_id: String(documentId || ""),
+          details: {
+            ok: Boolean(resp?.ok),
+            message: resp?.message || null,
+            session: resp?.session || null,
+          },
+        },
+        user
+      );
+    } catch (e) {
+      const payload = e?.response?.data || {
+        ok: false,
+        message: e?.message || "Неизвестная ошибка",
+        code: e?.code || null,
+      };
+      setMesTestResult(payload);
+      setMesTestOpen(true);
+      showAlert(
+        "error",
+        `МосЭнергоСбыт Тест: ${formatErrorDetails(payload) || "ошибка без деталей"}`
+      );
+      console.error("MES auth-test error:", e?.response?.data || e?.message || e);
+    } finally {
+      setMesTestLoading(false);
+    }
+  };
 
   const handleSend = async () => {
     try {
-      // const toEdds = eddsSelected && !sentEdds;
-      // const toMes = mesSelected && !sentMes;
       const toEdds = eddsSelected;
       const toMes = mesSelected;
       const activeExtraChannels = extraChannels.filter(
@@ -155,7 +175,6 @@ export default function SendBlock({
       setSending(true);
       setNotice(null);
 
-      // === ЕДДС (без изменений глобальной логики) ===
       if (toEdds) {
         const jwt = localStorage.getItem("jwt");
         const resp = await sendToEdds(
@@ -166,7 +185,6 @@ export default function SendBlock({
         );
         const ok = resp?.success === true || resp?.ok === true;
         if (ok) {
-          // мягко обновляем флаг в Strapi, но не роняем процесс при ошибке сети
           try {
             await patchFlags({ sendedEdds: true });
           } catch (e) {
@@ -179,7 +197,6 @@ export default function SendBlock({
           setSentEdds(true);
           setEddsSelected(false);
 
-          // тянем понятный текст из ответа ЕДДС
           const okText =
             resp?.message ||
             (resp?.data?.claim_id ? `Данные приняты (ID: ${resp.data.claim_id})` : "отправлено");
@@ -196,7 +213,7 @@ export default function SendBlock({
           );
         } else {
           const details = formatErrorDetails(resp) || "Ответ без сообщения";
-          showAlert("error", "ЕДДС: ошибка — " + details);
+          showAlert("error", "ЕДДС: ошибка - " + details);
           logAuditEvent(
             {
               action: "send_edds_error",
@@ -210,7 +227,7 @@ export default function SendBlock({
       }
 
       if (toMes) {
-        const jwt = localStorage.getItem("jwt"); // не обязателен
+        const jwt = localStorage.getItem("jwt");
         const resp = await sendToMes(
           URL,
           mesPayload,
@@ -233,7 +250,7 @@ export default function SendBlock({
           );
         } else {
           const details = formatErrorDetails(resp) || "Ответ без сообщения";
-          showAlert("error", "МосЭнергоСбыт: ошибка — " + details);
+          showAlert("error", "МосЭнергоСбыт: ошибка - " + details);
           logAuditEvent(
             {
               action: "send_mes_error",
@@ -276,9 +293,6 @@ export default function SendBlock({
     }
   };
 
-  // const canSend =
-  //   !sending && ((eddsSelected && !sentEdds) || (mesSelected && !sentMes));
-
   const hasExtraSelected = extraChannels.some((channel) => extraSelected[channel.key]);
   const canSend = !sending && (eddsSelected || mesSelected || hasExtraSelected);
 
@@ -298,14 +312,6 @@ export default function SendBlock({
       )}
 
       <Flex gap={16} align="center" style={{ marginTop: 8 }} wrap>
-        {/* <Checkbox
-          checked={sentEdds || eddsSelected}
-          // disabled={sentEdds || sending}
-          onChange={(e) => {
-            if (sentEdds) return;
-            setEddsSelected(e.target.checked);
-          }}
-        > */}
         <Checkbox
           checked={eddsSelected}
           disabled={readOnly}
@@ -313,15 +319,6 @@ export default function SendBlock({
         >
           ЕДДС
         </Checkbox>
-
-        {/* <Checkbox
-          checked={sentMes || mesSelected}
-          // disabled={sentMes || sending}
-          onChange={(e) => {
-            if (sentMes) return;
-            setMesSelected(e.target.checked);
-          }}
-        > */}
 
         <Checkbox
           checked={mesSelected}
@@ -358,12 +355,14 @@ export default function SendBlock({
           </Button>
         )}
 
-        {/* <Button onClick={handleTestEdds} disabled={sending || !eddsPayload}>
-          Тест ЕДДС
-        </Button>
-        <Button onClick={handleTestMes} disabled={sending || !mesPayload}>
-          Тест МосЭнергоСбыт
-        </Button> */}
+        {!readOnly && isUnplannedMode && (
+          <Button
+            onClick={handleTestMesAuth}
+            loading={mesTestLoading}
+          >
+            МосЭнергоСбыт Тест
+          </Button>
+        )}
       </Flex>
 
       <Typography.Paragraph type="secondary" style={{ marginTop: 6 }}>
@@ -379,6 +378,40 @@ export default function SendBlock({
       ) : null}
 
       <Divider style={{ margin: "8px 0 0" }} />
+
+      <Drawer
+        title="МосЭнергоСбыт Тест"
+        placement="right"
+        width={560}
+        open={mesTestOpen}
+        onClose={() => setMesTestOpen(false)}
+      >
+        <Typography.Paragraph type="secondary" style={{ marginTop: 0 }}>
+          Тестируем только получение session из СУВК через backend `/services/mes/auth-test`.
+        </Typography.Paragraph>
+
+        {mesTestResult ? (
+          <pre
+            style={{
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+              background: "#fafafa",
+              border: "1px solid #f0f0f0",
+              borderRadius: 8,
+              padding: 12,
+              fontSize: 12,
+              lineHeight: 1.5,
+              margin: 0,
+            }}
+          >
+            {JSON.stringify(mesTestResult, null, 2)}
+          </pre>
+        ) : (
+          <Typography.Text type="secondary">
+            Нажми кнопку теста, и здесь появится ответ бэкенда.
+          </Typography.Text>
+        )}
+      </Drawer>
     </div>
   );
 }

@@ -107,3 +107,16 @@ export async function sendToMes(url, data, jwt, extraHeaders = {}) {
 }
 
 export default null;
+
+
+export async function testMesAuth(url, jwt, extraHeaders = {}) {
+  const headers = {
+    ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
+    ...extraHeaders,
+  };
+  const res = await axios.get(`${url}/services/mes/auth-test`, {
+    headers,
+    timeout: 30000,
+  });
+  return res?.data;
+}
