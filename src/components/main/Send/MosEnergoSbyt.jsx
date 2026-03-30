@@ -101,7 +101,7 @@ export async function sendToMes(url, data, jwt, extraHeaders = {}) {
   };
   const res = await axios.post(`${url}/services/mes/upload`, data, {
     headers,
-    timeout: 30000,
+    timeout: 90000,
   });
   return res?.data;
 }
@@ -116,7 +116,7 @@ export async function testMesAuth(url, jwt, extraHeaders = {}) {
   };
   const res = await axios.get(`${url}/services/mes/auth-test`, {
     headers,
-    timeout: 30000,
+    timeout: 90000,
   });
   return res?.data;
 }
