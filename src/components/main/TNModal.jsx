@@ -19,6 +19,8 @@ import {
 
 const URL = import.meta.env.VITE_URL_BACKEND;
 
+const UNPLANNED_EXTRA_SEND_CHANNELS = [];
+
 export default function TNModal({ open, documentId, onClose, mode = "unplanned" }) {
   const { tn, getTn, isLoadingTn } = useData((s) => s);
   // const { fieldsSetting } = useAuth((s) => s);
@@ -382,7 +384,9 @@ export default function TNModal({ open, documentId, onClose, mode = "unplanned" 
           tn={tnEffective}
           documentId={documentId}
           refresh={() => getTn(documentId)}
-          extraChannels={isPlannedMode ? PLANNED_EXTRA_SEND_CHANNELS : []}
+          extraChannels={
+            isPlannedMode ? PLANNED_EXTRA_SEND_CHANNELS : UNPLANNED_EXTRA_SEND_CHANNELS
+          }
           extraChannelsHint=""
           readOnly={isPlannedMode}
           mode={mode}

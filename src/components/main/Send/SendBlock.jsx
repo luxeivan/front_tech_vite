@@ -1,5 +1,15 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, Button, Checkbox, Divider, Drawer, Flex, Typography } from "antd";
+import {
+  Alert,
+  Button,
+  Checkbox,
+  Divider,
+  Drawer,
+  Flex,
+  Space,
+  Typography,
+  message,
+} from "antd";
 import axios from "axios";
 import { buildEddsPayload, sendToEdds } from "./Edds";
 import {
@@ -10,7 +20,12 @@ import {
 import useAuth from "../../../stores/useAuth";
 import { buildAuditHeaders, logAuditEvent } from "../../../utils/auditLogger";
 
-const URL = import.meta.env.VITE_URL_BACKEND;
+const API_URL = String(import.meta.env.VITE_URL_BACKEND || "").trim().replace(/\/$/, "");
+const SERVICES_URL = String(
+  import.meta.env.VITE_URL_BACKEND_SERVICES || import.meta.env.VITE_URL_BACKEND || ""
+)
+  .trim()
+  .replace(/\/$/, "");
 
 export default function SendBlock({
   tn,
@@ -32,7 +47,6 @@ export default function SendBlock({
   const [mesTestLoading, setMesTestLoading] = useState(false);
   const [mesTestOpen, setMesTestOpen] = useState(false);
   const [mesTestResult, setMesTestResult] = useState(null);
-
   const isUnplannedMode = mode === "unplanned";
 
   const showAlert = (type, text, autoHideMs = 6000) => {
@@ -68,6 +82,41 @@ export default function SendBlock({
     return parts.join(" - ");
   };
 
+  const buildMesTestCopyText = (payload) => {
+    if (!payload) return "";
+
+    const lines = [
+      "МосЭнергоСбыт - тест авторизации",
+      `ok: ${String(payload?.ok)}`,
+      `message: ${payload?.message || "—"}`,
+      `code: ${payload?.code || "—"}`,
+      `auth_url: ${payload?.debug?.auth_url || "—"}`,
+      `method: ${payload?.debug?.request?.method || "—"}`,
+      `login: ${payload?.debug?.credentials?.login || "—"}`,
+      `password: ${payload?.debug?.credentials?.password || "—"}`,
+      `timeout_ms: ${payload?.debug?.timeout_ms ?? "—"}`,
+      `duration_ms: ${payload?.debug?.duration_ms ?? "—"}`,
+      `http_status: ${payload?.debug?.http_status ?? "—"}`,
+      "",
+      "Параметры запроса:",
+      JSON.stringify(payload?.debug?.request?.query || {}, null, 2),
+      "",
+      "Ответ:",
+      JSON.stringify(payload, null, 2),
+    ];
+
+    return lines.join("\n");
+  };
+
+  const handleCopyMesTest = async () => {
+    try {
+      await navigator.clipboard.writeText(buildMesTestCopyText(mesTestResult));
+      message.success("Скопировал диагностику МосЭнергоСбыта в буфер");
+    } catch (e) {
+      message.error("Не получилось скопировать в буфер");
+    }
+  };
+
   useEffect(() => {
     const d = tn?.data;
     const eddsSent = Boolean(d?.sendedEdds);
@@ -98,7 +147,7 @@ export default function SendBlock({
     const jwt = localStorage.getItem("jwt");
     if (!jwt) throw new Error("Нет JWT");
     return axios.put(
-      `${URL}/api/teh-narusheniyas/${documentId}`,
+      `${API_URL}/api/teh-narusheniyas/${documentId}`,
       { data: { ...flags } },
       { headers: { Authorization: `Bearer ${jwt}` } }
     );
@@ -109,7 +158,7 @@ export default function SendBlock({
       setMesTestLoading(true);
       setMesTestOpen(true);
       const jwt = localStorage.getItem("jwt");
-      const resp = await testMesAuth(URL, jwt, buildAuditHeaders(user, "/"));
+      const resp = await testMesAuth(SERVICES_URL, jwt, buildAuditHeaders(user, "/"));
       setMesTestResult(resp);
       if (resp?.ok) {
         showAlert("success", "МосЭнергоСбыт Тест: сессионный токен получен");
@@ -178,7 +227,7 @@ export default function SendBlock({
       if (toEdds) {
         const jwt = localStorage.getItem("jwt");
         const resp = await sendToEdds(
-          URL,
+          SERVICES_URL,
           eddsPayload,
           jwt,
           buildAuditHeaders(user, "/")
@@ -229,7 +278,7 @@ export default function SendBlock({
       if (toMes) {
         const jwt = localStorage.getItem("jwt");
         const resp = await sendToMes(
-          URL,
+          SERVICES_URL,
           mesPayload,
           jwt,
           buildAuditHeaders(user, "/")
@@ -263,8 +312,12 @@ export default function SendBlock({
         }
       }
 
-      if (activeExtraChannels.length > 0) {
-        const extraLabels = activeExtraChannels.map((channel) => channel.label).join(", ");
+      const unsupportedExtraChannels = activeExtraChannels;
+
+      if (unsupportedExtraChannels.length > 0) {
+        const extraLabels = unsupportedExtraChannels
+          .map((channel) => channel.label)
+          .join(", ");
         showAlert(
           "info",
           `Каналы ${extraLabels} выбраны. Боевая логика для них будет подключена следующим этапом.`,
@@ -311,58 +364,80 @@ export default function SendBlock({
         />
       )}
 
-      <Flex gap={16} align="center" style={{ marginTop: 8 }} wrap>
-        <Checkbox
-          checked={eddsSelected}
-          disabled={readOnly}
-          onChange={(e) => setEddsSelected(e.target.checked)}
+      <Flex
+        justify="space-between"
+        align="flex-start"
+        gap={16}
+        style={{ marginTop: 8 }}
+        wrap
+      >
+        <Flex
+          vertical
+          gap={10}
+          align="flex-start"
+          style={{ flex: 1, minWidth: 220 }}
         >
-          ЕДДС
-        </Checkbox>
-
-        <Checkbox
-          checked={mesSelected}
-          disabled={readOnly}
-          onChange={(e) => setMesSelected(e.target.checked)}
-        >
-          МосЭнергоСбыт
-        </Checkbox>
-
-        {extraChannels.map((channel) => (
           <Checkbox
-            key={channel.key}
-            checked={Boolean(extraSelected[channel.key])}
-            disabled={readOnly || Boolean(channel.disabled)}
-            onChange={(e) =>
-              setExtraSelected((prev) => ({
-                ...prev,
-                [channel.key]: e.target.checked,
-              }))
-            }
+            checked={eddsSelected}
+            disabled={readOnly}
+            onChange={(e) => setEddsSelected(e.target.checked)}
           >
-            {channel.label}
+            ЕДДС
           </Checkbox>
-        ))}
 
-        {!readOnly && (
-          <Button
-            type="primary"
-            onClick={handleSend}
-            disabled={!canSend}
-            loading={sending}
+          <Checkbox
+            checked={mesSelected}
+            disabled={readOnly}
+            onChange={(e) => setMesSelected(e.target.checked)}
           >
-            Отправить
-          </Button>
-        )}
+            МосЭнергоСбыт
+          </Checkbox>
 
-        {!readOnly && isUnplannedMode && (
-          <Button
-            onClick={handleTestMesAuth}
-            loading={mesTestLoading}
-          >
-            МосЭнергоСбыт Тест
-          </Button>
-        )}
+          {extraChannels.map((channel) => (
+            <Checkbox
+              key={channel.key}
+              checked={Boolean(extraSelected[channel.key])}
+              disabled={readOnly || Boolean(channel.disabled)}
+              onChange={(e) =>
+                setExtraSelected((prev) => ({
+                  ...prev,
+                  [channel.key]: e.target.checked,
+                }))
+              }
+            >
+              {channel.label}
+            </Checkbox>
+          ))}
+        </Flex>
+
+        <Flex
+          vertical
+          gap={10}
+          align="stretch"
+          style={{ minWidth: 200 }}
+        >
+          {!readOnly && isUnplannedMode && (
+            <Button
+              onClick={handleTestMesAuth}
+              loading={mesTestLoading}
+              block
+            >
+              МосЭнергоСбыт Тест
+            </Button>
+          )}
+
+          {!readOnly && (
+            <Button
+              type="primary"
+              onClick={handleSend}
+              disabled={!canSend}
+              loading={sending}
+              block
+            >
+              Отправить
+            </Button>
+          )}
+        </Flex>
       </Flex>
 
       <Typography.Paragraph type="secondary" style={{ marginTop: 6 }}>
@@ -382,7 +457,7 @@ export default function SendBlock({
       <Drawer
         title="МосЭнергоСбыт Тест"
         placement="right"
-        width={560}
+        width={640}
         open={mesTestOpen}
         onClose={() => setMesTestOpen(false)}
       >
@@ -391,27 +466,104 @@ export default function SendBlock({
         </Typography.Paragraph>
 
         {mesTestResult ? (
-          <pre
-            style={{
-              whiteSpace: "pre-wrap",
-              wordBreak: "break-word",
-              background: "#fafafa",
-              border: "1px solid #f0f0f0",
-              borderRadius: 8,
-              padding: 12,
-              fontSize: 12,
-              lineHeight: 1.5,
-              margin: 0,
-            }}
-          >
-            {JSON.stringify(mesTestResult, null, 2)}
-          </pre>
+          <Space direction="vertical" size={12} style={{ width: "100%" }}>
+            <Flex justify="space-between" align="center" gap={12} wrap>
+              <Typography.Text strong>
+                Диагностика для отправки подрядчику
+              </Typography.Text>
+              <Button onClick={handleCopyMesTest}>
+                Скопировать в буфер
+              </Button>
+            </Flex>
+
+            <div
+              style={{
+                background: "#fafafa",
+                border: "1px solid #f0f0f0",
+                borderRadius: 8,
+                padding: 12,
+              }}
+            >
+              <Typography.Paragraph style={{ marginBottom: 8 }}>
+                <strong>Результат:</strong> {String(mesTestResult?.ok)}
+              </Typography.Paragraph>
+              <Typography.Paragraph style={{ marginBottom: 8 }}>
+                <strong>Сообщение:</strong> {mesTestResult?.message || "—"}
+              </Typography.Paragraph>
+              <Typography.Paragraph style={{ marginBottom: 8 }}>
+                <strong>Код ошибки:</strong> {mesTestResult?.code || "—"}
+              </Typography.Paragraph>
+              <Typography.Paragraph style={{ marginBottom: 8 }}>
+                <strong>URL:</strong> {mesTestResult?.debug?.auth_url || "—"}
+              </Typography.Paragraph>
+              <Typography.Paragraph style={{ marginBottom: 8 }}>
+                <strong>Метод:</strong> {mesTestResult?.debug?.request?.method || "—"}
+              </Typography.Paragraph>
+              <Typography.Paragraph style={{ marginBottom: 8 }}>
+                <strong>Логин:</strong> {mesTestResult?.debug?.credentials?.login || "—"}
+              </Typography.Paragraph>
+              <Typography.Paragraph style={{ marginBottom: 8 }}>
+                <strong>Пароль:</strong> {mesTestResult?.debug?.credentials?.password || "—"}
+              </Typography.Paragraph>
+              <Typography.Paragraph style={{ marginBottom: 8 }}>
+                <strong>Ждали:</strong> {mesTestResult?.debug?.duration_ms ?? "—"} мс
+              </Typography.Paragraph>
+              <Typography.Paragraph style={{ marginBottom: 0 }}>
+                <strong>HTTP статус:</strong> {mesTestResult?.debug?.http_status ?? "—"}
+              </Typography.Paragraph>
+            </div>
+
+            <div
+              style={{
+                background: "#fafafa",
+                border: "1px solid #f0f0f0",
+                borderRadius: 8,
+                padding: 12,
+              }}
+            >
+              <Typography.Text strong>Параметры запроса</Typography.Text>
+              <pre
+                style={{
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                  fontSize: 12,
+                  lineHeight: 1.5,
+                  margin: "8px 0 0",
+                }}
+              >
+                {JSON.stringify(mesTestResult?.debug?.request?.query || {}, null, 2)}
+              </pre>
+            </div>
+
+            <div
+              style={{
+                background: "#fafafa",
+                border: "1px solid #f0f0f0",
+                borderRadius: 8,
+                padding: 12,
+              }}
+            >
+              <Typography.Text strong>Полный ответ бэкенда</Typography.Text>
+              <pre
+                style={{
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                  fontSize: 12,
+                  lineHeight: 1.5,
+                  margin: "8px 0 0",
+                }}
+              >
+                {JSON.stringify(mesTestResult, null, 2)}
+              </pre>
+            </div>
+          </Space>
         ) : (
           <Typography.Text type="secondary">
             Нажми кнопку теста, и здесь появится ответ бэкенда.
           </Typography.Text>
         )}
       </Drawer>
+
     </div>
   );
 }
