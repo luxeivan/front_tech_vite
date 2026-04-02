@@ -8,6 +8,7 @@ import EditableField from "./EditableField";
 import SendBlock from "./Send/SendBlock";
 import { buildDescriptionTemplate } from "../../utils/descriptionTemplate";
 import { logAuditEvent } from "../../utils/auditLogger";
+import { hasFeatureAccess } from "../../config/viewRoleAccess";
 import { PLANNED_EXTRA_SEND_CHANNELS } from "../planned/js/plannedSendChannels";
 import {
   buildSzoSummaryFromItem,
@@ -26,7 +27,8 @@ export default function TNModal({ open, documentId, onClose, mode = "unplanned" 
   // const { fieldsSetting } = useAuth((s) => s);
   const fieldsSetting = useAuth((s) => s.fieldsSetting);
   const user = useAuth((s) => s.user);
-  const canEdit = user?.view_role === "standart";
+  const canEdit = hasFeatureAccess(user?.view_role, "tnEdit");
+  const canSeeSendBlock = hasFeatureAccess(user?.view_role, "tnSendBlock");
   const isPlannedMode = mode === "planned";
 
   useEffect(() => {
@@ -379,7 +381,7 @@ export default function TNModal({ open, documentId, onClose, mode = "unplanned" 
       destroyOnClose
     >
       {/* ВАЖНО: передаём tnEffective, чтобы JSON для ЕДДС был по текущим значениям */}
-      {canEdit && (
+      {canSeeSendBlock && (
         <SendBlock
           tn={tnEffective}
           documentId={documentId}

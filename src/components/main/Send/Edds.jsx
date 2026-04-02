@@ -460,3 +460,15 @@ export async function sendToEdds(url, data, jwt, extraHeaders = {}) {
   });
   return res?.data;
 }
+
+export async function testEddsSend(url, data, jwt, extraHeaders = {}) {
+  const headers = {
+    ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
+    ...extraHeaders,
+  };
+  const res = await axios.post(`${url}/services/edds/?debug=1`, data, {
+    headers,
+    timeout: 30000,
+  });
+  return res?.data;
+}

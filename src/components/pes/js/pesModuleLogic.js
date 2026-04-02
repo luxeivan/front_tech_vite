@@ -4,6 +4,7 @@ import { notification } from "antd";
 import useAuth from "../../../stores/useAuth";
 import usePesDestinationsStore from "../../../stores/pes/usePesDestinationsStore";
 import usePesModuleDataStore from "../../../stores/pes/usePesModuleDataStore";
+import { hasFeatureAccess } from "../../../config/viewRoleAccess";
 import { buildAuditHeaders, logAuditEvent } from "../../../utils/auditLogger";
 import { calcSummary, getActionMeta } from "./pesModuleMeta";
 
@@ -48,7 +49,7 @@ export default function pesModuleLogic() {
   const [tpBranchFilter, setTpBranchFilter] = useState("__all__");
   const [tpPoFilter, setTpPoFilter] = useState("__all__");
 
-  const canManage = user?.view_role === "standart";
+  const canManage = hasFeatureAccess(user?.view_role, "pesManage");
   const mode = selected.length > 1 ? "multi" : "single";
 
   // Store: данные ПЭС/истории.

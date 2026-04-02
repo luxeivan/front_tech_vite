@@ -19,6 +19,7 @@ import ruRU from "antd/locale/ru_RU";
 import { ReloadOutlined } from "@ant-design/icons";
 import useAuth from "../../../stores/useAuth";
 import useData from "../../../stores/useData";
+import { hasFeatureAccess } from "../../../config/viewRoleAccess";
 import TNModal from "../../main/TNModal";
 import JournalOpenModal from "../../journalOpen/JournalOpenModal";
 import {
@@ -171,7 +172,7 @@ export default function PlannedTable() {
   const user = useAuth((s) => s.user);
   const { tns, getTns, isLoadingTns, openedCount, loadOpenedCount, loadingOpenedCount } =
     useData((s) => s);
-  const showJournal = user?.view_role === "standart";
+  const showJournal = hasFeatureAccess(user?.view_role, "journal");
 
   const loadSendStatus = useCallback(async ({ force = false } = {}) => {
     if (sendStatusInFlightRef.current && !force) return;

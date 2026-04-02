@@ -22,6 +22,7 @@ import useAuth from "../../stores/useAuth";
 import TableTNActionsBar from "./TableTNActionsBar";
 import TNModal from "./TNModal";
 import JournalOpenModal from "../journalOpen/JournalOpenModal";
+import { hasFeatureAccess } from "../../config/viewRoleAccess";
 import ruRU from "antd/locale/ru_RU";
 import "dayjs/locale/ru";
 dayjs.locale("ru");
@@ -460,7 +461,7 @@ export default function TableTN() {
 
   // === Journal send status state ===
   const { user, getUserMe } = useAuth((s) => s);
-  const showJournal = user?.view_role === "standart";
+  const showJournal = hasFeatureAccess(user?.view_role, "journal");
   const [sendStatus, setSendStatus] = useState({ byGuid: {}, byNumber: {} });
   const loadSendStatus = React.useCallback(async () => {
     try {

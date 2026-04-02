@@ -3,6 +3,7 @@ import {
   Alert,
   Button,
   Checkbox,
+  Collapse,
   Divider,
   Drawer,
   Flex,
@@ -11,7 +12,7 @@ import {
   message,
 } from "antd";
 import axios from "axios";
-import { buildEddsPayload, sendToEdds } from "./Edds";
+import { buildEddsPayload, sendToEdds, testEddsSend } from "./Edds";
 import {
   buildMosEnergoSbytPayload,
   sendToMes,
@@ -19,6 +20,7 @@ import {
 } from "./MosEnergoSbyt";
 import useAuth from "../../../stores/useAuth";
 import { buildAuditHeaders, logAuditEvent } from "../../../utils/auditLogger";
+import { hasFeatureAccess } from "../../../config/viewRoleAccess";
 
 const API_URL = String(import.meta.env.VITE_URL_BACKEND || "").trim().replace(/\/$/, "");
 const SERVICES_URL = String(
@@ -47,7 +49,11 @@ export default function SendBlock({
   const [mesTestLoading, setMesTestLoading] = useState(false);
   const [mesTestOpen, setMesTestOpen] = useState(false);
   const [mesTestResult, setMesTestResult] = useState(null);
+  const [eddsTestLoading, setEddsTestLoading] = useState(false);
+  const [eddsTestOpen, setEddsTestOpen] = useState(false);
+  const [eddsTestResult, setEddsTestResult] = useState(null);
   const isUnplannedMode = mode === "unplanned";
+  const canUseTestButtons = hasFeatureAccess(user?.view_role, "tnTestButtons");
 
   const showAlert = (type, text, autoHideMs = 6000) => {
     setNotice({ type, text });
@@ -80,6 +86,18 @@ export default function SendBlock({
       if (kv.length) parts.push(kv.join(" | "));
     }
     return parts.join(" - ");
+  };
+
+  const normalizeEddsTestResponse = (resp) => {
+    if (!resp || typeof resp !== "object" || Array.isArray(resp)) return resp;
+
+    const source = resp?.parsed && typeof resp.parsed === "object" ? resp.parsed : resp;
+    const cleaned = { ...source };
+    delete cleaned._via;
+    delete cleaned.ok;
+    delete cleaned.debug;
+    delete cleaned.preview;
+    return cleaned;
   };
 
   const buildMesTestCopyText = (payload) => {
@@ -196,6 +214,70 @@ export default function SendBlock({
       console.error("MES auth-test error:", e?.response?.data || e?.message || e);
     } finally {
       setMesTestLoading(false);
+    }
+  };
+
+  const handleTestEddsNew = async () => {
+    try {
+      if (!eddsPayload) {
+        showAlert("error", "ЕДДС new Тест: нет данных для отправки");
+        return;
+      }
+
+      setEddsTestLoading(true);
+      setEddsTestOpen(true);
+      const jwt = localStorage.getItem("jwt");
+      const resp = await testEddsSend(
+        SERVICES_URL,
+        eddsPayload,
+        jwt,
+        buildAuditHeaders(user, "/")
+      );
+
+      const payload = {
+        request: {
+          method: "POST",
+          url: `${SERVICES_URL}/services/edds/?debug=1`,
+          body: eddsPayload,
+        },
+        response: normalizeEddsTestResponse(resp),
+      };
+
+      setEddsTestResult(payload);
+      showAlert("success", "ЕДДС new Тест: ответ от бэкенда получен");
+      logAuditEvent(
+        {
+          action: "edds_new_test",
+          entity: "edds",
+          entity_id: String(documentId || ""),
+          details: { ok: true, debug: true },
+        },
+        user
+      );
+    } catch (e) {
+      const payload = {
+        request: {
+          method: "POST",
+          url: `${SERVICES_URL}/services/edds/?debug=1`,
+          body: eddsPayload,
+        },
+        response: normalizeEddsTestResponse(
+          e?.response?.data || {
+            ok: false,
+            message: e?.message || "Неизвестная ошибка",
+            code: e?.code || null,
+          }
+        ),
+      };
+      setEddsTestResult(payload);
+      setEddsTestOpen(true);
+      showAlert(
+        "error",
+        `ЕДДС new Тест: ${formatErrorDetails(payload.response) || "ошибка без деталей"}`
+      );
+      console.error("EDDS new test error:", e?.response?.data || e?.message || e);
+    } finally {
+      setEddsTestLoading(false);
     }
   };
 
@@ -416,7 +498,17 @@ export default function SendBlock({
           align="stretch"
           style={{ minWidth: 200 }}
         >
-          {!readOnly && isUnplannedMode && (
+          {!readOnly && isUnplannedMode && canUseTestButtons && (
+            <Button
+              onClick={handleTestEddsNew}
+              loading={eddsTestLoading}
+              block
+            >
+              ЕДДС new Тест
+            </Button>
+          )}
+
+          {!readOnly && isUnplannedMode && canUseTestButtons && (
             <Button
               onClick={handleTestMesAuth}
               loading={mesTestLoading}
@@ -453,6 +545,72 @@ export default function SendBlock({
       ) : null}
 
       <Divider style={{ margin: "8px 0 0" }} />
+
+      <Drawer
+        title="ЕДДС new Тест"
+        placement="right"
+        width={640}
+        open={eddsTestOpen}
+        onClose={() => setEddsTestOpen(false)}
+      >
+        <Typography.Paragraph type="secondary" style={{ marginTop: 0 }}>
+          Тестируем текущий payload ЕДДС через backend `/services/edds?debug=1`.
+        </Typography.Paragraph>
+
+        {eddsTestResult ? (
+          <Space direction="vertical" size={12} style={{ width: "100%" }}>
+            <div
+              style={{
+                background: "#fafafa",
+                border: "1px solid #f0f0f0",
+                borderRadius: 8,
+                padding: 12,
+              }}
+            >
+              <Typography.Text strong>Ответ от ЕДДС</Typography.Text>
+              <pre
+                style={{
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                  fontSize: 12,
+                  lineHeight: 1.5,
+                  margin: "8px 0 0",
+                }}
+              >
+                {JSON.stringify(eddsTestResult?.response || {}, null, 2)}
+              </pre>
+            </div>
+
+            <Divider style={{ margin: 0 }}>Что отправляем</Divider>
+
+            <Collapse
+              items={[
+                {
+                  key: "edds-request-body",
+                  label: "Показать / скрыть JSON, который отправляем",
+                  children: (
+                    <pre
+                      style={{
+                        whiteSpace: "pre-wrap",
+                        wordBreak: "break-word",
+                        fontSize: 12,
+                        lineHeight: 1.5,
+                        margin: 0,
+                      }}
+                    >
+                      {JSON.stringify(eddsTestResult?.request?.body || {}, null, 2)}
+                    </pre>
+                  ),
+                },
+              ]}
+            />
+          </Space>
+        ) : (
+          <Typography.Text type="secondary">
+            Нажми кнопку теста, и здесь появятся payload и ответ бэкенда.
+          </Typography.Text>
+        )}
+      </Drawer>
 
       <Drawer
         title="МосЭнергоСбыт Тест"
