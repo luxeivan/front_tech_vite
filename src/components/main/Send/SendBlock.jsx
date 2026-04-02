@@ -8,6 +8,7 @@ import {
   Drawer,
   Flex,
   Space,
+  Tag,
   Typography,
   message,
 } from "antd";
@@ -47,13 +48,11 @@ export default function SendBlock({
   const [notice, setNotice] = useState(null);
   const [extraSelected, setExtraSelected] = useState({});
   const [mesTestLoading, setMesTestLoading] = useState(false);
-  const [mesTestOpen, setMesTestOpen] = useState(false);
-  const [mesTestResult, setMesTestResult] = useState(null);
   const [eddsTestLoading, setEddsTestLoading] = useState(false);
-  const [eddsTestOpen, setEddsTestOpen] = useState(false);
-  const [eddsTestResult, setEddsTestResult] = useState(null);
   const [eddsNewSelected, setEddsNewSelected] = useState(false);
   const [mesTestSelected, setMesTestSelected] = useState(false);
+  const [sendResultsOpen, setSendResultsOpen] = useState(false);
+  const [sendResults, setSendResults] = useState([]);
   const isUnplannedMode = mode === "unplanned";
   const canUseTestButtons = hasFeatureAccess(user?.view_role, "tnTestButtons");
 
@@ -102,39 +101,19 @@ export default function SendBlock({
     return cleaned;
   };
 
-  const buildMesTestCopyText = (payload) => {
-    if (!payload) return "";
+  const makeResultEntry = ({ channel, action, request, response, ok, summary }) => ({
+    key: `${channel}-${action}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    channel,
+    action,
+    request,
+    response,
+    ok: Boolean(ok),
+    summary: summary || (ok ? "Операция выполнена" : "Получена ошибка"),
+  });
 
-    const lines = [
-      "МосЭнергоСбыт - тест авторизации",
-      `ok: ${String(payload?.ok)}`,
-      `message: ${payload?.message || "—"}`,
-      `code: ${payload?.code || "—"}`,
-      `auth_url: ${payload?.debug?.auth_url || "—"}`,
-      `method: ${payload?.debug?.request?.method || "—"}`,
-      `login: ${payload?.debug?.credentials?.login || "—"}`,
-      `password: ${payload?.debug?.credentials?.password || "—"}`,
-      `timeout_ms: ${payload?.debug?.timeout_ms ?? "—"}`,
-      `duration_ms: ${payload?.debug?.duration_ms ?? "—"}`,
-      `http_status: ${payload?.debug?.http_status ?? "—"}`,
-      "",
-      "Параметры запроса:",
-      JSON.stringify(payload?.debug?.request?.query || {}, null, 2),
-      "",
-      "Ответ:",
-      JSON.stringify(payload, null, 2),
-    ];
-
-    return lines.join("\n");
-  };
-
-  const handleCopyMesTest = async () => {
-    try {
-      await navigator.clipboard.writeText(buildMesTestCopyText(mesTestResult));
-      message.success("Скопировал диагностику МосЭнергоСбыта в буфер");
-    } catch (e) {
-      message.error("Не получилось скопировать в буфер");
-    }
+  const getResultTag = (item) => {
+    if (item.ok) return { color: "success", text: "Успешно" };
+    return { color: "error", text: "Ошибка" };
   };
 
   useEffect(() => {
@@ -178,21 +157,12 @@ export default function SendBlock({
     );
   };
 
-  const handleTestMesAuth = async () => {
+  const runMesAuthTest = async () => {
     try {
       setMesTestLoading(true);
-      setMesTestOpen(true);
       const jwt = localStorage.getItem("jwt");
       const resp = await testMesAuth(SERVICES_URL, jwt, buildAuditHeaders(user, "/"));
-      setMesTestResult(resp);
-      if (resp?.ok) {
-        showAlert("success", "МосЭнергоСбыт Тест: сессионный токен получен");
-      } else {
-        showAlert(
-          "error",
-          `МосЭнергоСбыт Тест: ${formatErrorDetails(resp) || "ошибка без деталей"}`
-        );
-      }
+      const ok = Boolean(resp?.ok);
       logAuditEvent(
         {
           action: "mes_auth_test",
@@ -206,33 +176,61 @@ export default function SendBlock({
         },
         user
       );
+      return makeResultEntry({
+        channel: "МосЭнергоСбыт Тест",
+        action: "test",
+        request: {
+          method: "GET",
+          url: `${SERVICES_URL}/services/mes/auth-test`,
+          body: null,
+        },
+        response: resp,
+        ok,
+        summary: ok
+          ? "Сессионный токен получен"
+          : formatErrorDetails(resp) || "Ошибка без деталей",
+      });
     } catch (e) {
-      const payload = e?.response?.data || {
+      const response = e?.response?.data || {
         ok: false,
         message: e?.message || "Неизвестная ошибка",
         code: e?.code || null,
       };
-      setMesTestResult(payload);
-      setMesTestOpen(true);
-      showAlert(
-        "error",
-        `МосЭнергоСбыт Тест: ${formatErrorDetails(payload) || "ошибка без деталей"}`
-      );
-      console.error("MES auth-test error:", e?.response?.data || e?.message || e);
+      return makeResultEntry({
+        channel: "МосЭнергоСбыт Тест",
+        action: "test",
+        request: {
+          method: "GET",
+          url: `${SERVICES_URL}/services/mes/auth-test`,
+          body: null,
+        },
+        response,
+        ok: false,
+        summary: formatErrorDetails(response) || "Ошибка без деталей",
+      });
     } finally {
       setMesTestLoading(false);
     }
   };
 
-  const handleTestEddsNew = async () => {
+  const runEddsNewTest = async () => {
     try {
       if (!eddsPayload) {
-        showAlert("error", "ЕДДС new Тест: нет данных для отправки");
-        return;
+        return makeResultEntry({
+          channel: "ЕДДС new",
+          action: "test",
+          request: {
+            method: "POST",
+            url: `${SERVICES_URL}/services/edds/?debug=1`,
+            body: null,
+          },
+          response: { message: "ЕДДС new Тест: нет данных для отправки" },
+          ok: false,
+          summary: "Нет данных для отправки",
+        });
       }
 
       setEddsTestLoading(true);
-      setEddsTestOpen(true);
       const jwt = localStorage.getItem("jwt");
       const resp = await testEddsSend(
         SERVICES_URL,
@@ -241,17 +239,12 @@ export default function SendBlock({
         buildAuditHeaders(user, "/")
       );
 
-      const payload = {
-        request: {
-          method: "POST",
-          url: `${SERVICES_URL}/services/edds/?debug=1`,
-          body: eddsPayload,
-        },
-        response: normalizeEddsTestResponse(resp),
+      const request = {
+        method: "POST",
+        url: `${SERVICES_URL}/services/edds/?debug=1`,
+        body: eddsPayload,
       };
-
-      setEddsTestResult(payload);
-      showAlert("success", "ЕДДС new Тест: ответ от бэкенда получен");
+      const response = normalizeEddsTestResponse(resp);
       logAuditEvent(
         {
           action: "edds_new_test",
@@ -261,28 +254,44 @@ export default function SendBlock({
         },
         user
       );
+      return makeResultEntry({
+        channel: "ЕДДС new",
+        action: "test",
+        request,
+        response,
+        ok:
+          response?.success === true ||
+          response?.ok === true ||
+          Boolean(response?.data?.claim_id),
+        summary:
+          response?.message ||
+          (response?.data?.claim_id
+            ? `Данные приняты (ID: ${response.data.claim_id})`
+            : "Ответ получен"),
+      });
     } catch (e) {
-      const payload = {
+      const request = {
         request: {
           method: "POST",
           url: `${SERVICES_URL}/services/edds/?debug=1`,
           body: eddsPayload,
         },
-        response: normalizeEddsTestResponse(
-          e?.response?.data || {
-            ok: false,
-            message: e?.message || "Неизвестная ошибка",
-            code: e?.code || null,
-          }
-        ),
       };
-      setEddsTestResult(payload);
-      setEddsTestOpen(true);
-      showAlert(
-        "error",
-        `ЕДДС new Тест: ${formatErrorDetails(payload.response) || "ошибка без деталей"}`
+      const response = normalizeEddsTestResponse(
+        e?.response?.data || {
+          ok: false,
+          message: e?.message || "Неизвестная ошибка",
+          code: e?.code || null,
+        }
       );
-      console.error("EDDS new test error:", e?.response?.data || e?.message || e);
+      return makeResultEntry({
+        channel: "ЕДДС new",
+        action: "test",
+        request: request.request,
+        response,
+        ok: false,
+        summary: formatErrorDetails(response) || "Ошибка без деталей",
+      });
     } finally {
       setEddsTestLoading(false);
     }
@@ -318,6 +327,7 @@ export default function SendBlock({
 
       setSending(true);
       setNotice(null);
+      const results = [];
 
       if (toEdds) {
         const jwt = localStorage.getItem("jwt");
@@ -368,6 +378,26 @@ export default function SendBlock({
             user
           );
         }
+
+        results.push(
+          makeResultEntry({
+            channel: "ЕДДС",
+            action: "send",
+            request: {
+              method: "POST",
+              url: `${SERVICES_URL}/services/edds/`,
+              body: eddsPayload,
+            },
+            response: normalizeEddsTestResponse(resp),
+            ok,
+            summary: ok
+              ? resp?.message ||
+                (resp?.data?.claim_id
+                  ? `Данные приняты (ID: ${resp.data.claim_id})`
+                  : "Данные отправлены")
+              : formatErrorDetails(resp) || "Ответ без сообщения",
+          })
+        );
       }
 
       if (toMes) {
@@ -405,14 +435,31 @@ export default function SendBlock({
             user
           );
         }
+
+        results.push(
+          makeResultEntry({
+            channel: "МосЭнергоСбыт",
+            action: "send",
+            request: {
+              method: "POST",
+              url: `${SERVICES_URL}/services/mes/upload`,
+              body: mesPayload,
+            },
+            response: resp,
+            ok: Boolean(resp?.ok),
+            summary: resp?.ok
+              ? resp?.message || "Данные отправлены"
+              : formatErrorDetails(resp) || "Ответ без сообщения",
+          })
+        );
       }
 
       if (toEddsNewTest) {
-        await handleTestEddsNew();
+        results.push(await runEddsNewTest());
       }
 
       if (toMesTest) {
-        await handleTestMesAuth();
+        results.push(await runMesAuthTest());
       }
 
       const unsupportedExtraChannels = activeExtraChannels;
@@ -426,6 +473,28 @@ export default function SendBlock({
           `Каналы ${extraLabels} выбраны. Боевая логика для них будет подключена следующим этапом.`,
           8000
         );
+
+        results.push(
+          makeResultEntry({
+            channel: extraLabels,
+            action: "send",
+            request: {
+              method: "—",
+              url: "—",
+              body: null,
+            },
+            response: {
+              message: "Боевая логика для этих каналов будет подключена следующим этапом.",
+            },
+            ok: false,
+            summary: "Канал пока не подключён",
+          })
+        );
+      }
+
+      if (results.length > 0) {
+        setSendResults(results);
+        setSendResultsOpen(true);
       }
 
       await refresh?.();
@@ -572,177 +641,101 @@ export default function SendBlock({
       <Divider style={{ margin: "8px 0 0" }} />
 
       <Drawer
-        title="ЕДДС new Тест"
+        title="Результат отправки"
         placement="right"
-        width={640}
-        open={eddsTestOpen}
-        onClose={() => setEddsTestOpen(false)}
+        width={720}
+        open={sendResultsOpen}
+        onClose={() => setSendResultsOpen(false)}
       >
-        <Typography.Paragraph type="secondary" style={{ marginTop: 0 }}>
-          Тестируем текущий payload ЕДДС через backend `/services/edds?debug=1`.
-        </Typography.Paragraph>
-
-        {eddsTestResult ? (
+        {sendResults.length > 0 ? (
           <Space direction="vertical" size={12} style={{ width: "100%" }}>
-            <div
-              style={{
-                background: "#fafafa",
-                border: "1px solid #f0f0f0",
-                borderRadius: 8,
-                padding: 12,
-              }}
-            >
-              <Typography.Text strong>Ответ от ЕДДС</Typography.Text>
-              <pre
-                style={{
-                  whiteSpace: "pre-wrap",
-                  wordBreak: "break-word",
-                  fontSize: 12,
-                  lineHeight: 1.5,
-                  margin: "8px 0 0",
-                }}
-              >
-                {JSON.stringify(eddsTestResult?.response || {}, null, 2)}
-              </pre>
-            </div>
-
-            <Divider style={{ margin: 0 }}>Что отправляем</Divider>
+            <Flex gap={8} wrap>
+              <Tag color="success">
+                Успешно: {sendResults.filter((item) => item.ok).length}
+              </Tag>
+              <Tag color="error">
+                Ошибок: {sendResults.filter((item) => !item.ok).length}
+              </Tag>
+              <Tag>
+                Всего: {sendResults.length}
+              </Tag>
+            </Flex>
 
             <Collapse
-              items={[
-                {
-                  key: "edds-request-body",
-                  label: "Показать / скрыть JSON, который отправляем",
-                  children: (
-                    <pre
-                      style={{
-                        whiteSpace: "pre-wrap",
-                        wordBreak: "break-word",
-                        fontSize: 12,
-                        lineHeight: 1.5,
-                        margin: 0,
-                      }}
-                    >
-                      {JSON.stringify(eddsTestResult?.request?.body || {}, null, 2)}
-                    </pre>
+              items={sendResults.map((item) => {
+                const tag = getResultTag(item);
+                return {
+                  key: item.key,
+                  label: (
+                    <Flex align="center" gap={8} wrap>
+                      <Tag color={tag.color}>{tag.text}</Tag>
+                      <Typography.Text strong>{item.channel}</Typography.Text>
+                      <Typography.Text type="secondary">
+                        {item.summary}
+                      </Typography.Text>
+                    </Flex>
                   ),
-                },
-              ]}
+                  children: (
+                    <Space direction="vertical" size={12} style={{ width: "100%" }}>
+                      <Alert
+                        type={item.ok ? "success" : "error"}
+                        showIcon
+                        message={item.ok ? "Отправка прошла успешно" : "Есть ошибка при отправке"}
+                        description={item.summary}
+                      />
+
+                      <div
+                        style={{
+                          background: item.ok ? "#f6ffed" : "#fff2f0",
+                          border: item.ok ? "1px solid #b7eb8f" : "1px solid #ffccc7",
+                          borderRadius: 8,
+                          padding: 12,
+                        }}
+                      >
+                        <Typography.Text strong>Ответ внешней системы</Typography.Text>
+                        <pre
+                          style={{
+                            whiteSpace: "pre-wrap",
+                            wordBreak: "break-word",
+                            fontSize: 12,
+                            lineHeight: 1.5,
+                            margin: "8px 0 0",
+                          }}
+                        >
+                          {JSON.stringify(item.response || {}, null, 2)}
+                        </pre>
+                      </div>
+
+                      <Collapse
+                        items={[
+                          {
+                            key: `${item.key}-request`,
+                            label: "Показать / скрыть, что отправили",
+                            children: (
+                              <pre
+                                style={{
+                                  whiteSpace: "pre-wrap",
+                                  wordBreak: "break-word",
+                                  fontSize: 12,
+                                  lineHeight: 1.5,
+                                  margin: 0,
+                                }}
+                              >
+                                {JSON.stringify(item.request || {}, null, 2)}
+                              </pre>
+                            ),
+                          },
+                        ]}
+                      />
+                    </Space>
+                  ),
+                };
+              })}
             />
           </Space>
         ) : (
           <Typography.Text type="secondary">
-            Нажми кнопку теста, и здесь появятся payload и ответ бэкенда.
-          </Typography.Text>
-        )}
-      </Drawer>
-
-      <Drawer
-        title="МосЭнергоСбыт Тест"
-        placement="right"
-        width={640}
-        open={mesTestOpen}
-        onClose={() => setMesTestOpen(false)}
-      >
-        <Typography.Paragraph type="secondary" style={{ marginTop: 0 }}>
-          Тестируем только получение session из СУВК через backend `/services/mes/auth-test`.
-        </Typography.Paragraph>
-
-        {mesTestResult ? (
-          <Space direction="vertical" size={12} style={{ width: "100%" }}>
-            <Flex justify="space-between" align="center" gap={12} wrap>
-              <Typography.Text strong>
-                Диагностика для отправки подрядчику
-              </Typography.Text>
-              <Button onClick={handleCopyMesTest}>
-                Скопировать в буфер
-              </Button>
-            </Flex>
-
-            <div
-              style={{
-                background: "#fafafa",
-                border: "1px solid #f0f0f0",
-                borderRadius: 8,
-                padding: 12,
-              }}
-            >
-              <Typography.Paragraph style={{ marginBottom: 8 }}>
-                <strong>Результат:</strong> {String(mesTestResult?.ok)}
-              </Typography.Paragraph>
-              <Typography.Paragraph style={{ marginBottom: 8 }}>
-                <strong>Сообщение:</strong> {mesTestResult?.message || "—"}
-              </Typography.Paragraph>
-              <Typography.Paragraph style={{ marginBottom: 8 }}>
-                <strong>Код ошибки:</strong> {mesTestResult?.code || "—"}
-              </Typography.Paragraph>
-              <Typography.Paragraph style={{ marginBottom: 8 }}>
-                <strong>URL:</strong> {mesTestResult?.debug?.auth_url || "—"}
-              </Typography.Paragraph>
-              <Typography.Paragraph style={{ marginBottom: 8 }}>
-                <strong>Метод:</strong> {mesTestResult?.debug?.request?.method || "—"}
-              </Typography.Paragraph>
-              <Typography.Paragraph style={{ marginBottom: 8 }}>
-                <strong>Логин:</strong> {mesTestResult?.debug?.credentials?.login || "—"}
-              </Typography.Paragraph>
-              <Typography.Paragraph style={{ marginBottom: 8 }}>
-                <strong>Пароль:</strong> {mesTestResult?.debug?.credentials?.password || "—"}
-              </Typography.Paragraph>
-              <Typography.Paragraph style={{ marginBottom: 8 }}>
-                <strong>Ждали:</strong> {mesTestResult?.debug?.duration_ms ?? "—"} мс
-              </Typography.Paragraph>
-              <Typography.Paragraph style={{ marginBottom: 0 }}>
-                <strong>HTTP статус:</strong> {mesTestResult?.debug?.http_status ?? "—"}
-              </Typography.Paragraph>
-            </div>
-
-            <div
-              style={{
-                background: "#fafafa",
-                border: "1px solid #f0f0f0",
-                borderRadius: 8,
-                padding: 12,
-              }}
-            >
-              <Typography.Text strong>Параметры запроса</Typography.Text>
-              <pre
-                style={{
-                  whiteSpace: "pre-wrap",
-                  wordBreak: "break-word",
-                  fontSize: 12,
-                  lineHeight: 1.5,
-                  margin: "8px 0 0",
-                }}
-              >
-                {JSON.stringify(mesTestResult?.debug?.request?.query || {}, null, 2)}
-              </pre>
-            </div>
-
-            <div
-              style={{
-                background: "#fafafa",
-                border: "1px solid #f0f0f0",
-                borderRadius: 8,
-                padding: 12,
-              }}
-            >
-              <Typography.Text strong>Полный ответ бэкенда</Typography.Text>
-              <pre
-                style={{
-                  whiteSpace: "pre-wrap",
-                  wordBreak: "break-word",
-                  fontSize: 12,
-                  lineHeight: 1.5,
-                  margin: "8px 0 0",
-                }}
-              >
-                {JSON.stringify(mesTestResult, null, 2)}
-              </pre>
-            </div>
-          </Space>
-        ) : (
-          <Typography.Text type="secondary">
-            Нажми кнопку теста, и здесь появится ответ бэкенда.
+            После отправки здесь появятся результаты по выбранным каналам.
           </Typography.Text>
         )}
       </Drawer>
