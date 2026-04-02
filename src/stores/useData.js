@@ -29,6 +29,10 @@ const useData = create((set) => ({
         params["filters[createDateTime][$lte]"] = end;
       }
 
+      if (opts.violationType) {
+        params["filters[VIOLATION_TYPE][$eq]"] = String(opts.violationType).trim();
+      }
+
       const { data } = await axios.get(base, {
         params,
         headers: { Authorization: `Bearer ${jwt}` },
@@ -60,6 +64,9 @@ const useData = create((set) => ({
         const end = new Date(d.year(), d.month(), d.date(), 23, 59, 59).toISOString();
         params["filters[createDateTime][$gte]"] = start;
         params["filters[createDateTime][$lte]"] = end;
+      }
+      if (opts.violationType) {
+        params["filters[VIOLATION_TYPE][$eq]"] = String(opts.violationType).trim();
       }
       const { data } = await axios.get(base, {
         params,

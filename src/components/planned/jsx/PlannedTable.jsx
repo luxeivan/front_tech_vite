@@ -28,6 +28,7 @@ import {
   extractGuid,
   formatDateTime,
   getField,
+  isPlannedType,
   getPlannedStatusName,
   parseJournalStatuses,
 } from "../js/plannedTable.utils";
@@ -131,7 +132,7 @@ function mapRow(item, sendStatus) {
     key: getField(item, "id") ?? documentId,
     documentId,
     number: plannedNum ?? "—",
-    violationType: getField(item, "VIOLATION_TYPE") ?? "—",
+    violationType: getField(item, "VIOLATION_TYPE") ?? "П",
     startPlan: formatDateTime(getField(item, "F81_060_EVENTDATETIME")),
     startFact: formatDateTime(getField(item, "STARTDATETIME")),
     endPlan: formatDateTime(getField(item, "F81_070_RESTOR_SUPPLAYDATETIME")),
@@ -212,8 +213,8 @@ export default function PlannedTable() {
       if (!force && lastDataKeyRef.current === key) return;
       lastDataKeyRef.current = key;
       await Promise.all([
-        getTns({ date: nextDate ?? null }),
-        loadOpenedCount({ date: nextDate ?? null }),
+        getTns({ date: nextDate ?? null, violationType: "П" }),
+        loadOpenedCount({ date: nextDate ?? null, violationType: "П" }),
       ]);
     },
     [date, getTns, loadOpenedCount]
@@ -229,7 +230,9 @@ export default function PlannedTable() {
 
   const rows = useMemo(() => {
     const list = Array.isArray(tns?.data) ? tns.data : [];
-    return list.map((x) => (x?.attributes ? { id: x.id, ...x.attributes } : x));
+    return list
+      .map((x) => (x?.attributes ? { id: x.id, ...x.attributes } : x))
+      .filter((item) => isPlannedType(item));
   }, [tns?.data]);
 
   const poOptions = useMemo(() => {
