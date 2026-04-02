@@ -3,7 +3,6 @@ import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import useAuth from "../stores/useAuth";
 import { logAuditEvent } from "../utils/auditLogger";
-import { hasFeatureAccess } from "../config/viewRoleAccess";
 import logo from "../img/logoBlue.svg";
 import styles from "./Header.module.css";
 
@@ -11,7 +10,6 @@ export default function Header() {
   const { isAuth, exit, user } = useAuth((store) => store);
   const navigate = useNavigate();
   const location = useLocation();
-  const canSeePlannedModule = hasFeatureAccess(user?.view_role, "plannedModule");
 
   const goTo = (path, action) => {
     logAuditEvent({ page: location.pathname, action, entity: "button" }, user);
@@ -38,14 +36,12 @@ export default function Header() {
             >
               Аварийные отключения
             </Button>
-            {canSeePlannedModule && (
-              <Button
-                type={location.pathname === "/planned" ? "primary" : "default"}
-                onClick={() => goTo("/planned", "click_planned_tn")}
-              >
-                Плановые отключения
-              </Button>
-            )}
+            <Button
+              type={location.pathname === "/planned" ? "primary" : "default"}
+              onClick={() => goTo("/planned", "click_planned_tn")}
+            >
+              Плановые отключения
+            </Button>
             <Button
               type={location.pathname === "/dashboard" ? "primary" : "default"}
               onClick={() => goTo("/dashboard", "click_dashboard")}
