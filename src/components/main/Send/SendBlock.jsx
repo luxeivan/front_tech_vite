@@ -52,6 +52,8 @@ export default function SendBlock({
   const [eddsTestLoading, setEddsTestLoading] = useState(false);
   const [eddsTestOpen, setEddsTestOpen] = useState(false);
   const [eddsTestResult, setEddsTestResult] = useState(null);
+  const [eddsNewSelected, setEddsNewSelected] = useState(false);
+  const [mesTestSelected, setMesTestSelected] = useState(false);
   const isUnplannedMode = mode === "unplanned";
   const canUseTestButtons = hasFeatureAccess(user?.view_role, "tnTestButtons");
 
@@ -157,6 +159,11 @@ export default function SendBlock({
     });
     setExtraSelected(next);
   }, [documentId, extraChannels]);
+
+  useEffect(() => {
+    setEddsNewSelected(false);
+    setMesTestSelected(false);
+  }, [documentId]);
 
   const eddsPayload = useMemo(() => buildEddsPayload(tn), [tn?.data]);
   const mesPayload = useMemo(() => buildMosEnergoSbytPayload(tn), [tn?.data]);
@@ -284,12 +291,14 @@ export default function SendBlock({
   const handleSend = async () => {
     try {
       const toEdds = eddsSelected;
+      const toEddsNewTest = canUseTestButtons && isUnplannedMode && eddsNewSelected;
       const toMes = mesSelected;
+      const toMesTest = canUseTestButtons && isUnplannedMode && mesTestSelected;
       const activeExtraChannels = extraChannels.filter(
         (channel) => extraSelected[channel.key]
       );
 
-      if (!toEdds && !toMes && activeExtraChannels.length === 0) {
+      if (!toEdds && !toEddsNewTest && !toMes && !toMesTest && activeExtraChannels.length === 0) {
         logAuditEvent({ action: "send_block_no_target", entity: "send_block", details: { documentId } }, user);
         showAlert("warning", "Выберите получателя перед отправкой");
         return;
@@ -300,6 +309,10 @@ export default function SendBlock({
       }
       if (toMes && !mesPayload) {
         showAlert("error", "МосЭнергоСбыт: нет данных для отправки");
+        return;
+      }
+      if (toEddsNewTest && !eddsPayload) {
+        showAlert("error", "ЕДДС new Тест: нет данных для отправки");
         return;
       }
 
@@ -394,6 +407,14 @@ export default function SendBlock({
         }
       }
 
+      if (toEddsNewTest) {
+        await handleTestEddsNew();
+      }
+
+      if (toMesTest) {
+        await handleTestMesAuth();
+      }
+
       const unsupportedExtraChannels = activeExtraChannels;
 
       if (unsupportedExtraChannels.length > 0) {
@@ -429,7 +450,12 @@ export default function SendBlock({
   };
 
   const hasExtraSelected = extraChannels.some((channel) => extraSelected[channel.key]);
-  const canSend = !sending && (eddsSelected || mesSelected || hasExtraSelected);
+  const canSend =
+    !sending &&
+    (eddsSelected ||
+      mesSelected ||
+      hasExtraSelected ||
+      (canUseTestButtons && isUnplannedMode && (eddsNewSelected || mesTestSelected)));
 
   return (
     <div>
@@ -467,6 +493,16 @@ export default function SendBlock({
             ЕДДС
           </Checkbox>
 
+          {isUnplannedMode && canUseTestButtons && (
+            <Checkbox
+              checked={eddsNewSelected}
+              disabled={readOnly}
+              onChange={(e) => setEddsNewSelected(e.target.checked)}
+            >
+              ЕДДС new
+            </Checkbox>
+          )}
+
           <Checkbox
             checked={mesSelected}
             disabled={readOnly}
@@ -474,6 +510,16 @@ export default function SendBlock({
           >
             МосЭнергоСбыт
           </Checkbox>
+
+          {isUnplannedMode && canUseTestButtons && (
+            <Checkbox
+              checked={mesTestSelected}
+              disabled={readOnly}
+              onChange={(e) => setMesTestSelected(e.target.checked)}
+            >
+              МосЭнергоСбыт Тест
+            </Checkbox>
+          )}
 
           {extraChannels.map((channel) => (
             <Checkbox
@@ -492,44 +538,23 @@ export default function SendBlock({
           ))}
         </Flex>
 
-        <Flex
-          vertical
-          gap={10}
-          align="stretch"
-          style={{ minWidth: 200 }}
-        >
-          {!readOnly && isUnplannedMode && canUseTestButtons && (
-            <Button
-              onClick={handleTestEddsNew}
-              loading={eddsTestLoading}
-              block
-            >
-              ЕДДС new Тест
-            </Button>
-          )}
-
-          {!readOnly && isUnplannedMode && canUseTestButtons && (
-            <Button
-              onClick={handleTestMesAuth}
-              loading={mesTestLoading}
-              block
-            >
-              МосЭнергоСбыт Тест
-            </Button>
-          )}
-
-          {!readOnly && (
+        {!readOnly && (
+          <Flex
+            vertical
+            align="stretch"
+            style={{ minWidth: 180, paddingTop: 4 }}
+          >
             <Button
               type="primary"
               onClick={handleSend}
               disabled={!canSend}
-              loading={sending}
+              loading={sending || eddsTestLoading || mesTestLoading}
               block
             >
               Отправить
             </Button>
-          )}
-        </Flex>
+          </Flex>
+        )}
       </Flex>
 
       <Typography.Paragraph type="secondary" style={{ marginTop: 6 }}>
