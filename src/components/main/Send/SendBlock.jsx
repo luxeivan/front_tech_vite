@@ -177,7 +177,7 @@ export default function SendBlock({
         user
       );
       return makeResultEntry({
-        channel: "МосЭнергоСбыт Тест",
+        channel: "МосЭнергоСбыт new",
         action: "test",
         request: {
           method: "GET",
@@ -197,7 +197,7 @@ export default function SendBlock({
         code: e?.code || null,
       };
       return makeResultEntry({
-        channel: "МосЭнергоСбыт Тест",
+        channel: "МосЭнергоСбыт new",
         action: "test",
         request: {
           method: "GET",
@@ -586,7 +586,7 @@ export default function SendBlock({
               disabled={readOnly}
               onChange={(e) => setMesTestSelected(e.target.checked)}
             >
-              МосЭнергоСбыт Тест
+              МосЭнергоСбыт new
             </Checkbox>
           )}
 

@@ -1,0 +1,32 @@
+name: Автодеплой фронта
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: front-deploy-main
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Деплой на сервер
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: 22
+          script: |
+            set -e
+            cd "${{ secrets.DEPLOY_PATH }}"
+            echo "[deploy] Текущая папка: $(pwd)"
+            git pull --ff-only origin main
+            npm ci
+            npm run build
+            echo "[deploy] Готово"
