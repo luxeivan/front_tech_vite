@@ -26,6 +26,11 @@ jobs:
             set -e
             cd "${{ secrets.DEPLOY_PATH }}"
             echo "[deploy] Текущая папка: $(pwd)"
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+            nvm use default
+            echo "[deploy] node: $(node -v)"
+            echo "[deploy] npm: $(npm -v)"
             git pull --ff-only origin main
             npm ci
             npm run build
