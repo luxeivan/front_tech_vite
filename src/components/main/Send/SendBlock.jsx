@@ -568,7 +568,7 @@ export default function SendBlock({
               disabled={readOnly}
               onChange={(e) => setEddsNewSelected(e.target.checked)}
             >
-              ЕДДС new1
+              ЕДДС new
             </Checkbox>
           )}
 
