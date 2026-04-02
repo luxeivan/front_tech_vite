@@ -17,6 +17,7 @@ import Portal404 from "./components/Portal404/Portal404";
 import PesPage from "./pages/pes/PesPage";
 import PlannedPage from "./pages/planned/PlannedPage";
 import { logAuditBeacon, logAuditEvent } from "./utils/auditLogger";
+import { hasFeatureAccess } from "./config/viewRoleAccess";
 import styles from "./AppLayout.module.css";
 
 function AuditTracker() {
@@ -70,6 +71,7 @@ function AuditTracker() {
 function App() {
   const { isAuth, getJwt, getFieldsSetting } =
     useAuth((store) => store);
+  const user = useAuth((store) => store.user);
   const [authChecked, setAuthChecked] = useState(false);
   useEffect(() => {
     Promise.resolve(getJwt()).finally(() => setAuthChecked(true));
@@ -80,6 +82,7 @@ function App() {
 
   const authOk = isAuth;
   const hasJwt = Boolean(localStorage.getItem("jwt"));
+  const canSeePlannedModule = hasFeatureAccess(user?.view_role, "plannedModule");
 
   const Protected = ({ children }) => {
     // If the user opened a protected page directly, give getJwt() a moment to restore auth
@@ -127,7 +130,7 @@ function App() {
               path="/planned"
               element={
                 <Protected>
-                  <PlannedPage />
+                  {canSeePlannedModule ? <PlannedPage /> : <Navigate to="/" replace />}
                 </Protected>
               }
             />
