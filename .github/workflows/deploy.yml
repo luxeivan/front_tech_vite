@@ -3,15 +3,39 @@ name: Автодеплой фронта
 on:
   push:
     branches:
+      - "**"
+  pull_request:
+    branches:
       - main
   workflow_dispatch:
 
 concurrency:
-  group: front-deploy-main
+  group: front-pipeline-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Забираем репозиторий
+        uses: actions/checkout@v4
+
+      - name: Ставим Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Устанавливаем зависимости
+        run: npm ci
+
+      - name: Проверяем сборку
+        run: npm run build
+
   deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: verify
     runs-on: ubuntu-latest
 
     steps:
