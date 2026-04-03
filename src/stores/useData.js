@@ -2,7 +2,7 @@ import axios from "axios";
 import { create } from "zustand";
 
 const urlBackend = import.meta.env.VITE_URL_BACKEND;
-const DEFAULT_TNS_PAGE_SIZE = 1000;
+const DEFAULT_TNS_PAGE_SIZE = 100;
 
 const useData = create((set) => ({
   tns: false,
