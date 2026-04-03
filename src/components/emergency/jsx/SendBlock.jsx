@@ -51,6 +51,7 @@ export default function SendBlock({
   const [eddsTestLoading, setEddsTestLoading] = useState(false);
   const [eddsNewSelected, setEddsNewSelected] = useState(false);
   const [mesTestSelected, setMesTestSelected] = useState(false);
+  const [siteTgMaxNewSelected, setSiteTgMaxNewSelected] = useState(false);
   const [sendResultsOpen, setSendResultsOpen] = useState(false);
   const [sendResults, setSendResults] = useState([]);
   const isUnplannedMode = mode === "unplanned";
@@ -101,7 +102,7 @@ export default function SendBlock({
     return cleaned;
   };
 
-  const makeResultEntry = ({ channel, action, request, response, ok, summary }) => ({
+  const makeResultEntry = ({ channel, action, request, response, ok, summary, tone }) => ({
     key: `${channel}-${action}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     channel,
     action,
@@ -109,9 +110,11 @@ export default function SendBlock({
     response,
     ok: Boolean(ok),
     summary: summary || (ok ? "Операция выполнена" : "Получена ошибка"),
+    tone: tone || (ok ? "success" : "error"),
   });
 
   const getResultTag = (item) => {
+    if (item.tone === "info") return { color: "processing", text: "В работе" };
     if (item.ok) return { color: "success", text: "Успешно" };
     return { color: "error", text: "Ошибка" };
   };
@@ -142,6 +145,7 @@ export default function SendBlock({
   useEffect(() => {
     setEddsNewSelected(false);
     setMesTestSelected(false);
+    setSiteTgMaxNewSelected(false);
   }, [documentId]);
 
   const eddsPayload = useMemo(() => buildEddsPayload(tn), [tn?.data]);
@@ -303,11 +307,19 @@ export default function SendBlock({
       const toEddsNewTest = canUseTestButtons && isUnplannedMode && eddsNewSelected;
       const toMes = mesSelected;
       const toMesTest = canUseTestButtons && isUnplannedMode && mesTestSelected;
+      const toSiteTgMaxNew = canUseTestButtons && isUnplannedMode && siteTgMaxNewSelected;
       const activeExtraChannels = extraChannels.filter(
         (channel) => extraSelected[channel.key]
       );
 
-      if (!toEdds && !toEddsNewTest && !toMes && !toMesTest && activeExtraChannels.length === 0) {
+      if (
+        !toEdds &&
+        !toEddsNewTest &&
+        !toMes &&
+        !toMesTest &&
+        !toSiteTgMaxNew &&
+        activeExtraChannels.length === 0
+      ) {
         logAuditEvent({ action: "send_block_no_target", entity: "send_block", details: { documentId } }, user);
         showAlert("warning", "Выберите получателя перед отправкой");
         return;
@@ -462,6 +474,36 @@ export default function SendBlock({
         results.push(await runMesAuthTest());
       }
 
+      if (toSiteTgMaxNew) {
+        const response = {
+          message:
+            "Канал Сайт/TG/MAX new подготовлен на интерфейсе. Маршруты отправки будут подключены следующим этапом.",
+        };
+        logAuditEvent(
+          {
+            action: "site_tg_max_new_prepare",
+            entity: "send_block",
+            entity_id: String(documentId || ""),
+          },
+          user
+        );
+        results.push(
+          makeResultEntry({
+            channel: "Сайт/TG/MAX new",
+            action: "prepare",
+            request: {
+              method: "—",
+              url: "—",
+              body: null,
+            },
+            response,
+            ok: false,
+            tone: "info",
+            summary: "Канал подготовлен, маршруты отправки будут подключены позже",
+          })
+        );
+      }
+
       const unsupportedExtraChannels = activeExtraChannels;
 
       if (unsupportedExtraChannels.length > 0) {
@@ -524,7 +566,9 @@ export default function SendBlock({
     (eddsSelected ||
       mesSelected ||
       hasExtraSelected ||
-      (canUseTestButtons && isUnplannedMode && (eddsNewSelected || mesTestSelected)));
+      (canUseTestButtons &&
+        isUnplannedMode &&
+        (eddsNewSelected || mesTestSelected || siteTgMaxNewSelected)));
 
   return (
     <div>
@@ -587,6 +631,16 @@ export default function SendBlock({
               onChange={(e) => setMesTestSelected(e.target.checked)}
             >
               МосЭнергоСбыт new
+            </Checkbox>
+          )}
+
+          {isUnplannedMode && canUseTestButtons && (
+            <Checkbox
+              checked={siteTgMaxNewSelected}
+              disabled={readOnly}
+              onChange={(e) => setSiteTgMaxNewSelected(e.target.checked)}
+            >
+              Сайт/TG/MAX new
             </Checkbox>
           )}
 
@@ -678,16 +732,38 @@ export default function SendBlock({
                   children: (
                     <Space direction="vertical" size={12} style={{ width: "100%" }}>
                       <Alert
-                        type={item.ok ? "success" : "error"}
+                        type={
+                          item.tone === "info"
+                            ? "info"
+                            : item.ok
+                              ? "success"
+                              : "error"
+                        }
                         showIcon
-                        message={item.ok ? "Отправка прошла успешно" : "Есть ошибка при отправке"}
+                        message={
+                          item.tone === "info"
+                            ? "Канал подготовлен"
+                            : item.ok
+                              ? "Отправка прошла успешно"
+                              : "Есть ошибка при отправке"
+                        }
                         description={item.summary}
                       />
 
                       <div
                         style={{
-                          background: item.ok ? "#f6ffed" : "#fff2f0",
-                          border: item.ok ? "1px solid #b7eb8f" : "1px solid #ffccc7",
+                          background:
+                            item.tone === "info"
+                              ? "#f0f5ff"
+                              : item.ok
+                                ? "#f6ffed"
+                                : "#fff2f0",
+                          border:
+                            item.tone === "info"
+                              ? "1px solid #adc6ff"
+                              : item.ok
+                                ? "1px solid #b7eb8f"
+                                : "1px solid #ffccc7",
                           borderRadius: 8,
                           padding: 12,
                         }}
