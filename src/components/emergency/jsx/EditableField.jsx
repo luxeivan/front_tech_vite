@@ -1,7 +1,7 @@
 import { EditOutlined } from "@ant-design/icons";
 import { Flex, Typography, Input, Button } from "antd";
 import React, { useEffect, useState } from "react";
-import styles from "./EditableField.module.css";
+import styles from "../css/EditableField.module.css";
 
 export default function EditableField({
   handlerUpdateTn,

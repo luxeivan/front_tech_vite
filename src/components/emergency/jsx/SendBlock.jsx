@@ -13,12 +13,12 @@ import {
   message,
 } from "antd";
 import axios from "axios";
-import { buildEddsPayload, sendToEdds, testEddsSend } from "./Edds";
+import { buildEddsPayload, sendToEdds, testEddsSend } from "../js/Edds";
 import {
   buildMosEnergoSbytPayload,
   sendToMes,
   testMesAuth,
-} from "./MosEnergoSbyt";
+} from "../js/MosEnergoSbyt";
 import useAuth from "../../../stores/useAuth";
 import { buildAuditHeaders, logAuditEvent } from "../../../utils/auditLogger";
 import { hasFeatureAccess } from "../../../config/viewRoleAccess";

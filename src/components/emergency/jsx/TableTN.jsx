@@ -15,14 +15,14 @@ import {
 } from "antd";
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import useData from "../../stores/useData";
+import useData from "../../../stores/useData";
 import dayjs from "dayjs";
 import { ReloadOutlined } from "@ant-design/icons";
-import useAuth from "../../stores/useAuth";
+import useAuth from "../../../stores/useAuth";
 import TableTNActionsBar from "./TableTNActionsBar";
 import TNModal from "./TNModal";
-import JournalOpenModal from "../journalOpen/JournalOpenModal";
-import { hasFeatureAccess } from "../../config/viewRoleAccess";
+import JournalOpenModal from "../../journalOpen/JournalOpenModal";
+import { hasFeatureAccess } from "../../../config/viewRoleAccess";
 import ruRU from "antd/locale/ru_RU";
 import "dayjs/locale/ru";
 dayjs.locale("ru");

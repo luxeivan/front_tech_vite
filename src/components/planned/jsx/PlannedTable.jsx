@@ -20,7 +20,7 @@ import { ReloadOutlined } from "@ant-design/icons";
 import useAuth from "../../../stores/useAuth";
 import useData from "../../../stores/useData";
 import { hasFeatureAccess } from "../../../config/viewRoleAccess";
-import TNModal from "../../main/TNModal";
+import TNModal from "../../emergency/jsx/TNModal";
 import JournalOpenModal from "../../journalOpen/JournalOpenModal";
 import {
   SzoCell,

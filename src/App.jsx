@@ -11,11 +11,11 @@ import useAuth from "./stores/useAuth";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import AuthForm from "./components/AuthForm";
-import TableTN from "./components/main/TableTN";
 import DashboardPage from "./pages/dashboard/DashboardPage";
 import Portal404 from "./components/Portal404/Portal404";
 import PesPage from "./pages/pes/PesPage";
 import PlannedPage from "./pages/planned/PlannedPage";
+import EmergencyPage from "./pages/emergency/EmergencyPage";
 import { logAuditBeacon, logAuditEvent } from "./utils/auditLogger";
 import styles from "./AppLayout.module.css";
 
@@ -103,7 +103,7 @@ function App() {
         <main className={styles.main}>
           <Routes>
             {/* Главная: форма логина или таблица ТН */}
-            <Route path="/" element={authOk ? <TableTN /> : <AuthForm />} />
+            <Route path="/" element={authOk ? <EmergencyPage /> : <AuthForm />} />
 
             {/* Дашборд: защищённая страница */}
           <Route

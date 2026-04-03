@@ -2,21 +2,21 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Descriptions, Divider, Flex, Modal, Spin, message } from "antd";
 import axios from "axios";
 
-import useData from "../../stores/useData";
-import useAuth from "../../stores/useAuth";
+import useData from "../../../stores/useData";
+import useAuth from "../../../stores/useAuth";
 import EditableField from "./EditableField";
-import SendBlock from "./Send/SendBlock";
-import { buildDescriptionTemplate } from "../../utils/descriptionTemplate";
-import { logAuditEvent } from "../../utils/auditLogger";
-import { hasFeatureAccess } from "../../config/viewRoleAccess";
-import { PLANNED_EXTRA_SEND_CHANNELS } from "../planned/js/plannedSendChannels";
+import SendBlock from "./SendBlock";
+import { buildDescriptionTemplate } from "../../../utils/descriptionTemplate";
+import { logAuditEvent } from "../../../utils/auditLogger";
+import { hasFeatureAccess } from "../../../config/viewRoleAccess";
+import { PLANNED_EXTRA_SEND_CHANNELS } from "../../planned/js/plannedSendChannels";
 import {
   buildSzoSummaryFromItem,
   formatDateTime,
   getField,
   getPlannedStatusName,
   SzoCell,
-} from "../planned/js/plannedTable.utils";
+} from "../../planned/js/plannedTable.utils";
 
 const URL = import.meta.env.VITE_URL_BACKEND;
 
