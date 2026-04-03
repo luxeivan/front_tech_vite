@@ -2,6 +2,7 @@ import axios from "axios";
 import { create } from "zustand";
 
 const urlBackend = import.meta.env.VITE_URL_BACKEND;
+const DEFAULT_TNS_PAGE_SIZE = 1000;
 
 const useData = create((set) => ({
   tns: false,
@@ -17,7 +18,7 @@ const useData = create((set) => ({
 
       const params = {
         "pagination[page]": 1,
-        "pagination[pageSize]": 100,
+        "pagination[pageSize]": opts.pageSize || DEFAULT_TNS_PAGE_SIZE,
         "sort[0]": "createDateTime:DESC",
       };
 
@@ -31,6 +32,10 @@ const useData = create((set) => ({
 
       if (opts.violationType) {
         params["filters[VIOLATION_TYPE][$eq]"] = String(opts.violationType).trim();
+      }
+
+      if (opts.excludeViolationType) {
+        params["filters[VIOLATION_TYPE][$ne]"] = String(opts.excludeViolationType).trim();
       }
 
       const { data } = await axios.get(base, {
@@ -67,6 +72,9 @@ const useData = create((set) => ({
       }
       if (opts.violationType) {
         params["filters[VIOLATION_TYPE][$eq]"] = String(opts.violationType).trim();
+      }
+      if (opts.excludeViolationType) {
+        params["filters[VIOLATION_TYPE][$ne]"] = String(opts.excludeViolationType).trim();
       }
       const { data } = await axios.get(base, {
         params,

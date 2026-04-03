@@ -27,6 +27,8 @@ import ruRU from "antd/locale/ru_RU";
 import "dayjs/locale/ru";
 dayjs.locale("ru");
 
+const EMERGENCY_VIOLATION_TYPE_EXCLUDE = "П";
+
 const getStatusName = (item) => {
   const a = item?.attributes;
   const possible = [
@@ -52,6 +54,22 @@ const getCreateDate = (item) =>
   item?.data?.data?.F81_060_EVENTDATETIME ??
   item?.attributes?.data?.data?.F81_060_EVENTDATETIME ??
   null;
+
+const getViolationType = (item) => {
+  const a = item?.attributes;
+  const possible = [
+    item?.VIOLATION_TYPE,
+    a?.VIOLATION_TYPE,
+    item?.data?.VIOLATION_TYPE,
+    item?.data?.data?.VIOLATION_TYPE,
+    item?.violation_type,
+    a?.violation_type,
+  ];
+  for (const v of possible) {
+    if (typeof v === "string" && v.trim()) return v.trim().toUpperCase();
+  }
+  return null;
+};
 
 function isGuid36(s) {
   return typeof s === 'string' &&
@@ -500,8 +518,8 @@ export default function TableTN() {
   // --- removed openedCount, loadingOpened, totalByDate, headerTotal memoizations
 
   useEffect(() => {
-    getTns({ date });
-    loadOpenedCount({ date });
+    getTns({ date, excludeViolationType: EMERGENCY_VIOLATION_TYPE_EXCLUDE });
+    loadOpenedCount({ date, excludeViolationType: EMERGENCY_VIOLATION_TYPE_EXCLUDE });
   }, [date, selectedStatuses, getTns, loadOpenedCount]);
 
   useEffect(() => {
@@ -555,8 +573,8 @@ export default function TableTN() {
       if (refreshLocked) return;
       timer = setTimeout(() => {
         if (!refreshLocked) {
-          getTns({ date });
-          loadOpenedCount({ date });
+          getTns({ date, excludeViolationType: EMERGENCY_VIOLATION_TYPE_EXCLUDE });
+          loadOpenedCount({ date, excludeViolationType: EMERGENCY_VIOLATION_TYPE_EXCLUDE });
           loadSendStatus();
         }
       }, delay);
@@ -651,6 +669,7 @@ export default function TableTN() {
 
   const listRaw = Array.isArray(tns?.data) ? tns.data : [];
   const listByDate = listRaw.filter((item) => {
+    if (getViolationType(item) === EMERGENCY_VIOLATION_TYPE_EXCLUDE) return false;
     const d = getCreateDate(item);
     return date ? dayjs(d).isSame(date, "day") : true;
   });
@@ -927,8 +946,8 @@ export default function TableTN() {
             <Button
               disabled={isLoadingTns}
               onClick={() => {
-                getTns({ date });
-                loadOpenedCount({ date });
+                getTns({ date, excludeViolationType: EMERGENCY_VIOLATION_TYPE_EXCLUDE });
+                loadOpenedCount({ date, excludeViolationType: EMERGENCY_VIOLATION_TYPE_EXCLUDE });
                 loadSendStatus();
               }}
             >
@@ -980,8 +999,8 @@ export default function TableTN() {
         onClose={() => {
           setIsOpenModalTN(false);
           setTimeout(() => {
-            getTns({ date });
-            loadOpenedCount({ date });
+            getTns({ date, excludeViolationType: EMERGENCY_VIOLATION_TYPE_EXCLUDE });
+            loadOpenedCount({ date, excludeViolationType: EMERGENCY_VIOLATION_TYPE_EXCLUDE });
             loadSendStatus();
           }, 0);
         }}
