@@ -184,6 +184,10 @@ export default function LoggingPanel() {
   const [filters, setFilters] = useState(createDefaultFilters);
   const [userOptions, setUserOptions] = useState([]);
   const [userLoading, setUserLoading] = useState(false);
+  const [tableScrollY, setTableScrollY] = useState(() => {
+    if (typeof window === "undefined") return 420;
+    return Math.max(320, window.innerHeight - 420);
+  });
   const isFirstAutoApplyRef = useRef(true);
 
   const loadUsers = useCallback(
@@ -246,6 +250,13 @@ export default function LoggingPanel() {
     load(filters);
     loadUsers("");
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const update = () => setTableScrollY(Math.max(320, window.innerHeight - 420));
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
 
   useEffect(() => {
     if (isFirstAutoApplyRef.current) {
@@ -412,44 +423,46 @@ export default function LoggingPanel() {
         </Row>
         </div>
 
-        <Table
-        rowKey={(row) =>
-          String(
-            row?.documentId ||
-              row?.id ||
-              `${row?.created_at || "na"}-${row?.username || "na"}-${row?.action || "na"}-${row?.entity_id || "na"}`
-          )
-        }
-        loading={loading}
-        columns={columns}
-        dataSource={rows}
-        pagination={{
-          size: "small",
-          pageSize: 10,
-          showSizeChanger: false,
-          showQuickJumper: { goButton: "Перейти" },
-          showTotal: (total) => `Всего: ${total}`,
-          locale: {
-            items_per_page: "/ стр.",
-            jump_to: "К странице",
-            page: "",
-            prev_page: "Предыдущая страница",
-            next_page: "Следующая страница",
-            prev_5: "Предыдущие 5 страниц",
-            next_5: "Следующие 5 страниц",
-            prev_3: "Предыдущие 3 страницы",
-            next_3: "Следующие 3 страницы",
-          },
-          itemRender: (page, type, element) => {
-            if (type === "prev") return <a>Назад</a>;
-            if (type === "next") return <a>Вперед</a>;
-            return element;
-          },
-        }}
-        scroll={{ x: 1280 }}
-        size="small"
-        locale={{ emptyText: "Нет данных по выбранным фильтрам" }}
-      />
+        <div className={styles.tableWrap}>
+          <Table
+            rowKey={(row) =>
+              String(
+                row?.documentId ||
+                  row?.id ||
+                  `${row?.created_at || "na"}-${row?.username || "na"}-${row?.action || "na"}-${row?.entity_id || "na"}`
+              )
+            }
+            loading={loading}
+            columns={columns}
+            dataSource={rows}
+            pagination={{
+              size: "small",
+              pageSize: 10,
+              showSizeChanger: false,
+              showQuickJumper: { goButton: "Перейти" },
+              showTotal: (total) => `Всего: ${total}`,
+              locale: {
+                items_per_page: "/ стр.",
+                jump_to: "К странице",
+                page: "",
+                prev_page: "Предыдущая страница",
+                next_page: "Следующая страница",
+                prev_5: "Предыдущие 5 страниц",
+                next_5: "Следующие 5 страниц",
+                prev_3: "Предыдущие 3 страницы",
+                next_3: "Следующие 3 страницы",
+              },
+              itemRender: (page, type, element) => {
+                if (type === "prev") return <a>Назад</a>;
+                if (type === "next") return <a>Вперед</a>;
+                return element;
+              },
+            }}
+            scroll={{ x: 1280, y: tableScrollY }}
+            size="small"
+            locale={{ emptyText: "Нет данных по выбранным фильтрам" }}
+          />
+        </div>
       </div>
     </ConfigProvider>
   );
