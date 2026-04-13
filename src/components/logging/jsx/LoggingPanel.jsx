@@ -69,7 +69,7 @@ function detailsAsText(row) {
   if (source == null) return "—";
   if (typeof source === "string") return source || "—";
   try {
-    return JSON.stringify(source, null, 2);
+    return JSON.stringify(source);
   } catch {
     return String(source);
   }
@@ -188,6 +188,10 @@ export default function LoggingPanel() {
     if (typeof window === "undefined") return 420;
     return Math.max(320, window.innerHeight - 420);
   });
+  const [viewportWidth, setViewportWidth] = useState(() => {
+    if (typeof window === "undefined") return 1440;
+    return window.innerWidth;
+  });
   const isFirstAutoApplyRef = useRef(true);
 
   const loadUsers = useCallback(
@@ -253,10 +257,50 @@ export default function LoggingPanel() {
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
-    const update = () => setTableScrollY(Math.max(320, window.innerHeight - 420));
+    const update = () => {
+      setTableScrollY(Math.max(320, window.innerHeight - 420));
+      setViewportWidth(window.innerWidth);
+    };
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
   }, []);
+
+  const isLaptop15 = viewportWidth <= 1512;
+  const isWideDesktop = viewportWidth >= 1850;
+
+  const columnSizes = useMemo(() => {
+    if (isLaptop15) {
+      return {
+        time: 145,
+        user: 180,
+        role: 90,
+        status: 100,
+        page: 170,
+        entity: 200,
+        detailsLimit: 700,
+      };
+    }
+    if (isWideDesktop) {
+      return {
+        time: 180,
+        user: 220,
+        role: 95,
+        status: 110,
+        page: 230,
+        entity: 260,
+        detailsLimit: 1200,
+      };
+    }
+    return {
+      time: 160,
+      user: 200,
+      role: 95,
+      status: 105,
+      page: 200,
+      entity: 230,
+      detailsLimit: 900,
+    };
+  }, [isLaptop15, isWideDesktop]);
 
   useEffect(() => {
     if (isFirstAutoApplyRef.current) {
@@ -281,14 +325,14 @@ export default function LoggingPanel() {
         title: "Время",
         dataIndex: "created_at",
         key: "created_at",
-        width: 170,
+        width: columnSizes.time,
         render: (v) => toReadableTime(v),
       },
       {
         title: "Пользователь",
         dataIndex: "username",
         key: "username",
-        width: 180,
+        width: columnSizes.user,
         render: (_, row) => (
           <div className={styles.userOption}>
             <div>{row?.username || "—"}</div>
@@ -300,28 +344,28 @@ export default function LoggingPanel() {
         title: "Роль",
         dataIndex: "role",
         key: "role",
-        width: 120,
+        width: columnSizes.role,
         render: (v) => <Tag>{v || "—"}</Tag>,
       },
       {
         title: "Статус",
         dataIndex: "status_event",
         key: "status_event",
-        width: 130,
+        width: columnSizes.status,
         render: (v) => statusTag(v),
       },
       {
         title: "Раздел",
         dataIndex: "page",
         key: "page",
-        width: 190,
+        width: columnSizes.page,
         render: (v) => prettyPage(v),
       },
       {
         title: "ID / ТН",
         dataIndex: "entity_id",
         key: "entity_id",
-        width: 220,
+        width: columnSizes.entity,
         render: (v) => v || "—",
       },
       {
@@ -330,12 +374,12 @@ export default function LoggingPanel() {
         key: "details",
         render: (_, row) => (
           <Typography.Text className={styles.detailsText}>
-            {clipText(detailsAsText(row), 350)}
+            {clipText(detailsAsText(row), columnSizes.detailsLimit)}
           </Typography.Text>
         ),
       },
     ],
-    []
+    [columnSizes]
   );
 
   return (
@@ -458,7 +502,9 @@ export default function LoggingPanel() {
                 return element;
               },
             }}
-            scroll={{ x: 1280, y: tableScrollY }}
+            scroll={isLaptop15 ? { x: 1150, y: tableScrollY } : { y: tableScrollY }}
+            tableLayout="fixed"
+            style={{ width: "100%" }}
             size="small"
             locale={{ emptyText: "Нет данных по выбранным фильтрам" }}
           />

@@ -36,6 +36,8 @@
 }
 
 .detailsText {
+  display: block;
+  width: 100%;
   white-space: pre-wrap;
   word-break: break-word;
   font-family: ui-monospace, Menlo, Monaco, Consolas, "Courier New", monospace;
@@ -58,6 +60,14 @@
 .tableWrap {
   flex: 1;
   min-height: 0;
+}
+
+.tableWrap :global(.ant-table-wrapper) {
+  width: 100%;
+}
+
+.tableWrap :global(.ant-table-container) {
+  width: 100%;
 }
 
 @media (max-width: 992px) {
