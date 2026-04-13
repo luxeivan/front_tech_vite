@@ -16,7 +16,7 @@ import {
 import ruRU from "antd/locale/ru_RU";
 import dayjs from "dayjs";
 import "dayjs/locale/ru";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchAuditEvents, fetchAuditUsers } from "../js/fetchAuditLogs";
 import styles from "../css/LoggingPanel.module.css";
 
@@ -144,6 +144,39 @@ function buildRequestFilters(filters) {
   };
 }
 
+function normalizeUserOptions(rows) {
+  const list = Array.isArray(rows) ? rows : [];
+  const seen = new Set();
+  const options = [];
+
+  for (const item of list) {
+    const username =
+      typeof item === "string"
+        ? item.trim()
+        : String(item?.username || item?.name || "").trim();
+    if (!username) continue;
+    const key = username.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    const email =
+      typeof item === "string" ? "" : String(item?.email || "").trim();
+
+    options.push({
+      value: username,
+      search: `${username} ${email}`.toLowerCase(),
+      label: (
+        <div className={styles.userOption}>
+          <div>{username}</div>
+          {email ? <div className={styles.userEmail}>{email}</div> : null}
+        </div>
+      ),
+    });
+  }
+
+  return options;
+}
+
 export default function LoggingPanel() {
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState([]);
@@ -151,6 +184,7 @@ export default function LoggingPanel() {
   const [filters, setFilters] = useState(createDefaultFilters);
   const [userOptions, setUserOptions] = useState([]);
   const [userLoading, setUserLoading] = useState(false);
+  const isFirstAutoApplyRef = useRef(true);
 
   const loadUsers = useCallback(
     async (query = "") => {
@@ -163,7 +197,7 @@ export default function LoggingPanel() {
       try {
         const resp = await fetchAuditUsers(params, jwt);
         const list = Array.isArray(resp?.data) ? resp.data : [];
-        setUserOptions(list.map((name) => ({ label: name, value: name })));
+        setUserOptions(normalizeUserOptions(list));
       } catch {
         setUserOptions([]);
       } finally {
@@ -174,7 +208,7 @@ export default function LoggingPanel() {
   );
 
   const load = useCallback(
-    async (nextFilters = filters, { silent = false } = {}) => {
+    async (nextFilters, { silent = false } = {}) => {
       const jwt = localStorage.getItem("jwt") || "";
       const requestFilters = buildRequestFilters(nextFilters);
       if (!silent) setLoading(true);
@@ -205,7 +239,7 @@ export default function LoggingPanel() {
         if (!silent) setLoading(false);
       }
     },
-    [filters]
+    []
   );
 
   useEffect(() => {
@@ -213,15 +247,20 @@ export default function LoggingPanel() {
     loadUsers("");
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const applyFilters = async () => {
-    await load(filters);
-    await loadUsers(filters.username);
-  };
+  useEffect(() => {
+    if (isFirstAutoApplyRef.current) {
+      isFirstAutoApplyRef.current = false;
+      return;
+    }
+    const timer = setTimeout(() => {
+      load(filters);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [filters, load]);
 
   const resetFilters = async () => {
     const next = createDefaultFilters();
     setFilters(next);
-    await load(next);
     await loadUsers("");
   };
 
@@ -239,7 +278,12 @@ export default function LoggingPanel() {
         dataIndex: "username",
         key: "username",
         width: 180,
-        ellipsis: true,
+        render: (_, row) => (
+          <div className={styles.userOption}>
+            <div>{row?.username || "—"}</div>
+            {row?.email ? <div className={styles.userEmail}>{row.email}</div> : null}
+          </div>
+        ),
       },
       {
         title: "Роль",
@@ -360,9 +404,6 @@ export default function LoggingPanel() {
 
           <Col xs={24} md={8} className={styles.actionsCol}>
             <Space>
-              <Button type="primary" onClick={applyFilters} loading={loading}>
-                Применить
-              </Button>
               <Button onClick={resetFilters} disabled={loading}>
                 Сбросить
               </Button>

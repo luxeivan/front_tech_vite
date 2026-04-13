@@ -41,6 +41,18 @@
   color: #1f2937;
 }
 
+.userOption {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  gap: 2px;
+}
+
+.userEmail {
+  color: #64748b;
+  font-size: 12px;
+}
+
 @media (max-width: 992px) {
   .tnFilterRow {
     flex-direction: column;
