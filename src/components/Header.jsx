@@ -3,6 +3,7 @@ import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import useAuth from "../stores/useAuth";
 import { logAuditEvent } from "../utils/auditLogger";
+import { hasFeatureAccess } from "../config/viewRoleAccess";
 import logo from "../img/logoBlue.svg";
 import styles from "./Header.module.css";
 
@@ -10,6 +11,7 @@ export default function Header() {
   const { isAuth, exit, user } = useAuth((store) => store);
   const navigate = useNavigate();
   const location = useLocation();
+  const canSeeAuditLogs = hasFeatureAccess(user?.view_role, "auditLogging");
 
   const goTo = (path, action) => {
     logAuditEvent({ page: location.pathname, action, entity: "button" }, user);
@@ -54,6 +56,14 @@ export default function Header() {
             >
               Модуль ПЭС
             </Button>
+            {canSeeAuditLogs && (
+              <Button
+                type={location.pathname === "/logging" ? "primary" : "default"}
+                onClick={() => goTo("/logging", "click_audit_logging")}
+              >
+                Журнал действий
+              </Button>
+            )}
           </Flex>
         )}
       </Flex>

@@ -16,7 +16,9 @@ import Portal404 from "./components/Portal404/Portal404";
 import PesPage from "./pages/pes/PesPage";
 import PlannedPage from "./pages/planned/PlannedPage";
 import EmergencyPage from "./pages/emergency/EmergencyPage";
+import LoggingPage from "./pages/logging/LoggingPage";
 import { logAuditBeacon, logAuditEvent } from "./utils/auditLogger";
+import { hasFeatureAccess } from "./config/viewRoleAccess";
 import styles from "./AppLayout.module.css";
 
 function AuditTracker() {
@@ -26,6 +28,7 @@ function AuditTracker() {
 
   useEffect(() => {
     if (!isAuth || !user) return;
+    if (location.pathname === "/logging") return;
     logAuditEvent(
       {
         page: location.pathname,
@@ -44,6 +47,7 @@ function AuditTracker() {
 
   useEffect(() => {
     if (!isAuth || !user) return;
+    if (location.pathname === "/logging") return;
     const onBeforeUnload = () => {
       logAuditBeacon(
         {
@@ -70,6 +74,7 @@ function AuditTracker() {
 function App() {
   const { isAuth, getJwt, getFieldsSetting } =
     useAuth((store) => store);
+  const user = useAuth((store) => store.user);
   const [authChecked, setAuthChecked] = useState(false);
   useEffect(() => {
     Promise.resolve(getJwt()).finally(() => setAuthChecked(true));
@@ -92,6 +97,13 @@ function App() {
       );
     }
     if (!authOk) return <Navigate to="/" replace />;
+    return children;
+  };
+
+  const PreviewOnly = ({ children }) => {
+    if (!hasFeatureAccess(user?.view_role, "auditLogging")) {
+      return <Navigate to="/" replace />;
+    }
     return children;
   };
 
@@ -128,6 +140,16 @@ function App() {
               element={
                 <Protected>
                   <PlannedPage />
+                </Protected>
+              }
+            />
+            <Route
+              path="/logging"
+              element={
+                <Protected>
+                  <PreviewOnly>
+                    <LoggingPage />
+                  </PreviewOnly>
                 </Protected>
               }
             />

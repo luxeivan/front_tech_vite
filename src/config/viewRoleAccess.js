@@ -6,6 +6,7 @@ const FEATURE_ROLES = {
   tnSendBlock: ["standart", "preview"],
   tnTestButtons: ["preview"],
   plannedModule: ["preview"],
+  auditLogging: ["preview"],
   journal: ["standart"],
   pesManage: ["standart"],
 };

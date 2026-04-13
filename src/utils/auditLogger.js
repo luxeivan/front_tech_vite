@@ -8,6 +8,14 @@ function backendBase() {
   return (a || b).replace(/\/$/, "");
 }
 
+function readJwt() {
+  try {
+    return String(localStorage.getItem("jwt") || "").trim();
+  } catch {
+    return "";
+  }
+}
+
 export function buildAuditActor(user) {
   const username =
     user?.fullName || user?.username || user?.email || lastKnownActor?.username || "unknown";
@@ -30,6 +38,8 @@ function humanAction(action) {
     click_planned_tn: "Перешел в раздел Плановые ТН",
     click_dashboard: "Перешел на дашборд",
     click_pes_module: "Перешел в модуль ПЭС",
+    click_audit_logging: "Перешел в журнал действий",
+    audit_logs_filter: "Обновил фильтры журнала действий",
     click_reset_filters: "Сбросил фильтры",
     open_send_journal: "Открыл журнал отправки",
     toggle_sound: "Переключил звук",
@@ -78,6 +88,7 @@ export function buildAuditHeaders(user, page = "") {
 export async function logAuditEvent(event, user) {
   const base = backendBase();
   if (!base) return;
+  const jwt = readJwt();
   const actor = buildAuditActor(user);
   if (!isKnownActor(actor) && !event?.allowAnonymous) return;
   const payload = {
@@ -88,6 +99,7 @@ export async function logAuditEvent(event, user) {
     entity_id: event?.entity_id || "",
     details: normalizeDetails(event, actor),
   };
+  if (payload.page === "/logging" || payload.action === "click_audit_logging") return;
   try {
     // Use x-www-form-urlencoded to avoid noisy CORS preflights in local dev.
     const form = new URLSearchParams();
@@ -101,6 +113,7 @@ export async function logAuditEvent(event, user) {
 
     await axios.post(`${base}/services/audit/event`, form, {
       timeout: 2500,
+      headers: jwt ? { Authorization: `Bearer ${jwt}` } : undefined,
     });
   } catch {
     // intentionally silent: logging must never break UX
@@ -110,6 +123,7 @@ export async function logAuditEvent(event, user) {
 export function logAuditBeacon(event, user) {
   const base = backendBase();
   if (!base || typeof navigator?.sendBeacon !== "function") return;
+  const jwt = readJwt();
   const actor = buildAuditActor(user);
   if (!isKnownActor(actor) && !event?.allowAnonymous) return;
   const payload = {
@@ -119,7 +133,9 @@ export function logAuditBeacon(event, user) {
     entity: event?.entity || "ui",
     entity_id: event?.entity_id || "",
     details: normalizeDetails(event, actor),
+    auth_token: jwt || "",
   };
+  if (payload.page === "/logging" || payload.action === "click_audit_logging") return;
 
   try {
     const blob = new Blob([JSON.stringify(payload)], {
