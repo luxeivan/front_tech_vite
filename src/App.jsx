@@ -3,7 +3,6 @@ import {
   Routes,
   Route,
   Navigate,
-  useLocation,
 } from "react-router-dom";
 import { Spin } from "antd";
 import { useEffect, useState } from "react";
@@ -17,59 +16,8 @@ import PesPage from "./pages/pes/PesPage";
 import PlannedPage from "./pages/planned/PlannedPage";
 import EmergencyPage from "./pages/emergency/EmergencyPage";
 import LoggingPage from "./pages/logging/LoggingPage";
-import { logAuditBeacon, logAuditEvent } from "./utils/auditLogger";
 import { hasFeatureAccess } from "./config/viewRoleAccess";
 import styles from "./AppLayout.module.css";
-
-function AuditTracker() {
-  const location = useLocation();
-  const user = useAuth((s) => s.user);
-  const isAuth = useAuth((s) => s.isAuth);
-
-  useEffect(() => {
-    if (!isAuth || !user) return;
-    if (location.pathname === "/logging") return;
-    logAuditEvent(
-      {
-        page: location.pathname,
-        action: "page_view",
-        entity: "ui",
-      },
-      user,
-    );
-  }, [
-    isAuth,
-    location.pathname,
-    user?.username,
-    user?.fullName,
-    user?.view_role,
-  ]);
-
-  useEffect(() => {
-    if (!isAuth || !user) return;
-    if (location.pathname === "/logging") return;
-    const onBeforeUnload = () => {
-      logAuditBeacon(
-        {
-          page: location.pathname,
-          action: "page_leave",
-          entity: "ui",
-        },
-        user,
-      );
-    };
-    window.addEventListener("beforeunload", onBeforeUnload);
-    return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [
-    isAuth,
-    location.pathname,
-    user?.username,
-    user?.fullName,
-    user?.view_role,
-  ]);
-
-  return null;
-}
 
 function App() {
   const { isAuth, getJwt, getFieldsSetting } =
@@ -109,7 +57,6 @@ function App() {
 
   return (
     <BrowserRouter>
-      <AuditTracker />
       <div className={styles.appShell}>
         <Header />
         <main className={styles.main}>
