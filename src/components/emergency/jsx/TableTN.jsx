@@ -131,8 +131,9 @@ function WelcomeHeader({ totalOpened, loadingOpened }) {
         ДашБорде не будет работать (лимиты раз в сутки обновляются){" "}
       </Typography.Title> */}
       <Typography.Title level={2} style={{ marginBottom: 4 }}>
-        Добро пожаловать, {name}
+        Добро пожаловать, {name} ⚡
       </Typography.Title>
+      {/* ЗАКОМЕНТИРОВАННЫЙ КОД */}
       <Typography.Title level={4} style={{ marginTop: 0, fontWeight: 500 }}>
         Всего открытых ТН: {loadingOpened ? <Spin size="small" /> : totalOpened}
       </Typography.Title>
