@@ -17,6 +17,7 @@ import PlannedPage from "./pages/planned/PlannedPage";
 import EmergencyPage from "./pages/emergency/EmergencyPage";
 import LoggingPage from "./pages/logging/LoggingPage";
 import { hasFeatureAccess } from "./config/viewRoleAccess";
+import PostAuthSplash from "./components/PostAuthSplash/PostAuthSplash";
 import styles from "./AppLayout.module.css";
 
 function App() {
@@ -24,15 +25,31 @@ function App() {
     useAuth((store) => store);
   const user = useAuth((store) => store.user);
   const [authChecked, setAuthChecked] = useState(false);
+  const [showPostAuthSplash, setShowPostAuthSplash] = useState(false);
   useEffect(() => {
     Promise.resolve(getJwt()).finally(() => setAuthChecked(true));
   }, []);
   useEffect(() => {
     getFieldsSetting();
   }, [isAuth]);
+  useEffect(() => {
+    if (!isAuth) {
+      setShowPostAuthSplash(false);
+      return;
+    }
+
+    const splashPending = sessionStorage.getItem("postAuthSplashPending") === "1";
+    if (splashPending) {
+      setShowPostAuthSplash(true);
+    }
+  }, [isAuth]);
 
   const authOk = isAuth;
   const hasJwt = Boolean(localStorage.getItem("jwt"));
+  const handlePostAuthSplashDone = () => {
+    sessionStorage.removeItem("postAuthSplashPending");
+    setShowPostAuthSplash(false);
+  };
 
   const Protected = ({ children }) => {
     // If the user opened a protected page directly, give getJwt() a moment to restore auth
@@ -62,7 +79,20 @@ function App() {
         <main className={styles.main}>
           <Routes>
             {/* Главная: форма логина или таблица ТН */}
-            <Route path="/" element={authOk ? <EmergencyPage /> : <AuthForm />} />
+            <Route
+              path="/"
+              element={
+                authOk ? (
+                  showPostAuthSplash ? (
+                    <PostAuthSplash onDone={handlePostAuthSplashDone} />
+                  ) : (
+                    <EmergencyPage />
+                  )
+                ) : (
+                  <AuthForm />
+                )
+              }
+            />
 
             {/* Дашборд: защищённая страница */}
           <Route

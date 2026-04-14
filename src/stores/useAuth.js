@@ -27,6 +27,7 @@ function installAxiosInterceptors() {
       if (status === 401) {
         try {
           localStorage.removeItem('jwt');
+          sessionStorage.removeItem("postAuthSplashPending");
           // Сбрасываем глобальное состояние авторизации —
           // роут "/" покажет AuthForm автоматически
           useAuth.setState({ isAuth: false, user: null, fieldsSetting: false });
@@ -65,6 +66,7 @@ const useAuth = create((set) => ({
   },
   exit: () => {
     localStorage.removeItem("jwt");
+    sessionStorage.removeItem("postAuthSplashPending");
     set({ isAuth: false, user: null, fieldsSetting: false });
   },
   authing: async (identifier, password) => {
@@ -76,6 +78,7 @@ const useAuth = create((set) => ({
       if (res.data) {
         console.log(res.data);
         localStorage.setItem("jwt", res.data.jwt);
+        sessionStorage.setItem("postAuthSplashPending", "1");
         console.log('[auth] login ok ->', res.data);
         set({ user: res.data.user });
         set((state) => ({ isAuth: true }));

@@ -1,0 +1,62 @@
+.container {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.4rem;
+  padding: 1.5rem 1rem;
+  z-index: 1300;
+  background:
+    radial-gradient(circle at 14% 18%, rgba(0, 97, 170, 0.14) 0, rgba(0, 97, 170, 0) 36%),
+    radial-gradient(circle at 84% 84%, rgba(243, 112, 33, 0.12) 0, rgba(243, 112, 33, 0) 30%),
+    radial-gradient(circle at 50% 20%, #fff 0, #f8fafc 58%, #f1f5f9 100%);
+  border-radius: 0;
+}
+
+.sun {
+  width: min(320px, 74vw);
+  height: auto;
+}
+
+.textWrap {
+  width: min(1000px, 94vw);
+  text-align: center;
+}
+
+.text {
+  margin: 0;
+  line-height: 1.35;
+  min-height: 3.5rem;
+  font-size: clamp(1.05rem, 1.9vw, 1.9rem);
+}
+
+.cursor {
+  display: inline-block;
+  margin-left: 2px;
+  animation: cursorBlink 1s step-end infinite;
+}
+
+@keyframes cursorBlink {
+  from,
+  to {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .container {
+    gap: 1rem;
+  }
+
+  .text {
+    min-height: 2.8rem;
+  }
+}
