@@ -13,7 +13,8 @@ import {
   message,
 } from "antd";
 import axios from "axios";
-import { buildEddsPayload, sendToEdds, testEddsSend } from "../js/Edds";
+import { buildEddsPayload, sendToEdds } from "../js/Edds";
+import { buildEddsNewPayload, fetchEddsNewMappings } from "../js/EddsNew";
 import {
   buildMosEnergoSbytPayload,
   sendToMes,
@@ -52,6 +53,7 @@ export default function SendBlock({
   const [eddsNewSelected, setEddsNewSelected] = useState(false);
   const [mesTestSelected, setMesTestSelected] = useState(false);
   const [siteTgMaxNewSelected, setSiteTgMaxNewSelected] = useState(false);
+  const [eddsNewMappings, setEddsNewMappings] = useState(null);
   const [sendResultsOpen, setSendResultsOpen] = useState(false);
   const [sendResults, setSendResults] = useState([]);
   const isUnplannedMode = mode === "unplanned";
@@ -217,84 +219,120 @@ export default function SendBlock({
     }
   };
 
+  const resolveEddsNewMappings = async (force = false) => {
+    if (!force && eddsNewMappings) return eddsNewMappings;
+    const jwt = localStorage.getItem("jwt");
+    const mappings = await fetchEddsNewMappings(
+      SERVICES_URL,
+      jwt,
+      buildAuditHeaders(user, "/")
+    );
+    setEddsNewMappings(mappings || null);
+    return mappings || null;
+  };
+
   const runEddsNewTest = async () => {
     try {
-      if (!eddsPayload) {
+      setEddsTestLoading(true);
+      const mappings = await resolveEddsNewMappings(true);
+      if (!mappings) {
+        showAlert(
+          "error",
+          "ЕДДС new: не удалось получить маппинги из Strapi",
+          10000
+        );
         return makeResultEntry({
           channel: "ЕДДС new",
-          action: "test",
-          request: {
-            method: "POST",
-            url: `${SERVICES_URL}/services/edds/?debug=1`,
-            body: null,
+          action: "json_build",
+          request: {},
+          response: {
+            message: "ЕДДС new: не удалось получить маппинги из Strapi",
+            errors: ["Пустой ответ /services/integration-mappings/edds-new"],
+            meta: {},
           },
-          response: { message: "ЕДДС new Тест: нет данных для отправки" },
           ok: false,
-          summary: "Нет данных для отправки",
+          summary: "Не удалось получить маппинги из Strapi",
         });
       }
 
-      setEddsTestLoading(true);
-      const jwt = localStorage.getItem("jwt");
-      const resp = await testEddsSend(
-        SERVICES_URL,
-        eddsPayload,
-        jwt,
-        buildAuditHeaders(user, "/")
-      );
+      const built = buildEddsNewPayload(tn, mappings);
+      const payload = built?.payload || null;
+      const errors = Array.isArray(built?.errors) ? built.errors : [];
+      const meta = built?.meta || {};
 
-      const request = {
-        method: "POST",
-        url: `${SERVICES_URL}/services/edds/?debug=1`,
-        body: eddsPayload,
+      if (!payload) {
+        const summary = `ЕДДС new: не удалось сформировать JSON${
+          errors.length ? ` — ${errors.join(" | ")}` : ""
+        }`;
+        showAlert("error", summary, 10000);
+        logAuditEvent(
+          {
+            action: "edds_new_build_error",
+            entity: "edds",
+            entity_id: String(documentId || ""),
+            details: { errors },
+          },
+          user
+        );
+        return makeResultEntry({
+          channel: "ЕДДС new",
+          action: "json_build",
+          request: {},
+          response: {
+            message: "ЕДДС new: не удалось сформировать JSON",
+            errors,
+            meta,
+          },
+          ok: false,
+          summary: errors[0] || "Ошибка валидации данных",
+        });
+      }
+
+      showAlert("success", "ЕДДС new: JSON сформирован");
+      const request = payload;
+      const response = {
+        message: "ЕДДС new: JSON сформирован",
+        errors: [],
+        meta,
       };
-      const response = normalizeEddsTestResponse(resp);
       logAuditEvent(
         {
-          action: "edds_new_test",
+          action: "edds_new_build_ok",
           entity: "edds",
           entity_id: String(documentId || ""),
-          details: { ok: true, debug: true },
+          details: { ok: true, fields: Object.keys(payload || {}).length },
         },
         user
       );
       return makeResultEntry({
         channel: "ЕДДС new",
-        action: "test",
+        action: "json_build",
         request,
         response,
-        ok:
-          response?.success === true ||
-          response?.ok === true ||
-          Boolean(response?.data?.claim_id),
-        summary:
-          response?.message ||
-          (response?.data?.claim_id
-            ? `Данные приняты (ID: ${response.data.claim_id})`
-            : "Ответ получен"),
+        ok: true,
+        summary: "JSON сформирован",
       });
     } catch (e) {
-      const request = {
-        request: {
-          method: "POST",
-          url: `${SERVICES_URL}/services/edds/?debug=1`,
-          body: eddsPayload,
-        },
+      const errors = [
+        e?.response?.data?.error ||
+          e?.response?.data?.message ||
+          e?.message ||
+          "Неизвестная ошибка",
+      ];
+      showAlert("error", `ЕДДС new: не удалось сформировать JSON — ${errors[0]}`, 10000);
+      const request = {};
+      const response = {
+        ok: false,
+        message: "ЕДДС new: не удалось сформировать JSON",
+        errors,
       };
-      const response = normalizeEddsTestResponse(
-        e?.response?.data || {
-          ok: false,
-          message: e?.message || "Неизвестная ошибка",
-          code: e?.code || null,
-        }
-      );
       return makeResultEntry({
         channel: "ЕДДС new",
-        action: "test",
-        request: request.request,
+        action: "json_build",
+        request,
         response,
         ok: false,
-        summary: formatErrorDetails(response) || "Ошибка без деталей",
+        summary: errors[0] || "Ошибка без деталей",
       });
     } finally {
       setEddsTestLoading(false);
@@ -332,11 +370,6 @@ export default function SendBlock({
         showAlert("error", "МосЭнергоСбыт: нет данных для отправки");
         return;
       }
-      if (toEddsNewTest && !eddsPayload) {
-        showAlert("error", "ЕДДС new Тест: нет данных для отправки");
-        return;
-      }
-
       setSending(true);
       setNotice(null);
       const results = [];
