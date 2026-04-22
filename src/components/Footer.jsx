@@ -11,7 +11,7 @@ export default function Footer() {
       <Space size={8} align="center" wrap className={styles.row}>
         <Typography.Text type="secondary">АО «Мособлэнерго»</Typography.Text>
         <Typography.Text type="secondary">•</Typography.Text>
-        <Typography.Text type="secondary">Журнал технологических нарушений</Typography.Text>
+        <Typography.Text type="secondary">Модуль коммуникаций и мониторинга отключений</Typography.Text>
         <Typography.Text type="secondary">•</Typography.Text>
         <Typography.Text type="secondary">{`2025-${currentYear}`}</Typography.Text>
         <Typography.Text type="secondary">•</Typography.Text>
