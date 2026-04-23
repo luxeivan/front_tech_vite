@@ -55,6 +55,15 @@ const getCreateDate = (item) =>
   item?.attributes?.data?.data?.F81_060_EVENTDATETIME ??
   null;
 
+const getRecoveryDate = (item) =>
+  item?.recoveryFactDateTime ??
+  item?.attributes?.recoveryFactDateTime ??
+  item?.data?.recoveryFactDateTime ??
+  item?.data?.data?.recoveryFactDateTime ??
+  item?.data?.data?.F81_290_RECOVERYDATETIME ??
+  item?.attributes?.data?.data?.F81_290_RECOVERYDATETIME ??
+  null;
+
 const getViolationType = (item) => {
   const a = item?.attributes;
   const possible = [
@@ -70,6 +79,34 @@ const getViolationType = (item) => {
   }
   return null;
 };
+
+const FINAL_STATUSES = new Set(["запитана", "закрыта", "удалена"]);
+
+function getDurationHighlightClass(item) {
+  const startRaw = getCreateDate(item);
+  const startTs = dayjs(startRaw).valueOf();
+  if (!Number.isFinite(startTs) || startTs <= 0) return "";
+
+  const status = getStatusName(item);
+  const isFinal = status ? FINAL_STATUSES.has(status) : false;
+  const recoveryRaw = getRecoveryDate(item);
+  const recoveryTs = dayjs(recoveryRaw).valueOf();
+
+  let endTs = Date.now();
+  if (Number.isFinite(recoveryTs) && recoveryTs > 0) {
+    endTs = recoveryTs;
+  } else if (isFinal) {
+    // Для финальных статусов без фактического времени восстановления подсветку не применяем.
+    return "";
+  }
+
+  if (endTs <= startTs) return "";
+  const durationHours = (endTs - startTs) / (60 * 60 * 1000);
+
+  if (durationHours > 4) return "tn-row-duration-red";
+  if (durationHours > 2) return "tn-row-duration-orange";
+  return "";
+}
 
 function isGuid36(s) {
   return typeof s === 'string' &&
@@ -744,10 +781,12 @@ export default function TableTN() {
       ? sendStatus.byGuid[String(resolvedGuid).toLowerCase()]
       : null;
     const send = sendByGuid || (numKey ? sendStatus.byNumber[numKey] : null);
+    const durationClass = getDurationHighlightClass(item);
 
     return {
       key: src.id ?? item.id,
       guid: resolvedGuid,
+      durationClass,
       number: src.number,
       energoObject: src.energoObject,
       addressList: src.addressList,
@@ -885,6 +924,8 @@ export default function TableTN() {
           50% { background: #ffffff; }
           100% { background: #f6ffed; }
         }
+        .tn-row-duration-orange > td { background: #fff7e6 !important; }
+        .tn-row-duration-red > td { background: #fff1f0 !important; }
         .tn-row-new > td { animation: tnNewBlink 1.2s ease-in-out infinite; }
       `}</style>
       <audio
@@ -960,7 +1001,12 @@ export default function TableTN() {
 
       {/* ТАБЛИЦА */}
       <Table
-        rowClassName={(record) => (highlightGuids.has(record.guid) ? 'tn-row-new' : '')}
+        rowClassName={(record) => {
+          const classes = [];
+          if (record?.durationClass) classes.push(record.durationClass);
+          if (highlightGuids.has(record.guid)) classes.push("tn-row-new");
+          return classes.join(" ");
+        }}
         dataSource={dataSource}
         columns={columns}
         pagination={false}

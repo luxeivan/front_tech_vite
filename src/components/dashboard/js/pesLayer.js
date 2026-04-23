@@ -17,22 +17,78 @@ export const PES_POLL_MS_DEFAULT = 120_000;
 const PES_MOVING_SPEED_THRESHOLD = 0;
 const PES_ICON_COLOR_IDLE = "#000000";
 const PES_ICON_COLOR_MOVING = "#cf1322";
+const PES_ALLOWLIST_COLLECTION =
+  import.meta.env.VITE_PES_MAP_ALLOWLIST_COLLECTION || "pes-map-allowlists";
+const PES_ALLOWLIST_CACHE_TTL_MS = 5 * 60 * 1000;
 
-export const PES_ALLOWED_IDS = new Set([
-  52459, 53810, 24490, 53832, 52879, 53796, 53973, 54102, 54093, 21718, 52957,
-  957, 54083, 24358, 1152, 53561, 52529, 53833, 977, 54099, 52878, 54113, 54092,
-  53852, 54066, 1173, 54128, 54119, 53834, 53945, 52498, 52455, 54091, 54067,
-  52465, 1142, 19808, 53001, 54071, 54127, 54105, 1138, 51598, 53835, 1072,
-  54111, 1097, 52461, 54084, 51556, 962, 24807, 54090, 53850, 1066, 52466,
-  51824, 24798, 54126, 52447, 21808, 53836, 24325, 24786, 54130, 54116, 53917,
-  19847, 1110, 1153, 52462, 21812, 1160, 53851, 52467, 53956, 52882, 52212,
-  1071, 54125, 54107, 53924, 51750, 53837, 54131, 54117, 1111, 52888, 54086,
-  53939, 51479, 1213, 942, 53977, 54124, 54106, 54088, 54097, 19837, 54132,
-  52967, 54087, 52494, 973, 53948, 52689, 53573, 52469, 53954, 19804, 54123,
-  54101, 54089, 54096, 51605, 52718, 19850, 24800, 54115, 54080, 53989, 53830,
-  54949, 53971, 54100, 53923, 54095, 54081, 53929, 53831, 53855, 996, 24344,
-  53797, 1123, 53984, 19855, 53949, 51483, 51771, 51598,
-]);
+let pesAllowlistCache = {
+  loadedAt: 0,
+  ids: null,
+};
+
+const toIntId = (v) => {
+  const n = typeof v === "number" ? v : parseInt(v, 10);
+  return Number.isFinite(n) ? n : null;
+};
+
+const extractPesId = (row) => {
+  const src = row?.attributes || row || {};
+  return toIntId(src?.pesId ?? src?.pesid ?? src?.pes_id);
+};
+
+async function fetchPesAllowlistIds(signal) {
+  const base = String(import.meta.env.VITE_URL_BACKEND || "").replace(/\/$/, "");
+  if (!base) return new Set();
+
+  const headers = {};
+  try {
+    const jwt = localStorage.getItem("jwt");
+    if (jwt) headers.Authorization = `Bearer ${jwt}`;
+  } catch {
+    // ignore localStorage issues
+  }
+
+  const out = new Set();
+  let page = 1;
+  let pageCount = 1;
+
+  while (page <= pageCount) {
+    const qs = new URLSearchParams({
+      "fields[0]": "pesId",
+      "pagination[page]": String(page),
+      // На сервере Strapi pageSize ограничен до 100.
+      "pagination[pageSize]": "100",
+      publicationState: "preview",
+    });
+    const url = `${base}/api/${PES_ALLOWLIST_COLLECTION}?${qs.toString()}`;
+    const resp = await fetch(url, { signal, headers });
+    if (!resp.ok) {
+      throw new Error(`PES allowlist fetch failed: ${resp.status}`);
+    }
+    const json = await resp.json();
+    const rows = Array.isArray(json?.data) ? json.data : [];
+    rows.forEach((it) => {
+      const id = extractPesId(it);
+      if (Number.isFinite(id)) out.add(id);
+    });
+    pageCount = Number(json?.meta?.pagination?.pageCount || 1);
+    page += 1;
+  }
+
+  return out;
+}
+
+async function getPesAllowlistIds(signal) {
+  const now = Date.now();
+  const cache = pesAllowlistCache;
+  if (cache.ids && now - cache.loadedAt < PES_ALLOWLIST_CACHE_TTL_MS) {
+    return cache.ids;
+  }
+
+  const ids = await fetchPesAllowlistIds(signal);
+  pesAllowlistCache = { loadedAt: now, ids };
+  return ids;
+}
 
 export const pesIconDataUrl = (fillColor = PES_ICON_COLOR_IDLE) => {
   const patched = String(pesIconSvgRaw || "")
@@ -148,10 +204,11 @@ export const startPesPolling = ({
       if (!resp.ok) throw new Error(`PES fetch failed: ${resp.status}`);
       const json = await resp.json();
       const vehiclesRaw = Array.isArray(json?.vehicles) ? json.vehicles : [];
+      const allowedIds = await getPesAllowlistIds(ac.signal);
 
       const vehicles = vehiclesRaw.filter((v) => {
-        const idNum = typeof v?.id === "number" ? v.id : parseInt(v?.id, 10);
-        return Number.isFinite(idNum) && PES_ALLOWED_IDS.has(idNum);
+        const idNum = toIntId(v?.id);
+        return Number.isFinite(idNum) && allowedIds.has(idNum);
       });
 
       const feats = [];
