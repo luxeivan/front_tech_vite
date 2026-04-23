@@ -8,7 +8,7 @@ const FEATURE_ROLES = {
   plannedModule: ["preview"],
   auditLogging: ["preview"],
   journal: ["standart"],
-  pesManage: ["standart"],
+  pesManage: ["standart", "preview"],
 };
 
 export function hasFeatureAccess(viewRole, featureKey) {
