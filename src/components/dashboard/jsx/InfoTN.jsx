@@ -10,6 +10,7 @@ import dayjs from "dayjs";
 import axios from "axios";
 import {
   URL,
+  isDashboardViolationType,
   toNumber,
   pick,
   pickAny,
@@ -62,12 +63,14 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
         const jwt = localStorage.getItem("jwt");
         if (!jwt) throw new Error("Нет JWT");
 
-        const since7d = dayjs().startOf("day").subtract(6, "day").toISOString();
+        const since7d = dayjs().startOf("day").add(8, "hour").subtract(6, "day").toISOString();
         const qsAll7d = [
           "pagination[page]=1",
           "pagination[pageSize]=1000",
           "sort[0]=createDateTime:DESC",
           `filters[createDateTime][$gte]=${encodeURIComponent(since7d)}`,
+          "filters[VIOLATION_TYPE][$in][0]=А",
+          "filters[VIOLATION_TYPE][$in][1]=В",
         ].join("&");
 
         const resp = await axios.get(`${URL}/api/teh-narusheniyas?${qsAll7d}`, {
@@ -80,7 +83,7 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
             )
           : [];
 
-        setRows7dLocal(listAll7d);
+        setRows7dLocal(listAll7d.filter(isDashboardViolationType));
       } catch (e) {
         console.warn("[InfoTN] 7d fetch error:", e?.message || e);
         setRows7dLocal([]);
@@ -160,14 +163,19 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
     );
   });
 
+  const filteredRows = React.useMemo(
+    () => (Array.isArray(rows) ? rows.filter(isDashboardViolationType) : []),
+    [rows]
+  );
+
   // sums a field, accepting either a single key or an array of fallback keys
   const sumField = (fieldOrFields) =>
-    rows.reduce((sum, it) => sum + toNumber(pickAny(it, fieldOrFields)), 0);
-  const uniqCount = (getter) => new Set(rows.map(getter).filter(Boolean)).size;
+    filteredRows.reduce((sum, it) => sum + toNumber(pickAny(it, fieldOrFields)), 0);
+  const uniqCount = (getter) => new Set(filteredRows.map(getter).filter(Boolean)).size;
 
   // агрегаты для карточек
   const totals = {
-    totalOpen: rows.length,
+    totalOpen: filteredRows.length,
     tp: sumField("TP_ALL"),
     tpFull: sumField([
       "TP_ALL",
@@ -190,8 +198,10 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
     go: uniqCount(districtName),
   };
 
-  const effectiveRows7d =
-    Array.isArray(rows7d) && rows7d.length ? rows7d : rows7dLocal;
+  const effectiveRows7d = React.useMemo(() => {
+    const source = Array.isArray(rows7d) && rows7d.length ? rows7d : rows7dLocal;
+    return Array.isArray(source) ? source.filter(isDashboardViolationType) : [];
+  }, [rows7d, rows7dLocal]);
 
   // Донат "за сегодня" (без двойного учёта)
   const DonutToday = () => {

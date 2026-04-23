@@ -3,7 +3,7 @@ import { Card, Skeleton, Typography } from "antd";
 import axios from "axios";
 
 import Sparkline7 from "./Sparkline7"; // SVG-график 7-дневной динамики.
-import { URL } from "../js/dashboardCommon"; // Базовый URL backend.
+import { URL, isDashboardViolationType } from "../js/dashboardCommon"; // Базовый URL backend.
 import {
   buildDailyStats,
   buildDays7,
@@ -42,6 +42,8 @@ export default function Dinamica7Days() {
           `pagination[pageSize]=${pageSize}`,
           "sort[0]=createDateTime:DESC",
           `filters[createDateTime][$gte]=${encodeURIComponent(since7d)}`,
+          "filters[VIOLATION_TYPE][$in][0]=А",
+          "filters[VIOLATION_TYPE][$in][1]=В",
         ].join("&");
 
         const resp = await axios.get(`${URL}/api/teh-narusheniyas?${qs}`, { headers });
@@ -52,7 +54,7 @@ export default function Dinamica7Days() {
         page += 1;
       }
 
-      setRows7d(all);
+      setRows7d(all.filter(isDashboardViolationType));
     } catch (e) {
       setError(e?.message || "Ошибка загрузки данных");
     } finally {

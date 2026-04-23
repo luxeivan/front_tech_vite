@@ -1,4 +1,5 @@
 import dayjs from "dayjs";
+import { isDashboardViolationType } from "./dashboardCommon";
 
 export const MAP_SCALE = 0.55;
 
@@ -54,13 +55,15 @@ export const extractFiasFromRow = (row) => {
 export async function fetchDashboardRows({ axios, jwt }) {
   if (!jwt) throw new Error("Нет JWT: авторизуйтесь");
 
-  const since7d = dayjs().startOf("day").subtract(6, "day").toISOString();
+  const since7d = dayjs().startOf("day").add(8, "hour").subtract(6, "day").toISOString();
 
   const qsOpen = [
     "pagination[page]=1",
     "pagination[pageSize]=500",
     "sort[0]=createDateTime:DESC",
     "filters[isActive][$eq]=true",
+    "filters[VIOLATION_TYPE][$in][0]=А",
+    "filters[VIOLATION_TYPE][$in][1]=В",
   ].join("&");
 
   const qsAll7d = [
@@ -68,6 +71,8 @@ export async function fetchDashboardRows({ axios, jwt }) {
     "pagination[pageSize]=1000",
     "sort[0]=createDateTime:DESC",
     `filters[createDateTime][$gte]=${encodeURIComponent(since7d)}`,
+    "filters[VIOLATION_TYPE][$in][0]=А",
+    "filters[VIOLATION_TYPE][$in][1]=В",
   ].join("&");
 
   const headers = { Authorization: `Bearer ${jwt}` };
@@ -81,7 +86,7 @@ export async function fetchDashboardRows({ axios, jwt }) {
   const listAll7d = Array.isArray(respAll?.data?.data) ? respAll.data.data.map(mapIt) : [];
 
   return {
-    rows: listOpen.filter(isOpenTN),
-    rows7d: listAll7d,
+    rows: listOpen.filter((row) => isOpenTN(row) && isDashboardViolationType(row)),
+    rows7d: listAll7d.filter(isDashboardViolationType),
   };
 }

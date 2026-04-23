@@ -14,7 +14,12 @@ import {
   ShopOutlined,
 } from "@ant-design/icons";
 import axios from "axios";
-import { URL, getRowSzoCounts, isOpenTN } from "../js/dashboardCommon"; // Общие хелперы dashboard.
+import {
+  URL,
+  getRowSzoCounts,
+  isDashboardViolationType,
+  isOpenTN,
+} from "../js/dashboardCommon"; // Общие хелперы dashboard.
 const CARD_SCALE = 0.36;
 
 /* ---------------- UI: компактный Chip ---------------- */
@@ -108,6 +113,8 @@ export default function PotrebiteliSZO({ rowsOpen, loadingExternal }) {
         "pagination[pageSize]=500",
         "sort[0]=createDateTime:DESC",
         "filters[isActive][$eq]=true",
+        "filters[VIOLATION_TYPE][$in][0]=А",
+        "filters[VIOLATION_TYPE][$in][1]=В",
       ].join("&");
 
       const headers = { Authorization: `Bearer ${jwt}` };
@@ -124,7 +131,7 @@ export default function PotrebiteliSZO({ rowsOpen, loadingExternal }) {
           )
         : [];
 
-      setRows(listOpen.filter(isOpenTN));
+      setRows(listOpen.filter((row) => isOpenTN(row) && isDashboardViolationType(row)));
     } catch (e) {
       console.warn("[PotrebiteliSZO] load error:", e?.message || e);
     } finally {
