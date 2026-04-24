@@ -30,9 +30,10 @@ const usePesModuleDataStore = create((set, get) => ({
   },
 
   // Текущие данные ПЭС.
-  loadItems: async (user) => {
+  loadItems: async (user, options = {}) => {
+    const silent = Boolean(options?.silent);
     try {
-      set({ loading: true, error: "" });
+      if (!silent) set({ loading: true, error: "" });
       const base = getBackendBase();
       const { data } = await axios.get(`${base}/services/pes/module/items`, {
         headers: {
@@ -40,11 +41,16 @@ const usePesModuleDataStore = create((set, get) => ({
           ...buildAuditHeaders(user, "/pes"),
         },
       });
-      set({ items: Array.isArray(data?.items) ? data.items : [] });
+      const rows = Array.isArray(data?.items) ? data.items : [];
+      set({ items: rows });
+      return rows;
     } catch (e) {
-      set({ error: e?.response?.data?.message || e?.message || "Ошибка загрузки ПЭС" });
+      if (!silent) {
+        set({ error: e?.response?.data?.message || e?.message || "Ошибка загрузки ПЭС" });
+      }
+      return null;
     } finally {
-      set({ loading: false });
+      if (!silent) set({ loading: false });
     }
   },
 

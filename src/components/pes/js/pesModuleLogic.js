@@ -1,12 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import { notification } from "antd";
 import useAuth from "../../../stores/useAuth";
 import usePesDestinationsStore from "../../../stores/pes/usePesDestinationsStore";
 import usePesModuleDataStore from "../../../stores/pes/usePesModuleDataStore";
 import { hasFeatureAccess } from "../../../config/viewRoleAccess";
-import { buildAuditHeaders, logAuditEvent } from "../../../utils/auditLogger";
-import { calcSummary, getActionMeta } from "./pesModuleMeta";
+import { buildAuditHeaders } from "../../../utils/auditLogger";
+import { calcSummary, getActionMeta, statusLabel } from "./pesModuleMeta";
+
+const PES_LIVE_POLL_MS = 10000;
 
 function getBackendBase() {
   const a = String(import.meta.env.VITE_URL_BACKEND_SERVICES || "").trim();
@@ -34,6 +36,8 @@ function parseScopedPoValue(value) {
 
 export default function pesModuleLogic() {
   const user = useAuth((s) => s.user);
+  const liveSnapshotRef = useRef(new Map());
+  const liveReadyRef = useRef(false);
 
   // UI: выбранные плитки.
   const [selected, setSelected] = useState([]);
@@ -161,15 +165,15 @@ export default function pesModuleLogic() {
     return [{ label: "Все ПО", value: "__all__" }, ...groups];
   }, [tpHints, tpBranchFilter]);
 
-  const showHistoryError = (e) => {
+  const showHistoryError = useCallback((e) => {
     notification.error({
       message: "Не удалось загрузить историю",
       description: e?.response?.data?.message || e?.message || "Ошибка чтения истории операций ПЭС.",
       placement: "topRight",
     });
-  };
+  }, []);
 
-  const refreshHistory = async ({ nextPage, nextPageSize } = {}) => {
+  const refreshHistory = useCallback(async ({ nextPage, nextPageSize } = {}) => {
     const err = await loadHistory({
       nextPage,
       nextPageSize,
@@ -178,12 +182,110 @@ export default function pesModuleLogic() {
       user,
     });
     if (err) showHistoryError(err);
-  };
+  }, [branchFilter, loadHistory, poFilter, showHistoryError, user]);
 
   useEffect(() => {
     loadItems(user);
     loadConfig();
   }, [user, loadItems, loadConfig]);
+
+  useEffect(() => {
+    if (!items.length) return;
+    if (!liveReadyRef.current || sending) {
+      liveSnapshotRef.current = new Map(
+        items.map((item) => [
+          item.id,
+          {
+            status: item.effectiveStatus,
+            commandSentAt: item.commandSentAt,
+            actualDepartureAt: item.actualDepartureAt,
+            connectedAt: item.connectedAt,
+            destinationId: item.destination?.id || "",
+          },
+        ])
+      );
+      liveReadyRef.current = true;
+    }
+  }, [items, sending]);
+
+  useEffect(() => {
+    if (!user) return undefined;
+
+    const buildSnapshot = (rows) =>
+      new Map(
+        rows.map((item) => [
+          item.id,
+          {
+            status: item.effectiveStatus,
+            commandSentAt: item.commandSentAt,
+            actualDepartureAt: item.actualDepartureAt,
+            connectedAt: item.connectedAt,
+            destinationId: item.destination?.id || "",
+            number: item.number,
+          },
+        ])
+      );
+
+    const findChanges = (prev, rows) => {
+      const changes = [];
+      for (const item of rows) {
+        const before = prev.get(item.id);
+        if (!before) continue;
+        const afterStatus = item.effectiveStatus;
+        const statusChanged = before.status !== afterStatus;
+        const dateChanged =
+          before.commandSentAt !== item.commandSentAt ||
+          before.actualDepartureAt !== item.actualDepartureAt ||
+          before.connectedAt !== item.connectedAt ||
+          before.destinationId !== (item.destination?.id || "");
+
+        if (statusChanged || dateChanged) {
+          changes.push({
+            number: item.number,
+            from: statusLabel(before.status),
+            to: statusLabel(afterStatus),
+          });
+        }
+      }
+      return changes;
+    };
+
+    const poll = async () => {
+      if (sending || loading || document.hidden) return;
+
+      const rows = await loadItems(user, { silent: true });
+      if (!Array.isArray(rows)) return;
+
+      if (!liveReadyRef.current) {
+        liveSnapshotRef.current = buildSnapshot(rows);
+        liveReadyRef.current = true;
+        return;
+      }
+
+      const changes = findChanges(liveSnapshotRef.current, rows);
+      liveSnapshotRef.current = buildSnapshot(rows);
+
+      if (!changes.length) return;
+
+      const first = changes[0];
+      notification.info({
+        message: "Статус ПЭС обновился",
+        description:
+          changes.length === 1
+            ? `ПЭС №${first.number}: ${first.from} → ${first.to}`
+            : `Обновлено ПЭС: ${changes.length}. Например №${first.number}: ${first.from} → ${first.to}`,
+        placement: "topRight",
+        duration: 5,
+      });
+
+      if (historyOpen) {
+        refreshHistory({ nextPage: 1, nextPageSize: historyPageSize });
+      }
+    };
+
+    const timer = window.setInterval(poll, PES_LIVE_POLL_MS);
+    return () => window.clearInterval(timer);
+  }, [user, sending, loading, loadItems, historyOpen, historyPageSize, refreshHistory]);
 
   useEffect(() => {
     const scopedPo = parseScopedPoValue(tpPoFilter);
@@ -217,7 +319,7 @@ export default function pesModuleLogic() {
   useEffect(() => {
     if (!historyOpen) return;
     refreshHistory({ nextPage: 1, nextPageSize: historyPageSize });
-  }, [historyOpen, historyPageSize, branchFilter, poFilter]);
+  }, [historyOpen, historyPageSize, branchFilter, poFilter, refreshHistory]);
 
   const branchOptions = useMemo(
     () => [
@@ -309,6 +411,9 @@ export default function pesModuleLogic() {
   const actionState = (action) => {
     if (!canManage) return { disabled: true, reason: "Режим просмотра" };
     if (!selectedItems.length) return { disabled: true, reason: "Сначала отметьте хотя бы одну ПЭС" };
+    if (["dispatch", "reroute"].includes(action) && loadingDestinations) {
+      return { disabled: true, reason: "Дождитесь загрузки точек назначения" };
+    }
     if (["dispatch", "reroute"].includes(action) && !destinationId) {
       return { disabled: true, reason: "Выберите точку назначения" };
     }
@@ -398,10 +503,10 @@ export default function pesModuleLogic() {
       });
 
       const meta = getActionMeta(action);
-      if (data?.telegram?.skipped) {
+      if (data?.max?.skipped || data?.max?.ok === false) {
         notification.warning({
           message: `${meta.title}: выполнено частично`,
-          description: `Операция применена, но Telegram пропущен: ${data?.telegram?.reason || "не настроен"}.`,
+          description: `Операция применена, но MAX пропущен: ${data?.max?.reason || "не настроен"}.`,
           placement: "topRight",
           duration: 5,
         });
@@ -413,17 +518,6 @@ export default function pesModuleLogic() {
           duration: 4,
         });
       }
-
-      logAuditEvent(
-        {
-          page: "/pes",
-          action: `pes_${action}`,
-          entity: "pes",
-          entity_id: selected.join(","),
-          details: { destinationType, destinationId },
-        },
-        user
-      );
 
       setComment("");
       setSelected([]);

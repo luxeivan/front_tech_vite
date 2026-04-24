@@ -1,4 +1,5 @@
 import React from "react";
+import { LinkOutlined } from "@ant-design/icons";
 import { Button, Flex, Space, Tag, Typography } from "antd";
 
 const { Text } = Typography;
@@ -26,6 +27,16 @@ export default function PesHeader({
           <Tag>В ремонте: {filteredSummary.repair}</Tag>
         </Space>
         <Space size={8}>
+          <Button
+            size="small"
+            href="https://max.ru/mosoblenergo_pes_bot"
+            target="_blank"
+            rel="noopener noreferrer"
+            icon={<LinkOutlined />}
+            className="pes-max-link"
+          >
+            MAX бот
+          </Button>
           <Button size="small" onClick={onOpenHistory}>История операций</Button>
           <Button size="small" onClick={onRefresh} loading={loading}>Обновить</Button>
         </Space>

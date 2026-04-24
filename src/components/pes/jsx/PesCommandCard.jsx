@@ -122,7 +122,7 @@ export default function PesCommandCard({
 
         <Input.TextArea
           autoSize={{ minRows: 1, maxRows: 2 }}
-          placeholder="Комментарий к операции (уйдет в уведомление Telegram)"
+          placeholder="Комментарий к операции (уйдет в уведомление MAX)"
           value={comment}
           onChange={(e) => setComment(e.target.value)}
           disabled={sending}

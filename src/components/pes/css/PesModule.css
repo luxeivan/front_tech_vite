@@ -28,6 +28,17 @@
   line-height: 1.2;
 }
 
+.pes-module .pes-max-link {
+  border-color: #1677ff;
+  color: #1677ff;
+  font-weight: 700;
+}
+
+.pes-module .pes-max-link:hover {
+  border-color: #4096ff;
+  color: #4096ff;
+}
+
 .pes-board {
   column-width: 350px;
   column-gap: 10px;

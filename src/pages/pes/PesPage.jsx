@@ -135,12 +135,12 @@ export default function PesPage() {
 
       {error && <Alert type="error" showIcon style={{ marginBottom: 8 }} message={error} />}
 
-      {/* {config && !config.telegramConfigured && (
+      {/* {config && !config.maxConfigured && (
         <Alert
           type="warning"
           showIcon
           style={{ marginBottom: 8 }}
-          message="Telegram-уведомления пока не настроены (работаем в режиме подготовки)."
+          message="MAX-уведомления пока не настроены (работаем в режиме подготовки)."
         />
       )} */}
 
