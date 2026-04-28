@@ -170,6 +170,7 @@ export const getRowSzoCounts = (row) => {
     izhs: 0,
     snt: 0,
     people: 0,
+    points: 0,
   };
 
   if (socials.length) {
@@ -213,5 +214,6 @@ export const getRowSzoCounts = (row) => {
   }
 
   base.people = getRowPeopleCount(row);
+  base.points = toNumberLoose(raw.POINTALL ?? raw.pointsCount ?? raw.placesCount);
   return base;
 };

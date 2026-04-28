@@ -203,8 +203,25 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
     return Array.isArray(source) ? source.filter(isDashboardViolationType) : [];
   }, [rows7d, rows7dLocal]);
 
-  // Донат "за сегодня" (без двойного учёта)
-  const DonutToday = () => {
+  const copyList = async (arr, label) => {
+    try {
+      const text =
+        arr
+          .map(
+            (r, i) =>
+              `${i + 1}. №${tnNumber(r) ?? "—"} — создано: ${formatDateTime(
+                startDate(r)
+              )}`
+          )
+          .join("\n") || "Нет данных";
+      await navigator.clipboard.writeText(text);
+      message.success(`${label}: скопировано ${arr.length}`);
+    } catch {
+      message.error("Не удалось скопировать");
+    }
+  };
+
+  const todayStats = React.useMemo(() => {
     const todayKey = dayKey0808(dayjs());
     const sameWorkday = (v) => (v ? dayKey0808(v) === todayKey : false);
     const createdToday = effectiveRows7d.filter((r) =>
@@ -229,25 +246,90 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
 
     const openList = [];
     const closedList = [];
+    const duration = {
+      green: [],
+      orange: [],
+      red: [],
+    };
+
+    const durationHoursOf = (r) => {
+      const startTs = dayjs(startDate(r)).valueOf();
+      if (!Number.isFinite(startTs) || startTs <= 0) return null;
+
+      const recoveryTs = dayjs(recoveryDate(r)).valueOf();
+      const updatedTs = dayjs(pick(r, "updatedAt") ?? r?.updatedAt ?? null).valueOf();
+      const status = String(pick(r, "STATUS_NAME") ?? r?.STATUS_NAME ?? "").toLowerCase();
+      const isFinal = ["запитана", "закрыта"].includes(status);
+
+      let endTs = Date.now();
+      if (Number.isFinite(recoveryTs) && recoveryTs > 0) {
+        endTs = recoveryTs;
+      } else if (isFinal && Number.isFinite(updatedTs) && updatedTs > 0) {
+        endTs = updatedTs;
+      }
+
+      if (endTs <= startTs) return null;
+      return (endTs - startTs) / (60 * 60 * 1000);
+    };
+
+    const activeToday = [];
     createdToday.forEach((r) => {
       if (isDeletedRow(r)) return; // игнорируем удалённые
+      activeToday.push(r);
       if (isClosedRow(r)) closedList.push(r);
       else openList.push(r);
+
+      const hours = durationHoursOf(r);
+      if (hours == null) return;
+      if (hours > 4) duration.red.push(r);
+      else if (hours > 2) duration.orange.push(r);
+      else duration.green.push(r);
     });
 
-    const opened = openList.length;
-    const closed = closedList.length;
-    // не учитываем удалённые в сумме
-    const total = opened + closed;
+    return {
+      openList,
+      closedList,
+      duration,
+      total: activeToday.length,
+    };
+  }, [effectiveRows7d]);
 
+  const donutSize = compact ? 112 : 128;
+  const donutPanelWidth = compact ? 320 : 360;
+  const donutPanelStyle = {
+    width: "100%",
+    maxWidth: donutPanelWidth,
+  };
+  const donutTitleStyle = {
+    fontWeight: 700,
+    color: "#1575bc",
+    marginBottom: 8,
+    textAlign: "left",
+  };
+  const donutBodyStyle = {
+    display: "grid",
+    gridTemplateColumns: `${donutSize}px minmax(130px, 1fr)`,
+    alignItems: "center",
+    columnGap: compact ? 12 : 18,
+  };
+  const donutLegendStyle = {
+    display: "flex",
+    flexDirection: "column",
+    gap: compact ? 6 : 8,
+  };
+
+  // Донат "за сегодня" (без двойного учёта)
+  const DonutToday = () => {
+    const opened = todayStats.openList.length;
+    const closed = todayStats.closedList.length;
+    const total = opened + closed;
     const deg = (n) => (total ? (n / total) * 360 : 0);
     const dOpen = deg(opened);
     const dClosed = deg(closed);
 
-    const size = compact ? 96 : 112;
     const ringStyle = {
-      width: size,
-      height: size,
+      width: donutSize,
+      height: donutSize,
       borderRadius: "50%",
       background: `conic-gradient(#ff7875 0 ${dOpen}deg, #52c41a ${dOpen}deg 360deg)`,
       position: "relative",
@@ -257,8 +339,8 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
       top: "50%",
       left: "50%",
       transform: "translate(-50%, -50%)",
-      width: Math.round(size * 0.68),
-      height: Math.round(size * 0.68),
+      width: Math.round(donutSize * 0.68),
+      height: Math.round(donutSize * 0.68),
       background: "#fff",
       borderRadius: "50%",
       display: "flex",
@@ -266,24 +348,6 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
       justifyContent: "center",
       flexDirection: "column",
       textAlign: "center",
-    };
-
-    const copyList = async (arr, label) => {
-      try {
-        const text =
-          arr
-            .map(
-              (r, i) =>
-                `${i + 1}. №${tnNumber(r) ?? "—"} — создано: ${formatDateTime(
-                  startDate(r)
-                )}`
-            )
-            .join("\n") || "Нет данных";
-        await navigator.clipboard.writeText(text);
-        message.success(`${label}: скопировано ${arr.length}`);
-      } catch {
-        message.error("Не удалось скопировать");
-      }
     };
 
     const LegendRow = ({ color, label, count, list }) => (
@@ -310,11 +374,9 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
     );
 
     return (
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <div>
-          <div style={{ fontWeight: 700, color: "#1575bc", marginBottom: 6 }}>
-            За сегодня:
-          </div>
+      <div style={donutPanelStyle}>
+        <div style={donutTitleStyle}>За сегодня:</div>
+        <div style={donutBodyStyle}>
           <div style={ringStyle}>
             <div style={innerStyle}>
               <div
@@ -331,20 +393,125 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
               </div>
             </div>
           </div>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div style={donutLegendStyle}>
           <LegendRow
             color="#ff7875"
             label="Открыты"
             count={opened}
-            list={openList}
+            list={todayStats.openList}
           />
           <LegendRow
             color="#52c41a"
             label="Закрыто"
             count={closed}
-            list={closedList}
+            list={todayStats.closedList}
           />
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const DonutDuration = () => {
+    const green = todayStats.duration.green.length;
+    const orange = todayStats.duration.orange.length;
+    const red = todayStats.duration.red.length;
+    const total = todayStats.total;
+    const chartTotal = green + orange + red;
+
+    const deg = (n) => (chartTotal ? (n / chartTotal) * 360 : 0);
+    const dGreen = deg(green);
+    const dOrange = deg(orange);
+    const dRed = deg(red);
+
+    const ringStyle = {
+      width: donutSize,
+      height: donutSize,
+      borderRadius: "50%",
+      background: chartTotal
+        ? `conic-gradient(#52c41a 0 ${dGreen}deg, #fa8c16 ${dGreen}deg ${
+            dGreen + dOrange
+          }deg, #ff4d4f ${dGreen + dOrange}deg ${dGreen + dOrange + dRed}deg)`
+        : "#f0f0f0",
+      position: "relative",
+    };
+    const innerStyle = {
+      position: "absolute",
+      top: "50%",
+      left: "50%",
+      transform: "translate(-50%, -50%)",
+      width: Math.round(donutSize * 0.68),
+      height: Math.round(donutSize * 0.68),
+      background: "#fff",
+      borderRadius: "50%",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      flexDirection: "column",
+      textAlign: "center",
+    };
+
+    const LegendRow = ({ color, label, count, list }) => (
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 2,
+          cursor: list?.length ? "copy" : "default",
+        }}
+        onClick={() => list?.length && copyList(list, label)}
+      >
+        <span
+          style={{
+            width: 10,
+            height: 10,
+            borderRadius: "50%",
+            background: color,
+          }}
+        />
+        <span style={{ fontSize: 10.5, color: "#6b778c" }}>{label}</span>
+        <strong style={{ marginLeft: 4 }}>{count}</strong>
+      </div>
+    );
+
+    return (
+      <div style={donutPanelStyle}>
+        <div style={donutTitleStyle}>Длительность ТН</div>
+        <div style={donutBodyStyle}>
+          <div style={ringStyle}>
+            <div style={innerStyle}>
+              <div
+                style={{
+                  fontSize: compact ? 22 : 26,
+                  fontWeight: 900,
+                  lineHeight: 1,
+                }}
+              >
+                {total}
+              </div>
+              <div style={{ fontSize: 12, color: "#6b778c" }}>всего</div>
+            </div>
+          </div>
+          <div style={donutLegendStyle}>
+          <LegendRow
+            color="#52c41a"
+            label="До 2 ч."
+            count={green}
+            list={todayStats.duration.green}
+          />
+          <LegendRow
+            color="#fa8c16"
+            label="От 2 до 4 ч."
+            count={orange}
+            list={todayStats.duration.orange}
+          />
+          <LegendRow
+            color="#ff4d4f"
+            label="Более 4 ч."
+            count={red}
+            list={todayStats.duration.red}
+          />
+          </div>
         </div>
       </div>
     );
@@ -480,16 +647,26 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
           </Card>
         </div>
 
-        {/* правая колонка — круговая диаграмма */}
+        {/* правая колонка — круговые диаграммы */}
         <div
           style={{
             display: "flex",
+            flexDirection: "column",
             alignItems: "center",
             justifyContent: "flex-start",
+            gap: compact ? 12 : 16,
             paddingLeft: compact ? 12 : 16,
           }}
         >
           <DonutToday />
+          <div
+            style={{
+              width: "100%",
+              maxWidth: 330,
+              borderTop: "1px solid #e6f0ff",
+            }}
+          />
+          <DonutDuration />
         </div>
       </div>
     </Card>

@@ -87,6 +87,7 @@ export default function RegionSZO({ rowsOpen, loadingExternal }) {
       if (!acc.has(d))
         acc.set(d, {
           people: 0,
+          points: 0,
           boilers: 0,
           ctp: 0,
           hosp: 0,
@@ -95,6 +96,7 @@ export default function RegionSZO({ rowsOpen, loadingExternal }) {
           kindergartens: 0,
           vzu: 0,
           vns: 0,
+          kns: 0,
           mkd: 0,
           izhs: 0,
           snt: 0,
@@ -118,24 +120,34 @@ export default function RegionSZO({ rowsOpen, loadingExternal }) {
     fontSize: 12,
     background: "#fafafa",
     borderBottom: "1px solid #eee",
-    whiteSpace: "nowrap",
+    whiteSpace: "normal",
     textAlign: "center",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    lineHeight: 1.2,
+    verticalAlign: "middle",
+    wordBreak: "break-word",
   };
   const td = {
     padding: "6px 8px",
     fontSize: 12,
     textAlign: "center",
     borderBottom: "1px solid #f0f0f0",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    verticalAlign: "middle",
   };
 
   const fmtInt = (n) => new Intl.NumberFormat("ru-RU").format(Number(n || 0));
+  const columnsCount = 16;
+  const colWidth = `${100 / columnsCount}%`;
 
   return (
     <Card
-      style={{ borderRadius: 20, marginTop: 8 }}
+      style={{ borderRadius: 20, marginTop: 14 }}
       title={
         <div style={{ fontWeight: 700, color: "#1575bc" }}>
-          Информация об отключениях СЗО в разрезе городских округов
+          Информация о масштабах отключения в разрезе городских округов
         </div>
       }
       styles={{ body: { padding: 10 } }}
@@ -146,19 +158,33 @@ export default function RegionSZO({ rowsOpen, loadingExternal }) {
         </div>
       ) : (
         <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <table
+            style={{
+              width: "100%",
+              minWidth: 1320,
+              tableLayout: "fixed",
+              borderCollapse: "collapse",
+            }}
+          >
+            <colgroup>
+              {Array.from({ length: columnsCount }).map((_, index) => (
+                <col key={index} style={{ width: colWidth }} />
+              ))}
+            </colgroup>
             <thead>
               <tr>
                 <th style={{ ...th, textAlign: "left" }}>Городской округ</th>
-                <th style={th} title="Количество отключённых людей">Чел</th>
+                <th style={th} title="Количество отключённых людей">Население</th>
+                <th style={th}>Точки поставки</th>
                 <th style={th}>Котельные</th>
                 <th style={th}>ЦТП</th>
                 <th style={th}>Больницы</th>
-                <th style={th}>Поликл</th>
+                <th style={th}>Поликлиники</th>
                 <th style={th}>Школы</th>
-                <th style={th}>Дет.сады</th>
+                <th style={th}>Детские сады</th>
                 <th style={th}>ВЗУ</th>
                 <th style={th}>ВНС</th>
+                <th style={th}>КНС</th>
                 <th style={th}>МКД</th>
                 <th style={th}>ИЖС</th>
                 <th style={th}>СНТ</th>
@@ -168,8 +194,14 @@ export default function RegionSZO({ rowsOpen, loadingExternal }) {
             <tbody>
               {rowsView.map(([d, v], i) => (
                 <tr key={d} style={{ background: i % 2 ? "#fff" : "#fcfcfc" }}>
-                  <td style={{ ...td, textAlign: "left" }}>{d}</td>
+                  <td
+                    style={{ ...td, textAlign: "left", whiteSpace: "normal", wordBreak: "break-word" }}
+                    title={d}
+                  >
+                    {d}
+                  </td>
                   <td style={td}>{fmtInt(v.people || 0)}</td>
+                  <td style={td}>{fmtInt(v.points || 0)}</td>
                   <td style={td}>{v.boilers || 0}</td>
                   <td style={td}>{v.ctp || 0}</td>
                   <td style={td}>{v.hosp || 0}</td>
@@ -178,6 +210,7 @@ export default function RegionSZO({ rowsOpen, loadingExternal }) {
                   <td style={td}>{v.kindergartens || 0}</td>
                   <td style={td}>{v.vzu || 0}</td>
                   <td style={td}>{v.vns || 0}</td>
+                  <td style={td}>{v.kns || 0}</td>
                   <td style={td}>{v.mkd || 0}</td>
                   <td style={td}>{v.izhs || 0}</td>
                   <td style={td}>{v.snt || 0}</td>
@@ -186,7 +219,7 @@ export default function RegionSZO({ rowsOpen, loadingExternal }) {
               ))}
               {rowsView.length === 0 && (
                 <tr>
-                  <td style={{ ...td, textAlign: "left" }} colSpan={14}>
+                  <td style={{ ...td, textAlign: "left" }} colSpan={columnsCount}>
                     Нет данных
                   </td>
                 </tr>

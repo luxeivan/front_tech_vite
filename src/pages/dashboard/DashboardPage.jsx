@@ -19,7 +19,7 @@ import {
 } from "../../components/dashboard/js/dashboardPage.utils"; // Хелперы страницы дашборда.
 import "../../components/dashboard/css/DashboardPage.css";
 
-const { Title, Text } = Typography;
+const { Title } = Typography;
 
 export default function DashboardPage() {
   const headerRef = useRef(null);
@@ -43,7 +43,7 @@ export default function DashboardPage() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  const [now, setNow] = useState(dayjs().format("DD.MM.YYYY, HH:mm:ss"));
+  const [now, setNow] = useState(dayjs());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [rows, setRows] = useState([]);
@@ -76,7 +76,7 @@ export default function DashboardPage() {
 
   // Header ticker.
   useEffect(() => {
-    const t = setInterval(() => setNow(dayjs().format("DD.MM.YYYY, HH:mm:ss")), 60_000);
+    const t = setInterval(() => setNow(dayjs()), 1000);
     return () => clearInterval(t);
   }, []);
 
@@ -124,11 +124,15 @@ export default function DashboardPage() {
     <div className="dashboard-page">
       <div ref={headerRef} className="dashboard-page__hero">
         <div className="dashboard-page__container">
-          <div className="dashboard-page__title-wrap">
+          <div className="dashboard-page__hero-grid">
+            <div />
             <Title level={2} className="dashboard-page__title">
               ТЕХНОЛОГИЧЕСКИЕ НАРУШЕНИЯ В ЭЛЕКТРИЧЕСКИХ СЕТЯХ АО «МОСОБЛЭНЕРГО»
             </Title>
-            <Text className="dashboard-page__now">По состоянию на {now}</Text>
+            <div className="dashboard-page__clock" aria-label="Текущее время">
+              <div className="dashboard-page__clock-time">{now.format("HH:mm:ss")}</div>
+              <div className="dashboard-page__clock-date">{now.format("DD.MM.YYYY")}</div>
+            </div>
           </div>
         </div>
       </div>
@@ -143,7 +147,7 @@ export default function DashboardPage() {
             gap: compact ? 10 : 14,
           }}
         >
-          <div>
+          <div className="dashboard-page__left-column">
             {loading && !error && (
               <Space className="dashboard-page__loading">
                 <Spin size="large" />
@@ -156,12 +160,13 @@ export default function DashboardPage() {
             )}
 
             {!loading && !error && (
-              <>
+              <div className="dashboard-page__left-stack">
                 <InfoTN rows={rows} rows7d={rows7d} />
                 <PotrebiteliSZO />
-                <PowerMosOblEnergo />
-                <RegionSZO />
-              </>
+                <div className="dashboard-page__left-fill">
+                  <PowerMosOblEnergo />
+                </div>
+              </div>
             )}
 
             {rows.length === 0 && loading && (
@@ -169,7 +174,7 @@ export default function DashboardPage() {
             )}
           </div>
 
-          <div>
+          <div className="dashboard-page__right-column">
             <Card
               className="dashboard-page__map-card"
               styles={{ body: { padding: 0 } }}
@@ -198,6 +203,8 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+
+        {!loading && !error && <RegionSZO rowsOpen={rows} loadingExternal={loading} />}
       </div>
     </div>
   );
