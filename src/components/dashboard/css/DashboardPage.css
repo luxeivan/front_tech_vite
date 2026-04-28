@@ -85,6 +85,12 @@
   min-width: 0;
 }
 
+.dashboard-page__right-column {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
 .dashboard-page__left-stack {
   display: flex;
   flex-direction: column;
@@ -129,5 +135,13 @@
 }
 
 .dashboard-page__dynamics {
+  display: flex;
+  flex: 1;
+  min-height: 0;
   margin-top: 12px;
+}
+
+.dashboard-page__dynamics > .ant-card {
+  flex: 1;
+  margin-bottom: 0 !important;
 }

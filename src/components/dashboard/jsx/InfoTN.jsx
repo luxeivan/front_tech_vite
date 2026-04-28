@@ -47,7 +47,7 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
       const h = window.innerHeight;
       const w = window.innerWidth;
       setCompact(h < 900 || w < 1280);
-      setMedium(w >= 1280 && w < 1540);
+      setMedium(w >= 1280 && w < 1800);
     };
     onResize();
     window.addEventListener("resize", onResize);
