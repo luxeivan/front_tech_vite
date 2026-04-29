@@ -126,11 +126,7 @@ export function formatDateTime(value) {
 }
 
 export function isPlannedType(item) {
-  const raw = getRawData(item);
-  const top = s(getField(item, "VIOLATION_TYPE")).toLowerCase();
-  const fromRaw = s(raw?.VIOLATION_TYPE).toLowerCase();
-  const x = top || fromRaw;
-  return x === "п" || x.includes("план");
+  return Number(getField(item, "BASE_TYPE")) === 1;
 }
 
 // --- СЗО как в аварийках ---

@@ -27,7 +27,7 @@ import ruRU from "antd/locale/ru_RU";
 import "dayjs/locale/ru";
 dayjs.locale("ru");
 
-const EMERGENCY_VIOLATION_TYPE_EXCLUDE = "П";
+const EMERGENCY_BASE_TYPE = 0;
 
 const getStatusName = (item) => {
   const a = item?.attributes;
@@ -64,18 +64,16 @@ const getRecoveryDate = (item) =>
   item?.attributes?.data?.data?.F81_290_RECOVERYDATETIME ??
   null;
 
-const getViolationType = (item) => {
+const getBaseType = (item) => {
   const a = item?.attributes;
   const possible = [
-    item?.VIOLATION_TYPE,
-    a?.VIOLATION_TYPE,
-    item?.data?.VIOLATION_TYPE,
-    item?.data?.data?.VIOLATION_TYPE,
-    item?.violation_type,
-    a?.violation_type,
+    item?.BASE_TYPE,
+    a?.BASE_TYPE,
+    item?.data?.BASE_TYPE,
+    item?.data?.data?.BASE_TYPE,
   ];
   for (const v of possible) {
-    if (typeof v === "string" && v.trim()) return v.trim().toUpperCase();
+    if (v !== null && v !== undefined && String(v).trim() !== "") return Number(v);
   }
   return null;
 };
@@ -556,8 +554,8 @@ export default function TableTN() {
   // --- removed openedCount, loadingOpened, totalByDate, headerTotal memoizations
 
   useEffect(() => {
-    getTns({ date, excludeViolationType: EMERGENCY_VIOLATION_TYPE_EXCLUDE });
-    loadOpenedCount({ date, excludeViolationType: EMERGENCY_VIOLATION_TYPE_EXCLUDE });
+    getTns({ date, baseType: EMERGENCY_BASE_TYPE });
+    loadOpenedCount({ date, baseType: EMERGENCY_BASE_TYPE });
   }, [date, selectedStatuses, getTns, loadOpenedCount]);
 
   useEffect(() => {
@@ -611,8 +609,8 @@ export default function TableTN() {
       if (refreshLocked) return;
       timer = setTimeout(() => {
         if (!refreshLocked) {
-          getTns({ date, excludeViolationType: EMERGENCY_VIOLATION_TYPE_EXCLUDE });
-          loadOpenedCount({ date, excludeViolationType: EMERGENCY_VIOLATION_TYPE_EXCLUDE });
+          getTns({ date, baseType: EMERGENCY_BASE_TYPE });
+          loadOpenedCount({ date, baseType: EMERGENCY_BASE_TYPE });
           loadSendStatus();
         }
       }, delay);
@@ -707,7 +705,7 @@ export default function TableTN() {
 
   const listRaw = Array.isArray(tns?.data) ? tns.data : [];
   const listByDate = listRaw.filter((item) => {
-    if (getViolationType(item) === EMERGENCY_VIOLATION_TYPE_EXCLUDE) return false;
+    if (getBaseType(item) !== EMERGENCY_BASE_TYPE) return false;
     const d = getCreateDate(item);
     return date ? dayjs(d).isSame(date, "day") : true;
   });
@@ -988,8 +986,8 @@ export default function TableTN() {
             <Button
               disabled={isLoadingTns}
               onClick={() => {
-                getTns({ date, excludeViolationType: EMERGENCY_VIOLATION_TYPE_EXCLUDE });
-                loadOpenedCount({ date, excludeViolationType: EMERGENCY_VIOLATION_TYPE_EXCLUDE });
+                getTns({ date, baseType: EMERGENCY_BASE_TYPE });
+                loadOpenedCount({ date, baseType: EMERGENCY_BASE_TYPE });
                 loadSendStatus();
               }}
             >
@@ -1046,8 +1044,8 @@ export default function TableTN() {
         onClose={() => {
           setIsOpenModalTN(false);
           setTimeout(() => {
-            getTns({ date, excludeViolationType: EMERGENCY_VIOLATION_TYPE_EXCLUDE });
-            loadOpenedCount({ date, excludeViolationType: EMERGENCY_VIOLATION_TYPE_EXCLUDE });
+            getTns({ date, baseType: EMERGENCY_BASE_TYPE });
+            loadOpenedCount({ date, baseType: EMERGENCY_BASE_TYPE });
             loadSendStatus();
           }, 0);
         }}

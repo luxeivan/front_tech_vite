@@ -30,12 +30,8 @@ const useData = create((set) => ({
         params["filters[createDateTime][$lte]"] = end;
       }
 
-      if (opts.violationType) {
-        params["filters[VIOLATION_TYPE][$eq]"] = String(opts.violationType).trim();
-      }
-
-      if (opts.excludeViolationType) {
-        params["filters[VIOLATION_TYPE][$ne]"] = String(opts.excludeViolationType).trim();
+      if (opts.baseType !== undefined && opts.baseType !== null) {
+        params["filters[BASE_TYPE][$eq]"] = Number(opts.baseType);
       }
 
       const { data } = await axios.get(base, {
@@ -70,11 +66,8 @@ const useData = create((set) => ({
         params["filters[createDateTime][$gte]"] = start;
         params["filters[createDateTime][$lte]"] = end;
       }
-      if (opts.violationType) {
-        params["filters[VIOLATION_TYPE][$eq]"] = String(opts.violationType).trim();
-      }
-      if (opts.excludeViolationType) {
-        params["filters[VIOLATION_TYPE][$ne]"] = String(opts.excludeViolationType).trim();
+      if (opts.baseType !== undefined && opts.baseType !== null) {
+        params["filters[BASE_TYPE][$eq]"] = Number(opts.baseType);
       }
       const { data } = await axios.get(base, {
         params,

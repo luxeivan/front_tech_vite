@@ -132,7 +132,7 @@ function mapRow(item, sendStatus) {
     key: getField(item, "id") ?? documentId,
     documentId,
     number: plannedNum ?? "—",
-    violationType: getField(item, "VIOLATION_TYPE") ?? "П",
+    violationType: Number(getField(item, "BASE_TYPE")) === 1 ? "Плановая" : "—",
     startPlan: formatDateTime(getField(item, "F81_060_EVENTDATETIME")),
     startFact: formatDateTime(getField(item, "STARTDATETIME")),
     endPlan: formatDateTime(getField(item, "F81_070_RESTOR_SUPPLAYDATETIME")),
@@ -213,8 +213,8 @@ export default function PlannedTable() {
       if (!force && lastDataKeyRef.current === key) return;
       lastDataKeyRef.current = key;
       await Promise.all([
-        getTns({ date: nextDate ?? null, violationType: "П" }),
-        loadOpenedCount({ date: nextDate ?? null, violationType: "П" }),
+        getTns({ date: nextDate ?? null, baseType: 1 }),
+        loadOpenedCount({ date: nextDate ?? null, baseType: 1 }),
       ]);
     },
     [date, getTns, loadOpenedCount]

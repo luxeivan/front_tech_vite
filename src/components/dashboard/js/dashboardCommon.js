@@ -35,14 +35,14 @@ export const isOpenTN = (row) => {
 };
 
 // Для dashboard учитываем только аварийные/внеплановые ТН.
-export const violationTypeOf = (row) => {
-  const raw = pick(row, "VIOLATION_TYPE") ?? row?.VIOLATION_TYPE ?? "";
-  return String(raw).trim().toUpperCase();
+export const baseTypeOf = (row) => {
+  const raw = pick(row, "BASE_TYPE") ?? row?.BASE_TYPE ?? null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
 };
 
-export const isDashboardViolationType = (row) => {
-  const type = violationTypeOf(row);
-  return type === "А" || type === "В";
+export const isDashboardBaseType = (row) => {
+  return baseTypeOf(row) === 0;
 };
 
 export const s = (v) =>

@@ -5,7 +5,7 @@ import {
   URL,
   districtName,
   getRowSzoCounts,
-  isDashboardViolationType,
+  isDashboardBaseType,
   isOpenTN,
 } from "../js/dashboardCommon"; // Общие хелперы dashboard.
 
@@ -27,8 +27,7 @@ export default function RegionSZO({ rowsOpen, loadingExternal }) {
         "pagination[pageSize]=500",
         "sort[0]=createDateTime:DESC",
         "filters[isActive][$eq]=true",
-        "filters[VIOLATION_TYPE][$in][0]=А",
-        "filters[VIOLATION_TYPE][$in][1]=В",
+        "filters[BASE_TYPE][$eq]=0",
       ].join("&");
 
       const headers = { Authorization: `Bearer ${jwt}` };
@@ -42,7 +41,7 @@ export default function RegionSZO({ rowsOpen, loadingExternal }) {
           )
         : [];
 
-      setRows(list.filter((row) => isOpenTN(row) && isDashboardViolationType(row)));
+      setRows(list.filter((row) => isOpenTN(row) && isDashboardBaseType(row)));
     } finally {
       setLoading(false);
     }

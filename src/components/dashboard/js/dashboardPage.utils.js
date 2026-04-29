@@ -1,5 +1,5 @@
 import dayjs from "dayjs";
-import { isDashboardViolationType } from "./dashboardCommon";
+import { isDashboardBaseType } from "./dashboardCommon";
 
 export const MAP_SCALE = 0.55;
 
@@ -62,8 +62,7 @@ export async function fetchDashboardRows({ axios, jwt }) {
     "pagination[pageSize]=500",
     "sort[0]=createDateTime:DESC",
     "filters[isActive][$eq]=true",
-    "filters[VIOLATION_TYPE][$in][0]=А",
-    "filters[VIOLATION_TYPE][$in][1]=В",
+    "filters[BASE_TYPE][$eq]=0",
   ].join("&");
 
   const qsAll7d = [
@@ -71,8 +70,7 @@ export async function fetchDashboardRows({ axios, jwt }) {
     "pagination[pageSize]=1000",
     "sort[0]=createDateTime:DESC",
     `filters[createDateTime][$gte]=${encodeURIComponent(since7d)}`,
-    "filters[VIOLATION_TYPE][$in][0]=А",
-    "filters[VIOLATION_TYPE][$in][1]=В",
+    "filters[BASE_TYPE][$eq]=0",
   ].join("&");
 
   const headers = { Authorization: `Bearer ${jwt}` };
@@ -86,7 +84,7 @@ export async function fetchDashboardRows({ axios, jwt }) {
   const listAll7d = Array.isArray(respAll?.data?.data) ? respAll.data.data.map(mapIt) : [];
 
   return {
-    rows: listOpen.filter((row) => isOpenTN(row) && isDashboardViolationType(row)),
-    rows7d: listAll7d.filter(isDashboardViolationType),
+    rows: listOpen.filter((row) => isOpenTN(row) && isDashboardBaseType(row)),
+    rows7d: listAll7d.filter(isDashboardBaseType),
   };
 }

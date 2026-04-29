@@ -11,7 +11,7 @@ import {
 import axios from "axios";
 import {
   URL,
-  isDashboardViolationType,
+  isDashboardBaseType,
   toNumber,
   pick,
   pickAny,
@@ -166,8 +166,7 @@ export default function PowerMosOblEnergo() {
           "pagination[pageSize]=500",
           "sort[0]=createDateTime:DESC",
           "filters[isActive][$eq]=true",
-          "filters[VIOLATION_TYPE][$in][0]=А",
-          "filters[VIOLATION_TYPE][$in][1]=В",
+          "filters[BASE_TYPE][$eq]=0",
         ].join("&");
         const resp = await axios.get(`${URL}/api/teh-narusheniyas?${qsOpen}`, {
           headers,
@@ -179,7 +178,7 @@ export default function PowerMosOblEnergo() {
             )
           : [];
 
-        setRows(list.filter((row) => isOpenTN(row) && isDashboardViolationType(row)));
+        setRows(list.filter((row) => isOpenTN(row) && isDashboardBaseType(row)));
       } catch (e) {
         // мягко игнорируем, блок не критичен
         console.warn("PowerMosOblEnergo: load error:", e?.message || e);

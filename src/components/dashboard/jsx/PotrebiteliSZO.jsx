@@ -17,7 +17,7 @@ import axios from "axios";
 import {
   URL,
   getRowSzoCounts,
-  isDashboardViolationType,
+  isDashboardBaseType,
   isOpenTN,
 } from "../js/dashboardCommon"; // Общие хелперы dashboard.
 const CARD_SCALE = 0.36;
@@ -113,8 +113,7 @@ export default function PotrebiteliSZO({ rowsOpen, loadingExternal }) {
         "pagination[pageSize]=500",
         "sort[0]=createDateTime:DESC",
         "filters[isActive][$eq]=true",
-        "filters[VIOLATION_TYPE][$in][0]=А",
-        "filters[VIOLATION_TYPE][$in][1]=В",
+        "filters[BASE_TYPE][$eq]=0",
       ].join("&");
 
       const headers = { Authorization: `Bearer ${jwt}` };
@@ -131,7 +130,7 @@ export default function PotrebiteliSZO({ rowsOpen, loadingExternal }) {
           )
         : [];
 
-      setRows(listOpen.filter((row) => isOpenTN(row) && isDashboardViolationType(row)));
+      setRows(listOpen.filter((row) => isOpenTN(row) && isDashboardBaseType(row)));
     } catch (e) {
       console.warn("[PotrebiteliSZO] load error:", e?.message || e);
     } finally {

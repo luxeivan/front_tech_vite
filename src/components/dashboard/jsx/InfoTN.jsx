@@ -10,7 +10,7 @@ import dayjs from "dayjs";
 import axios from "axios";
 import {
   URL,
-  isDashboardViolationType,
+  isDashboardBaseType,
   toNumber,
   pick,
   pickAny,
@@ -71,8 +71,7 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
           "pagination[pageSize]=1000",
           "sort[0]=createDateTime:DESC",
           `filters[createDateTime][$gte]=${encodeURIComponent(since7d)}`,
-          "filters[VIOLATION_TYPE][$in][0]=А",
-          "filters[VIOLATION_TYPE][$in][1]=В",
+          "filters[BASE_TYPE][$eq]=0",
         ].join("&");
 
         const resp = await axios.get(`${URL}/api/teh-narusheniyas?${qsAll7d}`, {
@@ -85,7 +84,7 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
             )
           : [];
 
-        setRows7dLocal(listAll7d.filter(isDashboardViolationType));
+        setRows7dLocal(listAll7d.filter(isDashboardBaseType));
       } catch (e) {
         console.warn("[InfoTN] 7d fetch error:", e?.message || e);
         setRows7dLocal([]);
@@ -166,7 +165,7 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
   });
 
   const filteredRows = React.useMemo(
-    () => (Array.isArray(rows) ? rows.filter(isDashboardViolationType) : []),
+    () => (Array.isArray(rows) ? rows.filter(isDashboardBaseType) : []),
     [rows]
   );
 
@@ -202,7 +201,7 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
 
   const effectiveRows7d = React.useMemo(() => {
     const source = Array.isArray(rows7d) && rows7d.length ? rows7d : rows7dLocal;
-    return Array.isArray(source) ? source.filter(isDashboardViolationType) : [];
+    return Array.isArray(source) ? source.filter(isDashboardBaseType) : [];
   }, [rows7d, rows7dLocal]);
 
   const copyList = async (arr, label) => {
