@@ -39,7 +39,10 @@ const defaultPageSize = 10;
 const ALL_BRANCHES = "__all__";
 const ALL_PO = "__all__";
 const SCOPED_PO_SEPARATOR = ":::";
-const DEFAULT_PLANNED_STATUSES = PLANNED_STATUS_OPTIONS.map((item) => item.value);
+const ACTIVE_PLANNED_STATUSES = ["запланировано", "начата"];
+const DEFAULT_PLANNED_STATUSES = PLANNED_STATUS_OPTIONS
+  .filter((item) => ACTIVE_PLANNED_STATUSES.includes(item.value))
+  .map((item) => item.value);
 
 const SEND_CHANNELS = [
   { key: "edds", label: "ЕДДС" },
@@ -310,12 +313,10 @@ export default function PlannedTable() {
         }
 
         const statusName = getPlannedStatusName(item);
-        if (
-          selectedStatuses.length > 0 &&
-          !selectedStatuses.includes(statusName)
-        ) {
-          return false;
-        }
+        const effectiveStatuses =
+          selectedStatuses.length > 0 ? selectedStatuses : DEFAULT_PLANNED_STATUSES;
+
+        if (!effectiveStatuses.includes(statusName)) return false;
 
         return true;
       })
@@ -614,12 +615,14 @@ export default function PlannedTable() {
             options={poOptions}
             dropdownMatchSelectWidth={false}
           />
+          <Typography.Text style={{ whiteSpace: "nowrap" }}>
+            Статус заявки:
+          </Typography.Text>
           <Select
             mode="multiple"
             allowClear
-            maxTagCount="responsive"
             style={{ minWidth: 260 }}
-            placeholder="Статус заявки"
+            placeholder="Выберите статус(ы)"
             value={selectedStatuses}
             onChange={(values) => {
               setSelectedStatuses(values || []);
@@ -627,6 +630,7 @@ export default function PlannedTable() {
             }}
             options={PLANNED_STATUS_OPTIONS}
             dropdownMatchSelectWidth={false}
+            maxTagCount={false}
           />
         </Flex>
         <Flex gap={8} wrap justify="flex-end">
