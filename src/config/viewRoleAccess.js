@@ -5,7 +5,7 @@ const FEATURE_ROLES = {
   tnEdit: ["standart", "preview"],
   tnSendBlock: ["standart", "preview"],
   tnTestButtons: ["preview"],
-  plannedModule: ["preview"],
+  plannedModule: ["supergeneral", "standart", "preview"],
   auditLogging: ["preview"],
   journal: ["standart"],
   pesManage: ["standart", "preview"],
