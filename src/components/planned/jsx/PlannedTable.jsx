@@ -30,6 +30,7 @@ import {
   getField,
   isPlannedType,
   getPlannedStatusName,
+  PLANNED_STATUS_OPTIONS,
   parseJournalStatuses,
 } from "../js/plannedTable.utils";
 import "../css/PlannedTable.css";
@@ -38,6 +39,7 @@ const defaultPageSize = 10;
 const ALL_BRANCHES = "__all__";
 const ALL_PO = "__all__";
 const SCOPED_PO_SEPARATOR = ":::";
+const DEFAULT_PLANNED_STATUSES = PLANNED_STATUS_OPTIONS.map((item) => item.value);
 
 const SEND_CHANNELS = [
   { key: "edds", label: "ЕДДС" },
@@ -158,6 +160,7 @@ export default function PlannedTable() {
   const [date, setDate] = useState(null);
   const [selectedBranch, setSelectedBranch] = useState(ALL_BRANCHES);
   const [selectedPo, setSelectedPo] = useState(ALL_PO);
+  const [selectedStatuses, setSelectedStatuses] = useState(DEFAULT_PLANNED_STATUSES);
   const [sorter, setSorter] = useState({
     field: "startPlan",
     order: "descend",
@@ -306,10 +309,18 @@ export default function PlannedTable() {
           }
         }
 
+        const statusName = getPlannedStatusName(item);
+        if (
+          selectedStatuses.length > 0 &&
+          !selectedStatuses.includes(statusName)
+        ) {
+          return false;
+        }
+
         return true;
       })
       .map((item) => mapRow(item, sendStatus));
-  }, [rows, selectedBranch, selectedPo, sendStatus]);
+  }, [rows, selectedBranch, selectedPo, selectedStatuses, sendStatus]);
 
   const sorted = useMemo(() => {
     const arr = [...filtered];
@@ -603,6 +614,20 @@ export default function PlannedTable() {
             options={poOptions}
             dropdownMatchSelectWidth={false}
           />
+          <Select
+            mode="multiple"
+            allowClear
+            maxTagCount="responsive"
+            style={{ minWidth: 260 }}
+            placeholder="Статус заявки"
+            value={selectedStatuses}
+            onChange={(values) => {
+              setSelectedStatuses(values || []);
+              setPagination((p) => ({ ...p, page: 1 }));
+            }}
+            options={PLANNED_STATUS_OPTIONS}
+            dropdownMatchSelectWidth={false}
+          />
         </Flex>
         <Flex gap={8} wrap justify="flex-end">
           <Button onClick={exportToExcel}>Выгрузка в Excel</Button>
@@ -611,6 +636,7 @@ export default function PlannedTable() {
               setDate(null);
               setSelectedBranch(ALL_BRANCHES);
               setSelectedPo(ALL_PO);
+              setSelectedStatuses(DEFAULT_PLANNED_STATUSES);
               setPagination({ page: 1, pageSize: defaultPageSize });
               lastDataKeyRef.current = null;
               fetchPrimaryData({ nextDate: null, force: true });
