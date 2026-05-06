@@ -905,6 +905,25 @@ export default function TableTN() {
     setPagination({ page, pageSize });
   };
 
+  const handleTableChange = (p, f, s) => {
+    const info = Array.isArray(s) ? s[0] : s;
+    const field = info?.field || info?.columnKey;
+
+    if (!field) {
+      setSorter({ field: "createDateTime", order: "descend" });
+      setPagination((prev) => ({ ...prev, page: 1 }));
+      return;
+    }
+
+    setSorter((prev) => ({
+      field,
+      order:
+        info?.order ||
+        (prev.field === field && prev.order === "descend" ? "ascend" : "descend"),
+    }));
+    setPagination((prev) => ({ ...prev, page: 1 }));
+  };
+
   return (
     <ConfigProvider
       locale={ruRU}
@@ -1008,14 +1027,7 @@ export default function TableTN() {
         dataSource={dataSource}
         columns={columns}
         pagination={false}
-        onChange={(p, f, s) => {
-          const info = Array.isArray(s) ? s[0] : s;
-          if (info && info.field) {
-            setSorter({ field: info.field, order: info.order || 'ascend' });
-          } else {
-            setSorter({ field: 'createDateTime', order: 'descend' });
-          }
-        }}
+        onChange={handleTableChange}
         onRow={(record) => {
           return {
             style: { cursor: "pointer" },
