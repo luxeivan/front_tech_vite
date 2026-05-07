@@ -253,20 +253,28 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
       red: [],
     };
 
+    const factRecoveryDate = (r) =>
+      pickAny(r, ["recoveryFactDateTime", "F81_290_RECOVERYDATETIME"]);
+
     const durationHoursOf = (r) => {
       const startTs = dayjs(startDate(r)).valueOf();
       if (!Number.isFinite(startTs) || startTs <= 0) return null;
 
-      const recoveryTs = dayjs(recoveryDate(r)).valueOf();
-      const updatedTs = dayjs(pick(r, "updatedAt") ?? r?.updatedAt ?? null).valueOf();
       const status = String(pick(r, "STATUS_NAME") ?? r?.STATUS_NAME ?? "").toLowerCase();
       const isFinal = ["запитана", "закрыта"].includes(status);
 
       let endTs = Date.now();
-      if (Number.isFinite(recoveryTs) && recoveryTs > 0) {
-        endTs = recoveryTs;
-      } else if (isFinal && Number.isFinite(updatedTs) && updatedTs > 0) {
-        endTs = updatedTs;
+      if (isFinal) {
+        const recoveryTs = dayjs(factRecoveryDate(r)).valueOf();
+        const updatedTs = dayjs(pick(r, "updatedAt") ?? r?.updatedAt ?? null).valueOf();
+
+        if (Number.isFinite(recoveryTs) && recoveryTs > 0) {
+          endTs = recoveryTs;
+        } else if (Number.isFinite(updatedTs) && updatedTs > 0) {
+          endTs = updatedTs;
+        } else {
+          return null;
+        }
       }
 
       if (endTs <= startTs) return null;

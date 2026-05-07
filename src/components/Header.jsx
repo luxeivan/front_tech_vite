@@ -12,6 +12,11 @@ export default function Header() {
   const navigate = useNavigate();
   const location = useLocation();
   const canSeeAuditLogs = hasFeatureAccess(user?.view_role, "auditLogging");
+  const displayName =
+    user?.fullName ||
+    user?.username ||
+    (user?.email ? user.email.split("@")[0] : null) ||
+    "Пользователь";
 
   const goTo = (path, action) => {
     logAuditEvent({ page: location.pathname, action, entity: "button" }, user);
@@ -69,14 +74,17 @@ export default function Header() {
       </Flex>
 
       {isAuth ? (
-        <Button
-          type="primary"
-          danger
-          onClick={() => exit()}
-          className={styles.logoutBtn}
-        >
-          Выйти
-        </Button>
+        <Flex align="center" gap={10} className={styles.rightSide}>
+          <span className={styles.userName}>{displayName}</span>
+          <Button
+            type="primary"
+            danger
+            onClick={() => exit()}
+            className={styles.logoutBtn}
+          >
+            Выйти
+          </Button>
+        </Flex>
       ) : null}
     </Flex>
   );

@@ -13,6 +13,29 @@ function clean(v) {
   return String(v);
 }
 
+function splitFirst(v) {
+  const val = clean(v);
+  if (!val) return null;
+  return (
+    val
+      .split(/[;,]/)
+      .map((s) => s.trim())
+      .filter(Boolean)[0] || null
+  );
+}
+
+function normalizeBaseType(v) {
+  if (v === undefined || v === null || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function mapMesStatusFromBaseType(baseType) {
+  if (baseType === 1) return "Плановая";
+  if (baseType === 0) return "Аварийная";
+  return null;
+}
+
 export function buildMosEnergoSbytPayload(tn) {
   const obj = tn?.data;
   if (!obj) return null;
@@ -35,7 +58,10 @@ export function buildMosEnergoSbytPayload(tn) {
     ) || null;
 
   const date_on_fact =
-    toDate(raw.F81_290_RECOVERYDATETIME || obj.recoveryDateTime, true) || null;
+    toDate(
+      raw.F81_290_RECOVERYDATETIME || obj.recoveryFactDateTime || obj.recoveryDateTime,
+      true
+    ) || null;
 
   const duration = clean(raw.F81_090);
   const duration_hours = duration ?? null;
@@ -47,7 +73,8 @@ export function buildMosEnergoSbytPayload(tn) {
     clean(raw.description) ??
     null;
 
-  const status = clean(raw.VIOLATION_TYPE) ?? clean(obj.type) ?? null;
+  const baseType = normalizeBaseType(obj.BASE_TYPE ?? raw.BASE_TYPE);
+  const status = mapMesStatusFromBaseType(baseType);
 
   const team_action = clean(raw.BRIGADE_ACTION) ?? null;
   const datetime_team_action = toDate(raw.CREATE_DATETIME, true) || null;
@@ -63,12 +90,15 @@ export function buildMosEnergoSbytPayload(tn) {
 
   // Важно: один из этих трёх нужен (бэк берёт fias || Guid2 || FIAS_LIST)
   const Guid2 =
-    clean(raw.FIAS_LIST) ??
-    clean(obj.FIAS_LIST) ??
-    clean(obj.house_fias_list) ??
+    splitFirst(raw.FIAS_LIST) ??
+    splitFirst(obj.FIAS_LIST) ??
+    splitFirst(obj.house_fias_list) ??
     null;
 
   const out = {};
+  const externalId = clean(raw.VIOLATION_GUID_STR) ?? clean(obj.guid) ?? null;
+  if (externalId != null) out.external_id = externalId;
+  if (baseType != null) out.base_type = baseType;
   if (Name != null) out.Name = Name;
   if (date_off != null) out.date_off = date_off;
   if (date_on_plan != null) out.date_on_plan = date_on_plan;
@@ -99,11 +129,28 @@ export async function sendToMes(url, data, jwt, extraHeaders = {}) {
     ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
     ...extraHeaders,
   };
-  const res = await axios.post(`${url}/services/mes/upload`, data, {
-    headers,
-    timeout: 90000,
-  });
-  return res?.data;
+  const endpoint = `${url}/services/mes/upload`;
+  const startedAt = performance.now();
+  console.groupCollapsed?.("[МосЭнергоСбыт] отправка");
+  console.log("[МосЭнергоСбыт] endpoint:", endpoint);
+  console.log("[МосЭнергоСбыт] request body:", data);
+  try {
+    const res = await axios.post(endpoint, data, {
+      headers,
+      timeout: 90000,
+    });
+    console.log(
+      "[МосЭнергоСбыт] response:",
+      res?.data,
+      `за ${Math.round(performance.now() - startedAt)}мс`
+    );
+    return res?.data;
+  } catch (e) {
+    console.error("[МосЭнергоСбыт] error:", e?.response?.data || e?.message || e);
+    throw e;
+  } finally {
+    console.groupEnd?.();
+  }
 }
 
 export default null;

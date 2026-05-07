@@ -18,7 +18,6 @@ import dayjs from "dayjs";
 import ruRU from "antd/locale/ru_RU";
 import { ReloadOutlined } from "@ant-design/icons";
 import useAuth from "../../../stores/useAuth";
-import useData from "../../../stores/useData";
 import { hasFeatureAccess } from "../../../config/viewRoleAccess";
 import TNModal from "../../emergency/jsx/TNModal";
 import JournalOpenModal from "../../journalOpen/JournalOpenModal";
@@ -36,6 +35,7 @@ import {
 import "../css/PlannedTable.css";
 
 const defaultPageSize = 10;
+const DEFAULT_TNS_PAGE_SIZE = 100;
 const ALL_BRANCHES = "__all__";
 const ALL_PO = "__all__";
 const SCOPED_PO_SEPARATOR = ":::";
@@ -75,21 +75,17 @@ function SendDots({ st }) {
   );
 }
 
-function WelcomeHeader({ user, totalOpened, loadingOpened }) {
-  const name =
-    user?.fullName ||
-    user?.username ||
-    (user?.email ? user.email.split("@")[0] : null) ||
-    "Пользователь";
-
+function PlannedStatsHeader({ planned, started, loading }) {
   return (
     <div style={{ textAlign: "center", margin: "12px 0 16px" }}>
-      <Typography.Title level={2} style={{ marginBottom: 4 }}>
-        Добро пожаловать, {name}
-      </Typography.Title>
-      <Typography.Title level={4} style={{ marginTop: 0, fontWeight: 500 }}>
-        Всего открытых ТН: {loadingOpened ? <Spin size="small" /> : totalOpened}
-      </Typography.Title>
+      <Space size={20} wrap>
+        <Typography.Title level={4} style={{ margin: 0, fontWeight: 500 }}>
+          Всего запланированных: {loading ? <Spin size="small" /> : planned}
+        </Typography.Title>
+        <Typography.Title level={4} style={{ margin: 0, fontWeight: 500 }}>
+          Всего начатых: {loading ? <Spin size="small" /> : started}
+        </Typography.Title>
+      </Space>
     </div>
   );
 }
@@ -173,12 +169,13 @@ export default function PlannedTable() {
   const [sendStatus, setSendStatus] = useState({ byGuid: {}, byNumber: {} });
   const [isSendStatusLoading, setIsSendStatusLoading] = useState(false);
   const [hasLoadedSendStatus, setHasLoadedSendStatus] = useState(false);
+  const [plannedTns, setPlannedTns] = useState({ data: [] });
+  const [isLoadingPlannedTns, setIsLoadingPlannedTns] = useState(false);
   const lastDataKeyRef = useRef(null);
+  const primaryDataRequestSeqRef = useRef(0);
   const sendStatusInFlightRef = useRef(false);
 
   const user = useAuth((s) => s.user);
-  const { tns, getTns, isLoadingTns, openedCount, loadOpenedCount, loadingOpenedCount } =
-    useData((s) => s);
   const showJournal = hasFeatureAccess(user?.view_role, "journal");
 
   const loadSendStatus = useCallback(async ({ force = false } = {}) => {
@@ -218,12 +215,44 @@ export default function PlannedTable() {
       const key = nextDate ? dayjs(nextDate).format("YYYY-MM-DD") : "all";
       if (!force && lastDataKeyRef.current === key) return;
       lastDataKeyRef.current = key;
-      await Promise.all([
-        getTns({ date: nextDate ?? null, baseType: 1 }),
-        loadOpenedCount({ date: nextDate ?? null, baseType: 1 }),
-      ]);
+      const requestSeq = primaryDataRequestSeqRef.current + 1;
+      primaryDataRequestSeqRef.current = requestSeq;
+      try {
+        setIsLoadingPlannedTns(true);
+        const jwt = localStorage.getItem("jwt");
+        const base = `${import.meta.env.VITE_URL_BACKEND}/api/teh-narusheniyas`;
+        const params = {
+          "pagination[page]": 1,
+          "pagination[pageSize]": DEFAULT_TNS_PAGE_SIZE,
+          "sort[0]": "createDateTime:DESC",
+          "filters[BASE_TYPE][$eq]": 1,
+        };
+
+        if (nextDate) {
+          const d = nextDate;
+          const start = new Date(d.year(), d.month(), d.date(), 0, 0, 0).toISOString();
+          const end = new Date(d.year(), d.month(), d.date(), 23, 59, 59).toISOString();
+          params["filters[createDateTime][$gte]"] = start;
+          params["filters[createDateTime][$lte]"] = end;
+        }
+
+        const { data } = await axios.get(base, {
+          params,
+          headers: { Authorization: `Bearer ${jwt}` },
+        });
+        if (primaryDataRequestSeqRef.current !== requestSeq) return;
+        setPlannedTns(data || { data: [] });
+      } catch (error) {
+        if (primaryDataRequestSeqRef.current !== requestSeq) return;
+        console.log("Ошибка при получении плановых ТН", error);
+        setPlannedTns({ data: [] });
+      } finally {
+        if (primaryDataRequestSeqRef.current === requestSeq) {
+          setIsLoadingPlannedTns(false);
+        }
+      }
     },
-    [date, getTns, loadOpenedCount]
+    [date]
   );
 
   useEffect(() => {
@@ -235,11 +264,23 @@ export default function PlannedTable() {
   }, [loadSendStatus]);
 
   const rows = useMemo(() => {
-    const list = Array.isArray(tns?.data) ? tns.data : [];
+    const list = Array.isArray(plannedTns?.data) ? plannedTns.data : [];
     return list
       .map((x) => (x?.attributes ? { id: x.id, ...x.attributes } : x))
       .filter((item) => isPlannedType(item));
-  }, [tns?.data]);
+  }, [plannedTns?.data]);
+
+  const plannedStats = useMemo(() => {
+    return rows.reduce(
+      (acc, item) => {
+        const status = getPlannedStatusName(item);
+        if (status === "запланировано") acc.planned += 1;
+        if (status === "начата") acc.started += 1;
+        return acc;
+      },
+      { planned: 0, started: 0 }
+    );
+  }, [rows]);
 
   const poOptions = useMemo(() => {
     if (selectedBranch !== ALL_BRANCHES) {
@@ -567,10 +608,10 @@ export default function PlannedTable() {
 
   return (
     <ConfigProvider locale={ruRU}>
-      <WelcomeHeader
-        user={user}
-        totalOpened={openedCount}
-        loadingOpened={loadingOpenedCount}
+      <PlannedStatsHeader
+        planned={plannedStats.planned}
+        started={plannedStats.started}
+        loading={isLoadingPlannedTns}
       />
 
       <Flex
@@ -658,7 +699,7 @@ export default function PlannedTable() {
               fetchPrimaryData({ nextDate: date, force: true });
               loadSendStatus({ force: true });
             }}
-            disabled={isLoadingTns || isSendStatusLoading}
+            disabled={isLoadingPlannedTns || isSendStatusLoading}
           >
             <ReloadOutlined />
           </Button>
@@ -669,7 +710,7 @@ export default function PlannedTable() {
         className="planned-table--compact"
         size="small"
         tableLayout="fixed"
-        loading={isLoadingTns}
+        loading={isLoadingPlannedTns}
         rowKey="key"
         dataSource={dataSource}
         columns={columns}

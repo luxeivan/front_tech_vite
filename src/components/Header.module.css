@@ -39,6 +39,22 @@
   flex: 0 0 auto;
 }
 
+.rightSide {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.userName {
+  max-width: 260px;
+  overflow: hidden;
+  color: #1f1f1f;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 @media (max-width: 1024px) {
   .header {
     padding: 7px 12px;
@@ -81,5 +97,14 @@
 
   .logoutBtn {
     margin-top: -2px;
+  }
+
+  .rightSide {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .userName {
+    max-width: calc(100% - 92px);
   }
 }

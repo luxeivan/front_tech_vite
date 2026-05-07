@@ -219,6 +219,98 @@ export default function SendBlock({
     }
   };
 
+  const runMesNewUpload = async () => {
+    const request = {
+      method: "POST",
+      url: `${SERVICES_URL}/services/mes/upload`,
+      body: mesPayload,
+    };
+
+    try {
+      setMesTestLoading(true);
+      const jwt = localStorage.getItem("jwt");
+      console.groupCollapsed?.("[МосЭнергоСбыт new] отправка из аварийки");
+      console.log("[МосЭнергоСбыт new] request:", request);
+      const resp = await sendToMes(
+        SERVICES_URL,
+        mesPayload,
+        jwt,
+        buildAuditHeaders(user, "/")
+      );
+      console.log("[МосЭнергоСбыт new] response:", resp);
+      const ok = Boolean(resp?.ok);
+
+      logAuditEvent(
+        {
+          action: ok ? "send_mes_new_ok" : "send_mes_new_error",
+          entity: "tn",
+          entity_id: String(documentId || ""),
+          details: {
+            id_registry: resp?.id_registry || null,
+            id_registry_ext: resp?.id_registry_ext || null,
+            message: resp?.message || null,
+            ok,
+          },
+        },
+        user
+      );
+
+      showAlert(
+        ok ? "success" : "error",
+        ok
+          ? "МосЭнергоСбыт new: отправлено"
+          : `МосЭнергоСбыт new: ошибка - ${formatErrorDetails(resp) || "Ответ без сообщения"}`,
+        ok ? 6000 : 12000
+      );
+
+      return makeResultEntry({
+        channel: "МосЭнергоСбыт new",
+        action: "send",
+        request,
+        response: resp,
+        ok,
+        summary: ok
+          ? `Данные отправлены${resp?.id_registry ? `, id_registry=${resp.id_registry}` : ""}`
+          : formatErrorDetails(resp) || "Ответ без сообщения",
+      });
+    } catch (e) {
+      const response = e?.response?.data || {
+        ok: false,
+        message: e?.message || "Неизвестная ошибка",
+        code: e?.code || null,
+      };
+      console.error("[МосЭнергоСбыт new] error:", response);
+      logAuditEvent(
+        {
+          action: "send_mes_new_error",
+          entity: "tn",
+          entity_id: String(documentId || ""),
+          details: {
+            error: response?.message || e?.message || "unknown",
+            code: response?.code || e?.code || null,
+          },
+        },
+        user
+      );
+      showAlert(
+        "error",
+        `МосЭнергоСбыт new: ошибка - ${formatErrorDetails(response) || response?.message || "Ответ без сообщения"}`,
+        12000
+      );
+      return makeResultEntry({
+        channel: "МосЭнергоСбыт new",
+        action: "send",
+        request,
+        response,
+        ok: false,
+        summary: formatErrorDetails(response) || response?.message || "Ответ без сообщения",
+      });
+    } finally {
+      console.groupEnd?.();
+      setMesTestLoading(false);
+    }
+  };
+
   const resolveEddsNewMappings = async (force = false) => {
     if (!force && eddsNewMappings) return eddsNewMappings;
     const jwt = localStorage.getItem("jwt");
@@ -370,6 +462,10 @@ export default function SendBlock({
         showAlert("error", "МосЭнергоСбыт: нет данных для отправки");
         return;
       }
+      if (toMesTest && !mesPayload) {
+        showAlert("error", "МосЭнергоСбыт new: нет данных для отправки");
+        return;
+      }
       setSending(true);
       setNotice(null);
       const results = [];
@@ -504,7 +600,7 @@ export default function SendBlock({
       }
 
       if (toMesTest) {
-        results.push(await runMesAuthTest());
+        results.push(await runMesNewUpload());
       }
 
       if (toSiteTgMaxNew) {
