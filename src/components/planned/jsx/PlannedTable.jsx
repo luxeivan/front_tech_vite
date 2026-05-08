@@ -4,6 +4,7 @@ import {
   ConfigProvider,
   DatePicker,
   Flex,
+  Input,
   Pagination,
   Select,
   Space,
@@ -36,6 +37,7 @@ import "../css/PlannedTable.css";
 
 const defaultPageSize = 10;
 const DEFAULT_TNS_PAGE_SIZE = 100;
+const DATE_TIME_COLUMN_WIDTH = 132;
 const ALL_BRANCHES = "__all__";
 const ALL_PO = "__all__";
 const SCOPED_PO_SEPARATOR = ":::";
@@ -73,6 +75,10 @@ function SendDots({ st }) {
       ))}
     </Space>
   );
+}
+
+function PlannedDateCell({ value }) {
+  return <span className="planned-date-nowrap">{value || "—"}</span>;
 }
 
 function PlannedStatsHeader({ planned, started, loading }) {
@@ -160,6 +166,7 @@ export default function PlannedTable() {
   const [selectedBranch, setSelectedBranch] = useState(ALL_BRANCHES);
   const [selectedPo, setSelectedPo] = useState(ALL_PO);
   const [selectedStatuses, setSelectedStatuses] = useState(DEFAULT_PLANNED_STATUSES);
+  const [numberQuery, setNumberQuery] = useState("");
   const [sorter, setSorter] = useState({
     field: "startPlan",
     order: "descend",
@@ -338,6 +345,8 @@ export default function PlannedTable() {
   }, [rows]);
 
   const filtered = useMemo(() => {
+    const normalizedNumberQuery = String(numberQuery || "").trim().toLowerCase();
+
     return rows
       .filter((item) => {
         const branch = String(getField(item, "OWN_SCNAME") || "").trim();
@@ -359,10 +368,19 @@ export default function PlannedTable() {
 
         if (!effectiveStatuses.includes(statusName)) return false;
 
+        if (normalizedNumberQuery) {
+          const numberValue =
+            getField(item, "F81_010_NUMBER") ?? getField(item, "number") ?? "";
+
+          if (!String(numberValue).toLowerCase().includes(normalizedNumberQuery)) {
+            return false;
+          }
+        }
+
         return true;
       })
       .map((item) => mapRow(item, sendStatus));
-  }, [rows, selectedBranch, selectedPo, selectedStatuses, sendStatus]);
+  }, [rows, selectedBranch, selectedPo, selectedStatuses, numberQuery, sendStatus]);
 
   const sorted = useMemo(() => {
     const arr = [...filtered];
@@ -509,7 +527,8 @@ export default function PlannedTable() {
           title: "план",
           dataIndex: "startPlan",
           key: "startPlan",
-          width: 112,
+          width: DATE_TIME_COLUMN_WIDTH,
+          render: (value) => <PlannedDateCell value={value} />,
           sorter: true,
           sortOrder: sorter.field === "startPlan" ? sorter.order : null,
         },
@@ -517,7 +536,8 @@ export default function PlannedTable() {
           title: "факт",
           dataIndex: "startFact",
           key: "startFact",
-          width: 112,
+          width: DATE_TIME_COLUMN_WIDTH,
+          render: (value) => <PlannedDateCell value={value} />,
         },
       ],
     },
@@ -528,13 +548,15 @@ export default function PlannedTable() {
           title: "план",
           dataIndex: "endPlan",
           key: "endPlan",
-          width: 112,
+          width: DATE_TIME_COLUMN_WIDTH,
+          render: (value) => <PlannedDateCell value={value} />,
         },
         {
           title: "факт",
           dataIndex: "endFact",
           key: "endFact",
-          width: 112,
+          width: DATE_TIME_COLUMN_WIDTH,
+          render: (value) => <PlannedDateCell value={value} />,
         },
       ],
     },
@@ -673,6 +695,16 @@ export default function PlannedTable() {
             dropdownMatchSelectWidth={false}
             maxTagCount={false}
           />
+          <Input
+            allowClear
+            style={{ width: 150 }}
+            placeholder="№ ТН..."
+            value={numberQuery}
+            onChange={(e) => {
+              setNumberQuery(e.target.value);
+              setPagination((p) => ({ ...p, page: 1 }));
+            }}
+          />
         </Flex>
         <Flex gap={8} wrap justify="flex-end">
           <Button onClick={exportToExcel}>Выгрузка в Excel</Button>
@@ -682,6 +714,7 @@ export default function PlannedTable() {
               setSelectedBranch(ALL_BRANCHES);
               setSelectedPo(ALL_PO);
               setSelectedStatuses(DEFAULT_PLANNED_STATUSES);
+              setNumberQuery("");
               setPagination({ page: 1, pageSize: defaultPageSize });
               lastDataKeyRef.current = null;
               fetchPrimaryData({ nextDate: null, force: true });

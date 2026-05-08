@@ -17,3 +17,7 @@
   line-height: 16px;
   padding-inline: 6px;
 }
+
+.planned-date-nowrap {
+  white-space: nowrap;
+}
