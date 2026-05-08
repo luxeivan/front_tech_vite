@@ -35,7 +35,8 @@ import {
 } from "../js/plannedTable.utils";
 import "../css/PlannedTable.css";
 
-const defaultPageSize = 10;
+const defaultPageSize = 15;
+const PAGE_SIZE_OPTIONS = [15, 30, 50, 100];
 const DEFAULT_TNS_PAGE_SIZE = 100;
 const DATE_TIME_COLUMN_WIDTH = 132;
 const ALL_BRANCHES = "__all__";
@@ -507,7 +508,7 @@ export default function PlannedTable() {
       title: "№",
       dataIndex: "number",
       key: "number",
-      width: 58,
+      width: 50,
       ellipsis: true,
       sorter: true,
       sortOrder: sorter.field === "number" ? sorter.order : null,
@@ -516,9 +517,8 @@ export default function PlannedTable() {
       title: "Вид заявки",
       dataIndex: "violationType",
       key: "violationType",
-      width: 82,
-      render: (v) => <Tag>{v || "—"}</Tag>,
-      ellipsis: true,
+      width: 96,
+      render: (v) => <Tag className="planned-type-tag">{v || "—"}</Tag>,
     },
     {
       title: "Начало работ",
@@ -622,7 +622,7 @@ export default function PlannedTable() {
       title: "Отправки",
       dataIndex: "send",
       key: "send",
-      width: 108,
+      width: 94,
       render: (st) => <SendDots st={st} />,
       ellipsis: true,
     },
@@ -768,6 +768,8 @@ export default function PlannedTable() {
           total={sorted.length}
           current={pagination.page}
           pageSize={pagination.pageSize}
+          pageSizeOptions={PAGE_SIZE_OPTIONS}
+          showSizeChanger
           onChange={(page, pageSize) => setPagination({ page, pageSize })}
           showTotal={(total, range) => `${range[0]}-${range[1]} из ${total} ТН`}
         />
