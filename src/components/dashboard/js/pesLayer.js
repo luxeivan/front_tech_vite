@@ -17,6 +17,7 @@ export const PES_POLL_MS_DEFAULT = 120_000;
 const PES_MOVING_SPEED_THRESHOLD = 0;
 const PES_ICON_COLOR_IDLE = "#000000";
 const PES_ICON_COLOR_MOVING = "#cf1322";
+const PES_ICON_COLOR_CONNECTED = "#52c41a";
 const PES_ALLOWLIST_COLLECTION =
   import.meta.env.VITE_PES_MAP_ALLOWLIST_COLLECTION || "pes-map-allowlists";
 const PES_ALLOWLIST_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -99,6 +100,53 @@ export const pesIconDataUrl = (fillColor = PES_ICON_COLOR_IDLE) => {
 
 const PES_ICON_SRC_IDLE = pesIconDataUrl(PES_ICON_COLOR_IDLE);
 const PES_ICON_SRC_MOVING = pesIconDataUrl(PES_ICON_COLOR_MOVING);
+const PES_ICON_SRC_CONNECTED = pesIconDataUrl(PES_ICON_COLOR_CONNECTED);
+
+const normalizePesNumber = (value) => {
+  const raw = String(value == null ? "" : value);
+  if (!raw.trim()) return "";
+
+  const explicit = raw.match(/№\s*0*(\d{1,3})(?!\d)/i);
+  if (explicit) return explicit[1].padStart(3, "0");
+
+  const named = raw.match(/(?:^|[_\s-])0*(\d{1,3})(?=[_\s-]|$)/i);
+  if (named) return named[1].padStart(3, "0");
+
+  return "";
+};
+
+const extractVehiclePesNumber = (vehicle) => {
+  const sources = [vehicle?.name, vehicle?.model, vehicle?.caption];
+  for (const value of sources) {
+    const number = normalizePesNumber(value);
+    if (number) return number;
+  }
+  return "";
+};
+
+async function fetchPesModuleStatusMap(signal) {
+  const base = String(import.meta.env.VITE_URL_BACKEND || "").replace(/\/$/, "");
+  if (!base) return new Map();
+
+  const resp = await fetch(`${base}/services/pes/module/items`, { signal });
+  if (!resp.ok) throw new Error(`PES module status fetch failed: ${resp.status}`);
+
+  const json = await resp.json();
+  const rows = Array.isArray(json?.items) ? json.items : [];
+  const map = new Map();
+
+  rows.forEach((item) => {
+    const number = normalizePesNumber(item?.number);
+    if (!number) return;
+    map.set(number, {
+      status: item?.effectiveStatus || item?.status || "ready",
+      branch: item?.branch || "",
+      po: item?.po || "",
+    });
+  });
+
+  return map;
+}
 
 const formatTime = (ms) => {
   const n = Number(ms);
@@ -110,11 +158,30 @@ const formatTime = (ms) => {
   }
 };
 
-export const buildPesPopupHtml = ({ name, model, speed, time, lat, lon }) => {
+const pesStatusLabel = (status) => {
+  if (status === "connected") return "Подключена (в работе)";
+  if (status === "command_sent") return "Дана команда на выезд";
+  if (status === "delay") return "Задержка выезда";
+  if (status === "en_route") return "В пути";
+  if (status === "repair") return "В ремонте";
+  if (status === "ready") return "Готова к выезду (в резерве)";
+  return "—";
+};
+
+export const buildPesPopupHtml = ({
+  name,
+  model,
+  speed,
+  time,
+  lat,
+  lon,
+  moduleStatus,
+}) => {
   const sp = Number.isFinite(Number(speed)) ? Number(speed) : 0;
   const latS = Number.isFinite(lat) ? lat.toFixed(6) : "—";
   const lonS = Number.isFinite(lon) ? lon.toFixed(6) : "—";
   return `<div><b>${name || "ПЭС"}</b>
+    <br/>Статус: ${pesStatusLabel(moduleStatus)}
     <br/>Модель: ${model || "—"}
     <br/>Скорость: ${sp}
     <br/>Время: ${formatTime(time)}
@@ -141,13 +208,19 @@ export const createPesLayer = ({ getZoom, getFallbackZoom }) => {
 
       const name = (feature.get("name") || "").toString();
       const speed = Number(feature.get("speed") ?? 0);
+      const moduleStatus = String(feature.get("moduleStatus") || "");
+      const connected = moduleStatus === "connected";
       const moving =
         Number.isFinite(speed) && speed > PES_MOVING_SPEED_THRESHOLD;
       const showLabel = z >= 12;
 
       return new Style({
         image: new Icon({
-          src: moving ? PES_ICON_SRC_MOVING : PES_ICON_SRC_IDLE,
+          src: connected
+            ? PES_ICON_SRC_CONNECTED
+            : moving
+              ? PES_ICON_SRC_MOVING
+              : PES_ICON_SRC_IDLE,
           imgSize: [64, 64],
           opacity: 0.4,
           scale:
@@ -204,7 +277,13 @@ export const startPesPolling = ({
       if (!resp.ok) throw new Error(`PES fetch failed: ${resp.status}`);
       const json = await resp.json();
       const vehiclesRaw = Array.isArray(json?.vehicles) ? json.vehicles : [];
-      const allowedIds = await getPesAllowlistIds(ac.signal);
+      const [allowedIds, statusMap] = await Promise.all([
+        getPesAllowlistIds(ac.signal),
+        fetchPesModuleStatusMap(ac.signal).catch((e) => {
+          console.warn("[MapOL] PES module status error:", e?.message || e);
+          return new Map();
+        }),
+      ]);
 
       const vehicles = vehiclesRaw.filter((v) => {
         const idNum = toIntId(v?.id);
@@ -225,12 +304,33 @@ export const startPesPolling = ({
         const model = v?.model || "—";
         const speed = Number(v?.speed ?? 0);
         const time = v?.time ?? null;
+        const pesNumber = extractVehiclePesNumber(v);
+        const moduleInfo = pesNumber ? statusMap.get(pesNumber) : null;
+        const moduleStatus = moduleInfo?.status || "";
 
         const idNum = typeof v?.id === "number" ? v.id : parseInt(v?.id, 10);
-        feature.setProperties({ id: idNum, name, model, speed, time });
+        feature.setProperties({
+          id: idNum,
+          name,
+          model,
+          speed,
+          time,
+          pesNumber,
+          moduleStatus,
+          moduleBranch: moduleInfo?.branch || "",
+          modulePo: moduleInfo?.po || "",
+        });
         feature.set(
           "_popupHtml",
-          buildPesPopupHtml({ name, model, speed, time, lat, lon }),
+          buildPesPopupHtml({
+            name,
+            model,
+            speed,
+            time,
+            lat,
+            lon,
+            moduleStatus,
+          }),
         );
 
         feats.push(feature);
