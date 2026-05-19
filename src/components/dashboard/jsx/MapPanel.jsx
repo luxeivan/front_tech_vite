@@ -198,7 +198,6 @@ export default function MapPanel({
     setActiveBaseLayer(layersRef.current, activeLayer);
   }, [activeLayer]);
 
-
   useEffect(() => {
     console.log(
       "[MapOL] FIAS resolution start, codes:",
@@ -672,6 +671,7 @@ export default function MapPanel({
         >
           Точек на карте: {shownCount}
         </div>
+
       </div>
     </div>
   );

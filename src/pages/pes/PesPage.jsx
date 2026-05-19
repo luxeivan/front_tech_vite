@@ -12,7 +12,7 @@ import PesHistoryDrawer from "../../components/pes/jsx/PesHistoryDrawer"; // В�
 import "../../components/pes/css/PesModule.css";
 
 // Временная заглушка модуля ПЭС. Чтобы вернуть рабочий модуль, поставь false.
-const SHOW_PES_STUB = true;
+const SHOW_PES_STUB = false;
 
 export default function PesPage() {
   if (SHOW_PES_STUB) {
@@ -55,6 +55,7 @@ export default function PesPage() {
     destinationId,
     setDestinationId,
     loadingDestinations,
+    destinationsLoadLabel,
     destinationOptions,
     tpBranchFilter,
     setTpBranchFilter,
@@ -191,6 +192,7 @@ export default function PesPage() {
           destinationId={destinationId}
           setDestinationId={setDestinationId}
           loadingDestinations={loadingDestinations}
+          destinationsLoadLabel={destinationsLoadLabel}
           destinationOptions={destinationOptions}
           tpBranchFilter={tpBranchFilter}
           setTpBranchFilter={setTpBranchFilter}

@@ -50,14 +50,6 @@ export default function PlannedSunStub() {
       >
         Раздел в активной разработке
       </motion.p>
-      {/* <motion.p
-        className={styles.tagline}
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45, delay: 0.2 }}
-      >
-        Пока можно вернуться к "Аварийным отключениям".
-      </motion.p> */}
     </div>
   );
 }

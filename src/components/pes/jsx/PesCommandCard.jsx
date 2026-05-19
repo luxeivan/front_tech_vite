@@ -12,6 +12,7 @@ export default function PesCommandCard({
   destinationId,
   setDestinationId,
   loadingDestinations,
+  destinationsLoadLabel,
   destinationOptions,
   tpBranchFilter,
   setTpBranchFilter,
@@ -24,6 +25,10 @@ export default function PesCommandCard({
   actionState,
   runAction,
 }) {
+  const needTpBranch = destinationType === "tp" && tpBranchFilter === "__all__";
+  const needTpPo = destinationType === "tp" && tpPoFilter === "__all__";
+  const tpDestinationDisabled = sending || loadingDestinations || needTpBranch || needTpPo;
+
   return (
     <Card size="small" style={{ marginBottom: 8 }} className="pes-card pes-card--command">
       <Space direction="vertical" style={{ width: "100%" }} size={6}>
@@ -66,6 +71,7 @@ export default function PesCommandCard({
                   options={tpBranchOptions}
                   placeholder="Филиал"
                   loading={loadingDestinations}
+                  notFoundContent={loadingDestinations ? "Загрузка..." : "Нет филиалов"}
                   disabled={sending}
                   style={{ width: "100%" }}
                 />
@@ -83,6 +89,7 @@ export default function PesCommandCard({
                   options={tpPoOptions}
                   placeholder="ПО"
                   loading={loadingDestinations}
+                  notFoundContent={loadingDestinations ? "Загрузка..." : "Нет ПО"}
                   disabled={sending}
                   style={{ width: "100%" }}
                 />
@@ -94,10 +101,17 @@ export default function PesCommandCard({
                   value={destinationId}
                   onChange={setDestinationId}
                   options={destinationOptions}
-                  placeholder="ТП"
+                  placeholder={
+                    needTpBranch
+                      ? "Сначала выберите филиал"
+                      : needTpPo
+                        ? "Сначала выберите ПО"
+                        : "ТП"
+                  }
                   optionFilterProp="label"
                   loading={loadingDestinations}
-                  disabled={sending}
+                  notFoundContent={loadingDestinations ? "Загрузка..." : "Нет ТП"}
+                  disabled={tpDestinationDisabled}
                   style={{ width: "100%" }}
                 />
               </Col>
@@ -113,12 +127,18 @@ export default function PesCommandCard({
                 placeholder="Точка назначения"
                 optionFilterProp="label"
                 loading={loadingDestinations}
+                notFoundContent={loadingDestinations ? "Загрузка..." : "Нет точек"}
                 disabled={sending}
                 style={{ width: "100%" }}
               />
             </Col>
           )}
         </Row>
+        {destinationsLoadLabel ? (
+          <Text type={loadingDestinations ? "warning" : "secondary"}>
+            {destinationsLoadLabel}
+          </Text>
+        ) : null}
 
         <Input.TextArea
           autoSize={{ minRows: 1, maxRows: 2 }}

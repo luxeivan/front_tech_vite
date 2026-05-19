@@ -13,6 +13,8 @@ const usePesDestinationsStore = create((set, get) => ({
   destinationType: "assembly",
   destinationId: undefined,
   loadingDestinations: false,
+  loadingStartedAt: null,
+  lastLoadMs: null,
   requestSeq: 0,
 
   setDestinationType: (value) => set({ destinationType: value }),
@@ -21,7 +23,13 @@ const usePesDestinationsStore = create((set, get) => ({
   // Загрузка точек сбора/ТП для выбранного режима и филиала.
   loadDestinations: async (mode, branch, destinationType, po) => {
     const nextSeq = get().requestSeq + 1;
-    set({ requestSeq: nextSeq, destinationId: undefined, loadingDestinations: true });
+    const startedAt = Date.now();
+    set({
+      requestSeq: nextSeq,
+      destinationId: undefined,
+      loadingDestinations: true,
+      loadingStartedAt: startedAt,
+    });
 
     try {
       const base = getBackendBase();
@@ -45,10 +53,18 @@ const usePesDestinationsStore = create((set, get) => ({
       const patch = { destinations: next, tpHints };
       if (mode === "multi") patch.destinationType = "assembly";
       patch.loadingDestinations = false;
+      patch.loadingStartedAt = null;
+      patch.lastLoadMs = Date.now() - startedAt;
       set(patch);
     } catch {
       if (get().requestSeq !== nextSeq) return;
-      set({ destinations: { assembly: [], tp: [] }, tpHints: [], loadingDestinations: false });
+      set({
+        destinations: { assembly: [], tp: [] },
+        tpHints: [],
+        loadingDestinations: false,
+        loadingStartedAt: null,
+        lastLoadMs: Date.now() - startedAt,
+      });
     }
   },
 }));
