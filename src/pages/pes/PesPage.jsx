@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Card, Empty } from "antd";
+import PlannedSunStub from "../../components/planned/jsx/PlannedSunStub";
 import pesModuleLogic from "../../components/pes/js/pesModuleLogic"; // Оркестрация UI-логики модуля ПЭС.
 import { STATUS_META } from "../../components/pes/js/pesModuleMeta"; // Справочник статусов для фильтра и подписей.
 import PesTilesBoard from "../../components/pes/jsx/PesTilesBoard"; // Плиточная доска всех ПЭС.
@@ -10,7 +11,14 @@ import PesHistoryDrawer from "../../components/pes/jsx/PesHistoryDrawer"; // В�
 
 import "../../components/pes/css/PesModule.css";
 
+// Временная заглушка модуля ПЭС. Чтобы вернуть рабочий модуль, поставь false.
+const SHOW_PES_STUB = true;
+
 export default function PesPage() {
+  if (SHOW_PES_STUB) {
+    return <PlannedSunStub />;
+  }
+
   const [easterActive, setEasterActive] = useState(false);
   const secretIndexRef = useRef(0);
   const easterTimerRef = useRef(null);
