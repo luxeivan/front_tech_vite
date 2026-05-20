@@ -34,6 +34,19 @@ const fmtWeatherNumber = (value, digits = 0) => {
   return n.toFixed(digits).replace(".", ",");
 };
 
+const getWeatherView = (code) => {
+  const n = Number(code);
+  if ([0].includes(n)) return { icon: "☀️", label: "Ясно" };
+  if ([1, 2].includes(n)) return { icon: "🌤️", label: "Переменная облачность" };
+  if ([3].includes(n)) return { icon: "☁️", label: "Облачно" };
+  if ([45, 48].includes(n)) return { icon: "🌫️", label: "Туман" };
+  if ([51, 53, 55, 56, 57].includes(n)) return { icon: "🌦️", label: "Морось" };
+  if ([61, 63, 65, 66, 67, 80, 81, 82].includes(n)) return { icon: "🌧️", label: "Дождь" };
+  if ([71, 73, 75, 77, 85, 86].includes(n)) return { icon: "🌨️", label: "Снег" };
+  if ([95, 96, 99].includes(n)) return { icon: "⛈️", label: "Гроза" };
+  return { icon: "🌡️", label: "Погода" };
+};
+
 function WeatherWidget({ weather }) {
   if (!weather) {
     return (
@@ -47,26 +60,35 @@ function WeatherWidget({ weather }) {
   const tempText = Number.isFinite(temp)
     ? `${temp > 0 ? "+" : ""}${Math.round(temp)}°C`
     : "—";
+  const weatherView = getWeatherView(weather.weatherCode);
 
   return (
     <div className="dashboard-page__weather" aria-label="Текущая погода">
       <div className="dashboard-page__weather-main">
         <span className="dashboard-page__weather-icon" aria-hidden="true">
-          ☁
+          {weatherView.icon}
         </span>
-        <span className="dashboard-page__weather-temp">{tempText}</span>
-        <span className="dashboard-page__weather-city">{weather.label}</span>
+        <div className="dashboard-page__weather-summary">
+          <div>
+            <span className="dashboard-page__weather-temp">{tempText}</span>
+            <span className="dashboard-page__weather-city">{weather.label}</span>
+          </div>
+          <span>{weatherView.label}</span>
+        </div>
       </div>
       <div className="dashboard-page__weather-metrics">
         <div>
+          <i aria-hidden="true">💨</i>
           <span>Ветер</span>
           <b>{fmtWeatherNumber(weather.windSpeed, 1)} м/с</b>
         </div>
         <div>
+          <i aria-hidden="true">☁️</i>
           <span>Облачность</span>
           <b>{fmtWeatherNumber(weather.cloudCover)}%</b>
         </div>
         <div>
+          <i aria-hidden="true">💧</i>
           <span>Осадки</span>
           <b>{fmtWeatherNumber(weather.precipitation, 1)} мм</b>
         </div>
@@ -162,7 +184,7 @@ export default function DashboardPage() {
           params: {
             latitude: WEATHER_DEFAULT.latitude,
             longitude: WEATHER_DEFAULT.longitude,
-            current: "temperature_2m,wind_speed_10m,cloud_cover,precipitation",
+            current: "temperature_2m,wind_speed_10m,cloud_cover,precipitation,weather_code",
             wind_speed_unit: "ms",
             timezone: "Europe/Moscow",
           },
@@ -176,6 +198,7 @@ export default function DashboardPage() {
           windSpeed: current.wind_speed_10m,
           cloudCover: current.cloud_cover,
           precipitation: current.precipitation,
+          weatherCode: current.weather_code,
         });
       } catch {
         if (!cancelled) setWeather(null);
