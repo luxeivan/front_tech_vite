@@ -3,7 +3,7 @@ import VectorLayer from "ol/layer/Vector";
 import Feature from "ol/Feature";
 import Point from "ol/geom/Point";
 import { fromLonLat } from "ol/proj";
-import { Icon, Style } from "ol/style";
+import { Circle as CircleStyle, Icon, Style } from "ol/style";
 import Text from "ol/style/Text";
 import Fill from "ol/style/Fill";
 import Stroke from "ol/style/Stroke";
@@ -18,6 +18,7 @@ const PES_MOVING_SPEED_THRESHOLD = 0;
 const PES_ICON_COLOR_IDLE = "#000000";
 const PES_ICON_COLOR_MOVING = "#cf1322";
 const PES_ICON_COLOR_CONNECTED = "#fa8c16";
+const PES_HALO_COLOR_CONNECTED = "#722ed1";
 const PES_ALLOWLIST_COLLECTION =
   import.meta.env.VITE_PES_MAP_ALLOWLIST_COLLECTION || "pes-map-allowlists";
 const PES_ALLOWLIST_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -214,7 +215,7 @@ export const createPesLayer = ({ getZoom, getFallbackZoom }) => {
         Number.isFinite(speed) && speed > PES_MOVING_SPEED_THRESHOLD;
       const showLabel = z >= 12;
 
-      return new Style({
+      const iconStyle = new Style({
         image: new Icon({
           src: connected
             ? PES_ICON_SRC_CONNECTED
@@ -251,6 +252,32 @@ export const createPesLayer = ({ getZoom, getFallbackZoom }) => {
             })
           : undefined,
       });
+
+      if (!connected) return iconStyle;
+
+      return [
+        new Style({
+          image: new CircleStyle({
+            radius:
+              z < 10
+                ? 11
+                : z < 12
+                  ? 13
+                  : z < 14
+                    ? 15
+                    : z < 16
+                      ? 17
+                      : 19,
+            fill: new Fill({ color: "rgba(255, 255, 255, 0.9)" }),
+            stroke: new Stroke({
+              color: PES_HALO_COLOR_CONNECTED,
+              width: 4,
+            }),
+          }),
+          zIndex: -1,
+        }),
+        iconStyle,
+      ];
     },
   });
 
