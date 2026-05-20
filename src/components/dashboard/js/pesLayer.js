@@ -235,7 +235,7 @@ export const createPesLayer = ({ getZoom, getFallbackZoom }) => {
         image: new Icon({
           src: iconSrc,
           imgSize: [64, 64],
-          opacity: 0.4,
+          opacity: 0.6,
           scale:
             (z < 10
               ? 0.55
