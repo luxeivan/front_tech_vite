@@ -12,7 +12,6 @@ export default function PesCommandCard({
   destinationId,
   setDestinationId,
   loadingDestinations,
-  destinationsLoadLabel,
   destinationOptions,
   tpBranchFilter,
   setTpBranchFilter,
@@ -134,12 +133,6 @@ export default function PesCommandCard({
             </Col>
           )}
         </Row>
-        {destinationsLoadLabel ? (
-          <Text type={loadingDestinations ? "warning" : "secondary"}>
-            {destinationsLoadLabel}
-          </Text>
-        ) : null}
-
         <Input.TextArea
           autoSize={{ minRows: 1, maxRows: 2 }}
           placeholder="Комментарий к операции (уйдет в уведомление MAX)"

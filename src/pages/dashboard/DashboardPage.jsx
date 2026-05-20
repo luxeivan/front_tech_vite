@@ -21,6 +21,60 @@ import "../../components/dashboard/css/DashboardPage.css";
 
 const { Title } = Typography;
 
+const WEATHER_URL = "https://api.open-meteo.com/v1/forecast";
+const WEATHER_DEFAULT = {
+  latitude: 55.7558,
+  longitude: 37.6173,
+  label: "Москва",
+};
+
+const fmtWeatherNumber = (value, digits = 0) => {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "—";
+  return n.toFixed(digits).replace(".", ",");
+};
+
+function WeatherWidget({ weather }) {
+  if (!weather) {
+    return (
+      <div className="dashboard-page__weather dashboard-page__weather--loading">
+        <div className="dashboard-page__weather-main">Погода загружается</div>
+      </div>
+    );
+  }
+
+  const temp = Number(weather.temperature);
+  const tempText = Number.isFinite(temp)
+    ? `${temp > 0 ? "+" : ""}${Math.round(temp)}°C`
+    : "—";
+
+  return (
+    <div className="dashboard-page__weather" aria-label="Текущая погода">
+      <div className="dashboard-page__weather-main">
+        <span className="dashboard-page__weather-icon" aria-hidden="true">
+          ☁
+        </span>
+        <span className="dashboard-page__weather-temp">{tempText}</span>
+        <span className="dashboard-page__weather-city">{weather.label}</span>
+      </div>
+      <div className="dashboard-page__weather-metrics">
+        <div>
+          <span>Ветер</span>
+          <b>{fmtWeatherNumber(weather.windSpeed, 1)} м/с</b>
+        </div>
+        <div>
+          <span>Облачность</span>
+          <b>{fmtWeatherNumber(weather.cloudCover)}%</b>
+        </div>
+        <div>
+          <span>Осадки</span>
+          <b>{fmtWeatherNumber(weather.precipitation, 1)} мм</b>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const headerRef = useRef(null);
   const [mapHeight, setMapHeight] = useState(420);
@@ -48,6 +102,7 @@ export default function DashboardPage() {
   const [error, setError] = useState(null);
   const [rows, setRows] = useState([]);
   const [rows7d, setRows7d] = useState([]);
+  const [weather, setWeather] = useState(null);
   const esRef = useRef(null);
 
   const fiasCodes = useMemo(
@@ -99,6 +154,42 @@ export default function DashboardPage() {
     loadData();
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    const loadWeather = async () => {
+      try {
+        const { data } = await axios.get(WEATHER_URL, {
+          params: {
+            latitude: WEATHER_DEFAULT.latitude,
+            longitude: WEATHER_DEFAULT.longitude,
+            current: "temperature_2m,wind_speed_10m,cloud_cover,precipitation",
+            wind_speed_unit: "ms",
+            timezone: "Europe/Moscow",
+          },
+          timeout: 8000,
+        });
+        if (cancelled) return;
+        const current = data?.current || {};
+        setWeather({
+          label: WEATHER_DEFAULT.label,
+          temperature: current.temperature_2m,
+          windSpeed: current.wind_speed_10m,
+          cloudCover: current.cloud_cover,
+          precipitation: current.precipitation,
+        });
+      } catch {
+        if (!cancelled) setWeather(null);
+      }
+    };
+
+    loadWeather();
+    const timer = window.setInterval(loadWeather, 10 * 60 * 1000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, []);
+
   // SSE автообновление.
   useEffect(() => {
     if (!URL) return;
@@ -129,9 +220,12 @@ export default function DashboardPage() {
             <Title level={2} className="dashboard-page__title">
               ТЕХНОЛОГИЧЕСКИЕ НАРУШЕНИЯ В ЭЛЕКТРИЧЕСКИХ СЕТЯХ АО «МОСОБЛЭНЕРГО»
             </Title>
-            <div className="dashboard-page__clock" aria-label="Текущее время">
-              <div className="dashboard-page__clock-time">{now.format("HH:mm:ss")}</div>
-              <div className="dashboard-page__clock-date">{now.format("DD.MM.YYYY")}</div>
+            <div className="dashboard-page__status-panel">
+              <WeatherWidget weather={weather} />
+              <div className="dashboard-page__clock" aria-label="Текущее время">
+                <div className="dashboard-page__clock-date">{now.format("DD.MM.YYYY")}</div>
+                <div className="dashboard-page__clock-time">{now.format("HH:mm")}</div>
+              </div>
             </div>
           </div>
         </div>

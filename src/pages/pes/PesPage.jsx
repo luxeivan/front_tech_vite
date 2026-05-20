@@ -55,7 +55,6 @@ export default function PesPage() {
     destinationId,
     setDestinationId,
     loadingDestinations,
-    destinationsLoadLabel,
     destinationOptions,
     tpBranchFilter,
     setTpBranchFilter,
@@ -192,7 +191,6 @@ export default function PesPage() {
           destinationId={destinationId}
           setDestinationId={setDestinationId}
           loadingDestinations={loadingDestinations}
-          destinationsLoadLabel={destinationsLoadLabel}
           destinationOptions={destinationOptions}
           tpBranchFilter={tpBranchFilter}
           setTpBranchFilter={setTpBranchFilter}

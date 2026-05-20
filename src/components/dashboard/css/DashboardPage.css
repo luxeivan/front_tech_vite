@@ -18,7 +18,7 @@
 
 .dashboard-page__hero-grid {
   display: grid;
-  grid-template-columns: minmax(160px, 1fr) minmax(520px, auto) minmax(160px, 1fr);
+  grid-template-columns: minmax(180px, 0.8fr) minmax(520px, auto) minmax(280px, 0.8fr);
   align-items: center;
   gap: 20px;
 }
@@ -34,23 +34,90 @@
 }
 
 .dashboard-page__clock {
-  justify-self: center;
-  min-width: 150px;
-  text-align: center;
-  color: #0b5cff;
+  text-align: right;
+  color: #1575bc;
   line-height: 1;
 }
 
 .dashboard-page__clock-time {
-  font-size: clamp(28px, 3vw, 46px);
+  font-size: clamp(18px, 1.3vw, 24px);
   font-weight: 900;
-  letter-spacing: 0.5px;
 }
 
 .dashboard-page__clock-date {
-  margin-top: 6px;
-  font-size: clamp(12px, 1.1vw, 16px);
+  margin-bottom: 5px;
+  font-size: clamp(12px, 0.9vw, 15px);
   font-weight: 800;
+}
+
+.dashboard-page__status-panel {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 280px;
+}
+
+.dashboard-page__weather {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 190px;
+  color: #1f2937;
+}
+
+.dashboard-page__weather--loading {
+  color: #8c99ad;
+}
+
+.dashboard-page__weather-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.dashboard-page__weather-icon {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.dashboard-page__weather-temp {
+  font-size: clamp(20px, 1.7vw, 30px);
+  font-weight: 900;
+  line-height: 1;
+  color: #151515;
+}
+
+.dashboard-page__weather-city {
+  font-size: clamp(14px, 1vw, 18px);
+  font-weight: 800;
+}
+
+.dashboard-page__weather-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(48px, 1fr));
+  gap: 8px;
+}
+
+.dashboard-page__weather-metrics div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: 8px;
+  border-left: 1px solid #d7e4f2;
+}
+
+.dashboard-page__weather-metrics span {
+  font-size: 10px;
+  font-weight: 700;
+  color: #8c99ad;
+}
+
+.dashboard-page__weather-metrics b {
+  font-size: 11px;
+  color: #1575bc;
+  white-space: nowrap;
 }
 
 @media (max-width: 1180px) {
@@ -65,6 +132,13 @@
 
   .dashboard-page__clock {
     justify-self: center;
+    text-align: center;
+  }
+
+  .dashboard-page__status-panel {
+    justify-self: center;
+    justify-content: center;
+    flex-wrap: wrap;
   }
 }
 

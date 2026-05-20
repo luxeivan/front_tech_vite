@@ -52,7 +52,6 @@ export default function pesModuleLogic() {
   // UI: каскадные фильтры для поиска ТП.
   const [tpBranchFilter, setTpBranchFilter] = useState("__all__");
   const [tpPoFilter, setTpPoFilter] = useState("__all__");
-  const [destinationsLoadTick, setDestinationsLoadTick] = useState(0);
 
   const canManage = hasFeatureAccess(user?.view_role, "pesManage");
   const mode = selected.length > 1 ? "multi" : "single";
@@ -83,8 +82,6 @@ export default function pesModuleLogic() {
     destinationId,
     setDestinationId,
     loadingDestinations,
-    loadingStartedAt,
-    lastLoadMs,
     loadDestinations,
   } = usePesDestinationsStore();
 
@@ -127,17 +124,6 @@ export default function pesModuleLogic() {
       return { label: `${prefix}${x.title} — ${x.address}`, value: x.id };
     });
   }, [destinations, destinationType, tpBranchFilter, tpPoFilter]);
-
-  const destinationsLoadLabel = useMemo(() => {
-    if (loadingDestinations && loadingStartedAt) {
-      const sec = ((Date.now() - loadingStartedAt) / 1000).toFixed(1);
-      return `Загрузка справочника: ${sec} сек.`;
-    }
-    if (lastLoadMs != null) {
-      return `Справочник загружен за ${(lastLoadMs / 1000).toFixed(1)} сек.`;
-    }
-    return "";
-  }, [loadingDestinations, loadingStartedAt, lastLoadMs, destinationsLoadTick]);
 
   // Опции филиалов для каскадного выбора ТП: отдельный "легкий" справочник.
   const tpBranchOptions = useMemo(() => {
@@ -296,14 +282,6 @@ export default function pesModuleLogic() {
     const timer = window.setInterval(poll, PES_LIVE_POLL_MS);
     return () => window.clearInterval(timer);
   }, [user, sending, loading, loadItems, historyOpen, historyPageSize, refreshHistory]);
-
-  useEffect(() => {
-    if (!loadingDestinations) return undefined;
-    const timer = window.setInterval(() => {
-      setDestinationsLoadTick((x) => x + 1);
-    }, 300);
-    return () => window.clearInterval(timer);
-  }, [loadingDestinations]);
 
   useEffect(() => {
     const scopedPo = parseScopedPoValue(tpPoFilter);
@@ -589,7 +567,6 @@ export default function pesModuleLogic() {
     setDestinationId,
     loadingDestinations,
     destinationOptions,
-    destinationsLoadLabel,
     tpBranchFilter,
     setTpBranchFilter,
     tpPoFilter,
