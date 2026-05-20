@@ -123,7 +123,7 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
           }}
           styles={{
             body: {
-              padding: compact ? "6px 10px" : "8px 12px",
+              padding: compact ? "7px 9px" : medium ? "8px 10px" : "9px 12px",
               whiteSpace: "normal",
             },
           }}
@@ -131,28 +131,34 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: `${compact ? 18 : 20}px 1fr auto`,
+              gridTemplateColumns: `${compact ? 18 : 22}px 1fr`,
+              gridTemplateRows: "auto 1fr",
               alignItems: "center",
-              gap: compact ? 6 : 8,
-              minHeight: compact ? 38 : 44,
+              gap: compact ? "4px 7px" : "5px 9px",
+              minHeight: compact ? 54 : medium ? 56 : 66,
             }}
           >
-            <span style={{ fontSize: compact ? 14 : 16, color: tone }}>
+            <span style={{ fontSize: compact ? 15 : 17, color: tone }}>
               {icon}
             </span>
             <div
               style={{
                 lineHeight: 1.1,
                 color: labelColor,
-                fontSize: compact ? 11 : 12,
+                fontSize: compact ? 10.5 : medium ? 10.5 : 11.5,
+                fontWeight: 700,
               }}
             >
               {title}
             </div>
             <div
               style={{
-                fontSize: compact ? 14 : 17,
-                fontWeight: 800,
+                gridColumn: "1 / -1",
+                justifySelf: "center",
+                alignSelf: "center",
+                fontSize: compact ? 20 : medium ? 21 : 25,
+                lineHeight: 1,
+                fontWeight: 900,
                 color: tone,
               }}
             >
@@ -303,31 +309,36 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
     };
   }, [effectiveRows7d]);
 
-  const donutSize = compact ? 112 : medium ? 96 : 128;
-  const donutPanelWidth = compact ? 320 : medium ? 220 : 360;
+  const donutSize = compact ? 108 : medium ? 86 : 104;
+  const donutPanelWidth = compact ? 300 : medium ? 150 : 180;
   const donutPanelStyle = {
     width: "100%",
     maxWidth: donutPanelWidth,
     minWidth: 0,
+    alignSelf: "start",
   };
   const donutTitleStyle = {
     fontWeight: 700,
     color: "#1575bc",
     marginBottom: compact || medium ? 6 : 8,
-    textAlign: "left",
-    fontSize: compact ? 18 : medium ? 15 : 20,
+    textAlign: "center",
+    fontSize: compact ? 17 : medium ? 13 : 16,
   };
   const donutBodyStyle = {
     display: "grid",
-    gridTemplateColumns: `${donutSize}px minmax(${medium ? 72 : 130}px, 1fr)`,
+    gridTemplateRows: `${donutSize}px auto`,
     alignItems: "center",
-    columnGap: compact ? 12 : medium ? 8 : 18,
+    justifyItems: "center",
+    justifyContent: "center",
+    rowGap: compact ? 8 : medium ? 6 : 8,
   };
   const donutLegendStyle = {
-    display: "flex",
-    flexDirection: "column",
+    display: "grid",
+    gridTemplateColumns: "1fr",
     gap: compact ? 6 : medium ? 5 : 8,
+    justifyItems: "start",
     minWidth: 0,
+    overflow: "hidden",
   };
 
   // Донат "за сегодня" (без двойного учёта)
@@ -364,12 +375,12 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
 
     const LegendRow = ({ color, label, count, list }) => (
       <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 2,
-          cursor: list?.length ? "copy" : "default",
-        }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            cursor: list?.length ? "copy" : "default",
+          }}
         onClick={() => list?.length && copyList(list, label)}
       >
         <span
@@ -383,14 +394,14 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
         />
         <span
           style={{
-            fontSize: medium ? 9.5 : 10.5,
+            fontSize: medium ? 8.5 : 10,
             color: "#6b778c",
             whiteSpace: "nowrap",
           }}
         >
           {label}
         </span>
-        <strong style={{ marginLeft: medium ? 2 : 4, fontSize: medium ? 12 : 14 }}>
+        <strong style={{ marginLeft: 2, fontSize: medium ? 11 : 13 }}>
           {count}
         </strong>
       </div>
@@ -398,7 +409,7 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
 
     return (
       <div style={donutPanelStyle}>
-        <div style={donutTitleStyle}>За сегодня:</div>
+        <div style={donutTitleStyle}>За сегодня</div>
         <div style={donutBodyStyle}>
           <div style={ringStyle}>
             <div style={innerStyle}>
@@ -476,12 +487,12 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
 
     const LegendRow = ({ color, label, count, list }) => (
       <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 2,
-          cursor: list?.length ? "copy" : "default",
-        }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            cursor: list?.length ? "copy" : "default",
+          }}
         onClick={() => list?.length && copyList(list, label)}
       >
         <span
@@ -495,14 +506,14 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
         />
         <span
           style={{
-            fontSize: medium ? 9.5 : 10.5,
+            fontSize: medium ? 8.5 : 10,
             color: "#6b778c",
             whiteSpace: "nowrap",
           }}
         >
           {label}
         </span>
-        <strong style={{ marginLeft: medium ? 2 : 4, fontSize: medium ? 12 : 14 }}>
+        <strong style={{ marginLeft: 2, fontSize: medium ? 11 : 13 }}>
           {count}
         </strong>
       </div>
@@ -582,7 +593,23 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
     <Card
       style={{ borderRadius: 20 }}
       title={
-        <div style={{ fontWeight: 700, color: "#1575bc" }}>Информация о ТН</div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+          }}
+        >
+          <span style={{ fontWeight: 700, color: "#1575bc" }}>Информация о ТН</span>
+          <Button
+            onClick={handleCopyGuids}
+            disabled={!rows?.length}
+            style={{ borderRadius: 8, minWidth: compact ? 76 : 90 }}
+          >
+            GUID
+          </Button>
+        </div>
       }
       styles={{ body: { padding: compact ? 6 : 8 } }}
     >
@@ -592,24 +619,22 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
           gridTemplateColumns: compact
             ? "1fr"
             : medium
-              ? "minmax(350px,1fr) minmax(210px,0.55fr)"
-              : "minmax(520px,1.2fr) minmax(300px,0.8fr)",
-          columnGap: compact ? 12 : medium ? 10 : 16,
-          rowGap: 6,
-          alignItems: "start",
+              ? "minmax(320px,0.9fr) minmax(340px,1fr)"
+              : "minmax(420px,0.92fr) minmax(380px,1fr)",
+          columnGap: compact ? 12 : medium ? 10 : 14,
+          rowGap: compact ? 12 : 8,
+          alignItems: "stretch",
           overflow: "hidden",
         }}
       >
-        {/* левая колонка — компактные карточки */}
+        {/* левая колонка — карточки 2x3 */}
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: `repeat(auto-fill, minmax(${
-              compact ? 150 : medium ? 140 : 168
-            }px, 1fr))`,
-            columnGap: compact ? 10 : medium ? 8 : 12,
-            rowGap: compact ? 10 : medium ? 8 : 12,
-            gridAutoRows: "minmax(44px, auto)",
+            gridTemplateColumns: compact ? "1fr" : "repeat(2, minmax(0, 1fr))",
+            columnGap: compact ? 10 : medium ? 8 : 10,
+            rowGap: compact ? 10 : medium ? 8 : 10,
+            gridAutoRows: compact ? "minmax(58px, auto)" : "1fr",
             justifyItems: "stretch",
             alignItems: "stretch",
             alignContent: "start",
@@ -661,50 +686,23 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
               color={color}
             />
           ))}
-
-          {/* GUID — кнопка в том же визуальном размере */}
-          <Card
-            size="small"
-            bordered
-            styles={{ body: { padding: compact ? 3 : 5 } }}
-            style={{
-              borderRadius: 10,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Button
-              onClick={handleCopyGuids}
-              disabled={!rows?.length}
-              style={{ borderRadius: 8, width: "100%" }}
-            >
-              GUID
-            </Button>
-          </Card>
         </div>
 
-        {/* правая колонка — круговые диаграммы */}
+        {/* правая колонка — круговые диаграммы в один ряд */}
         <div
           style={{
-            display: "flex",
-            flexDirection: "column",
+            display: "grid",
+            gridTemplateColumns: compact ? "1fr" : "repeat(2, minmax(0, 1fr))",
             alignItems: "center",
-            justifyContent: "flex-start",
-            gap: compact ? 12 : medium ? 10 : 16,
-            paddingLeft: compact ? 12 : medium ? 0 : 16,
+            justifyItems: "center",
+            gap: compact ? 12 : medium ? 6 : 10,
+            paddingLeft: compact ? 0 : medium ? 6 : 10,
+            borderLeft: compact ? "none" : "1px solid #e6f0ff",
             minWidth: 0,
             overflow: "hidden",
           }}
         >
           <DonutToday />
-          <div
-            style={{
-              width: "100%",
-              maxWidth: medium ? 220 : 330,
-              borderTop: "1px solid #e6f0ff",
-            }}
-          />
           <DonutDuration />
         </div>
       </div>
