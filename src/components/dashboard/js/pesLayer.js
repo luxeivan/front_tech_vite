@@ -15,9 +15,14 @@ const PES_ICON_SCALE_MULT = 0.04;
 export const PES_POLL_MS_DEFAULT = 120_000;
 
 const PES_MOVING_SPEED_THRESHOLD = 0;
-const PES_ICON_COLOR_IDLE = "#000000";
-const PES_ICON_COLOR_MOVING = "#cf1322";
-const PES_ICON_COLOR_CONNECTED = "#fa8c16";
+const PES_ICON_COLOR_READY = "#52c41a";
+const PES_ICON_COLOR_COMMAND_SENT = "#4096ff";
+const PES_ICON_COLOR_DELAY = "#4096ff";
+const PES_ICON_COLOR_EN_ROUTE = "#fadb14";
+const PES_ICON_COLOR_CONNECTED = "#ff4d4f";
+const PES_ICON_COLOR_REPAIR = "#bfbfbf";
+const PES_ICON_COLOR_MOVING = PES_ICON_COLOR_EN_ROUTE;
+const PES_ICON_COLOR_IDLE = PES_ICON_COLOR_READY;
 const PES_HALO_COLOR_CONNECTED = "#722ed1";
 const PES_ALLOWLIST_COLLECTION =
   import.meta.env.VITE_PES_MAP_ALLOWLIST_COLLECTION || "pes-map-allowlists";
@@ -102,6 +107,14 @@ export const pesIconDataUrl = (fillColor = PES_ICON_COLOR_IDLE) => {
 const PES_ICON_SRC_IDLE = pesIconDataUrl(PES_ICON_COLOR_IDLE);
 const PES_ICON_SRC_MOVING = pesIconDataUrl(PES_ICON_COLOR_MOVING);
 const PES_ICON_SRC_CONNECTED = pesIconDataUrl(PES_ICON_COLOR_CONNECTED);
+const PES_ICON_SRC_BY_STATUS = {
+  ready: pesIconDataUrl(PES_ICON_COLOR_READY),
+  command_sent: pesIconDataUrl(PES_ICON_COLOR_COMMAND_SENT),
+  delay: pesIconDataUrl(PES_ICON_COLOR_DELAY),
+  en_route: pesIconDataUrl(PES_ICON_COLOR_EN_ROUTE),
+  connected: PES_ICON_SRC_CONNECTED,
+  repair: pesIconDataUrl(PES_ICON_COLOR_REPAIR),
+};
 
 const normalizePesNumber = (value) => {
   const raw = String(value == null ? "" : value);
@@ -214,14 +227,13 @@ export const createPesLayer = ({ getZoom, getFallbackZoom }) => {
       const moving =
         Number.isFinite(speed) && speed > PES_MOVING_SPEED_THRESHOLD;
       const showLabel = z >= 12;
+      const iconSrc =
+        PES_ICON_SRC_BY_STATUS[moduleStatus] ||
+        (moving ? PES_ICON_SRC_MOVING : PES_ICON_SRC_IDLE);
 
       const iconStyle = new Style({
         image: new Icon({
-          src: connected
-            ? PES_ICON_SRC_CONNECTED
-            : moving
-              ? PES_ICON_SRC_MOVING
-              : PES_ICON_SRC_IDLE,
+          src: iconSrc,
           imgSize: [64, 64],
           opacity: 0.4,
           scale:
