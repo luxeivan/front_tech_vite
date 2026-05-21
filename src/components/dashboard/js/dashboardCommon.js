@@ -61,7 +61,7 @@ export const guidOf = (row) =>
 export const tnNumber = (row) => pick(row, "number") ?? row?.number ?? null;
 
 export const startDate = (row) =>
-  pick(row, "createDateTime") ?? pick(row, "F81_060_EVENTDATETIME") ?? null;
+  pick(row, "F81_060_EVENTDATETIME") ?? pick(row, "createDateTime") ?? null;
 
 export const recoveryDate = (row) =>
   pick(row, "F81_290_RECOVERYDATETIME") ??

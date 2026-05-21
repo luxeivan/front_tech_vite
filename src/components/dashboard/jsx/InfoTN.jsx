@@ -28,7 +28,7 @@ import {
  * InfoTN — БЛОК 1: "Информация о ТН"
  * Самодостаточный компонент: грузит данные из Strapi и рендерит:
  *  - компактные карточки (как во 2-м блоке) с метриками;
- *  - круговую диаграмму "За сегодня: открыто / закрыто / удалено"
+ *  - круговую диаграмму "Всего: открыты / закрыты"
  * Никаких других блоков/зависимостей внутри нет.
  */
 
@@ -42,6 +42,7 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
 
   const [compact, setCompact] = useState(false);
   const [medium, setMedium] = useState(false);
+  const [durationNow, setDurationNow] = useState(() => dayjs());
   useEffect(() => {
     const onResize = () => {
       const h = window.innerHeight;
@@ -52,6 +53,11 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
     onResize();
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setDurationNow(dayjs()), 60 * 1000);
+    return () => window.clearInterval(timer);
   }, []);
 
   // Подгружаем все ТН за 7 суток (08→08) если сверху не передали rows7d
@@ -229,7 +235,8 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
   };
 
   const todayStats = React.useMemo(() => {
-    const todayKey = dayKey0808(dayjs());
+    const todayKey = dayKey0808(durationNow);
+    const nowTs = durationNow.valueOf();
     const sameWorkday = (v) => (v ? dayKey0808(v) === todayKey : false);
     const createdToday = effectiveRows7d.filter((r) =>
       sameWorkday(startDate(r))
@@ -269,7 +276,7 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
       const status = String(pick(r, "STATUS_NAME") ?? r?.STATUS_NAME ?? "").toLowerCase();
       const isFinal = ["запитана", "закрыта"].includes(status);
 
-      let endTs = Date.now();
+      let endTs = nowTs;
       if (isFinal) {
         const recoveryTs = dayjs(factRecoveryDate(r)).valueOf();
         const updatedTs = dayjs(pick(r, "updatedAt") ?? r?.updatedAt ?? null).valueOf();
@@ -307,7 +314,7 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
       duration,
       total: activeToday.length,
     };
-  }, [effectiveRows7d]);
+  }, [effectiveRows7d, durationNow]);
 
   const donutSize = compact ? 108 : medium ? 86 : 104;
   const donutPanelWidth = compact ? 300 : medium ? 150 : 180;
@@ -409,7 +416,7 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
 
     return (
       <div style={donutPanelStyle}>
-        <div style={donutTitleStyle}>За сегодня</div>
+        <div style={donutTitleStyle}>Всего</div>
         <div style={donutBodyStyle}>
           <div style={ringStyle}>
             <div style={innerStyle}>
@@ -423,7 +430,7 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
                 {total}
               </div>
               <div style={{ fontSize: medium ? 10 : 12, color: "#6b778c" }}>
-                всего за сегодня
+                всего
               </div>
             </div>
           </div>
@@ -436,7 +443,7 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
           />
           <LegendRow
             color="#52c41a"
-            label="Закрыто"
+            label="Закрыты"
             count={closed}
             list={todayStats.closedList}
           />
@@ -450,8 +457,8 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
     const green = todayStats.duration.green.length;
     const orange = todayStats.duration.orange.length;
     const red = todayStats.duration.red.length;
-    const total = todayStats.total;
     const chartTotal = green + orange + red;
+    const total = chartTotal;
 
     const deg = (n) => (chartTotal ? (n / chartTotal) * 360 : 0);
     const dGreen = deg(green);
