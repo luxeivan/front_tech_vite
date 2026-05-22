@@ -37,6 +37,16 @@ export default function PesHeader({
           >
             MAX бот
           </Button>
+          <Button
+            size="small"
+            href="https://web.max.ru/mosoblenergo_pes_bot"
+            target="_blank"
+            rel="noopener noreferrer"
+            icon={<LinkOutlined />}
+            className="pes-max-link"
+          >
+            MAX web
+          </Button>
           <Button size="small" onClick={onOpenHistory}>История операций</Button>
           <Button size="small" onClick={onRefresh} loading={loading}>Обновить</Button>
         </Space>

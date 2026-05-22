@@ -86,6 +86,7 @@ export default function pesModuleLogic() {
   } = usePesDestinationsStore();
 
   const destinationBranch = useMemo(() => {
+    if (destinationType === "assembly") return "";
     if (mode === "multi") return "";
 
     if (destinationType === "tp") {
@@ -93,15 +94,8 @@ export default function pesModuleLogic() {
       return "";
     }
 
-    // Для сборных точек в одиночном режиме можно подсказывать филиал
-    // по выбранной ПЭС/фильтру филиала.
-    if (selected.length === 1) {
-      const item = items.find((x) => x.id === selected[0]);
-      if (item?.branch) return item.branch;
-    }
-    if (branchFilter !== "__all__") return branchFilter;
     return "";
-  }, [mode, destinationType, tpBranchFilter, selected, items, branchFilter]);
+  }, [mode, destinationType, tpBranchFilter]);
 
   const destinationOptions = useMemo(() => {
     const source =
