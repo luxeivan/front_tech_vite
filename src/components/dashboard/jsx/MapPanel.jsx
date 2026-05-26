@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Button, Input, Radio, Space, message } from "antd";
+import { Button, Input, Radio, message } from "antd";
 
 import {
   attachMapClickPopup,
@@ -23,6 +23,7 @@ import {
   startPesPolling,
   getPesEndpointFromEnv,
   PES_POLL_MS_DEFAULT,
+  PES_STATUS_LEGEND,
 } from "../js/pesLayer"; // Слой и polling ПЭС для карты.
 import {
   buildInParams,
@@ -531,6 +532,24 @@ export default function MapPanel({
         .mo-map-wrapper .ol-control{display:none!important}
         .mo-map-wrapper:fullscreen{width:100vw;height:100vh;background:#fff;display:flex;flex-direction:column}
         .mo-map-wrapper:fullscreen > .mo-map-area{flex:1 1 auto;min-height:0}
+        .mo-map-toolbar{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}
+        .mo-map-layers{min-width:0;overflow-x:auto;padding-bottom:2px}
+        .mo-map-layers .ant-radio-group{display:flex;flex-wrap:nowrap;white-space:nowrap}
+        .mo-map-layers .ant-radio-button-wrapper{padding-inline:12px}
+        .mo-map-search{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+        .mo-map-search .ant-input{width:150px}
+        .mo-map-legend{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;color:#2b2f36;font-size:13px;line-height:1.2}
+        .mo-map-legend__title{font-weight:600;color:#1f1f1f;margin-right:2px}
+        .mo-map-legend__item{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+        .mo-map-legend__dot{width:12px;height:12px;border-radius:50%;border:1px solid rgba(0,0,0,0.12);box-shadow:0 0 0 2px rgba(255,255,255,0.9)}
+        .mo-map-legend__dot--halo{box-shadow:0 0 0 2px rgba(255,255,255,0.9),0 0 0 4px rgba(114,46,209,0.7)}
+        .mo-map-legend__dot--blink{animation:mo-map-legend-blink 1s ease-in-out infinite}
+        @keyframes mo-map-legend-blink{0%,100%{opacity:1}50%{opacity:.45}}
+        @media (max-width: 900px){
+          .mo-map-toolbar{flex-direction:column;align-items:stretch}
+          .mo-map-search{width:100%}
+          .mo-map-search .ant-input{width:100%;min-width:0}
+        }
       `}</style>
       <div
         style={{
@@ -541,36 +560,55 @@ export default function MapPanel({
           background: "#fafcff",
         }}
       >
-        <div style={{ marginBottom: 10 }}>
-          <Radio.Group
-            value={activeLayer}
-            onChange={(e) => setActiveLayer(e.target.value)}
-            optionType="button"
-            buttonStyle="solid"
-            options={[
-              { label: "Yandex", value: "yandex" },
-              { label: "2GIS", value: "gis2" },
-              { label: "Rgis", value: "rgis" },
-              { label: "OSM", value: "osm" },
-              { label: "Carto Light", value: "cartoLight" },
-              { label: "Carto Dark", value: "cartoDark" },
-              { label: "Terrain", value: "stamenTerrain" },
-              { label: "Topo", value: "openTopoMap" },
-            ]}
-          />
+        <div className="mo-map-toolbar">
+          <div className="mo-map-layers">
+            <Radio.Group
+              value={activeLayer}
+              onChange={(e) => setActiveLayer(e.target.value)}
+              optionType="button"
+              buttonStyle="solid"
+              options={[
+                { label: "Yandex", value: "yandex" },
+                { label: "2GIS", value: "gis2" },
+                { label: "Rgis", value: "rgis" },
+                { label: "OSM", value: "osm" },
+                { label: "Carto Light", value: "cartoLight" },
+                { label: "Carto Dark", value: "cartoDark" },
+                { label: "Terrain", value: "stamenTerrain" },
+                { label: "Topo", value: "openTopoMap" },
+              ]}
+            />
+          </div>
+          <div className="mo-map-search">
+            <Input
+              value={pesSearchId}
+              onChange={(e) => setPesSearchId(e.target.value)}
+              onPressEnter={focusPes}
+              placeholder="ID или № ПЭС"
+            />
+            <Button type="primary" onClick={focusPes}>
+              Найти
+            </Button>
+          </div>
         </div>
-        <Space wrap size={8} style={{ width: "100%" }}>
-          <Input
-            value={pesSearchId}
-            onChange={(e) => setPesSearchId(e.target.value)}
-            onPressEnter={focusPes}
-            placeholder="Поиск ПЭС: ID или № из model (54087 / 77 / №77)"
-            style={{ width: 320, maxWidth: "100%" }}
-          />
-          <Button type="primary" onClick={focusPes}>
-            Найти ПЭС
-          </Button>
-        </Space>
+        <div className="mo-map-legend" aria-label="Легенда статусов ПЭС">
+          <span className="mo-map-legend__title">ПЭС:</span>
+          {PES_STATUS_LEGEND.map((item) => (
+            <span className="mo-map-legend__item" key={item.status}>
+              <span
+                className={[
+                  "mo-map-legend__dot",
+                  item.blink ? "mo-map-legend__dot--blink" : "",
+                  item.haloColor ? "mo-map-legend__dot--halo" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                style={{ background: item.color }}
+              />
+              {item.legendLabel || item.label}
+            </span>
+          ))}
+        </div>
       </div>
 
       {/* Карта */}

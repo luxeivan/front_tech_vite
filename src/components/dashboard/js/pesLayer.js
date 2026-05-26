@@ -116,6 +116,52 @@ const PES_ICON_SRC_BY_STATUS = {
   repair: pesIconDataUrl(PES_ICON_COLOR_REPAIR),
 };
 
+export const PES_STATUS_LEGEND = [
+  {
+    status: "ready",
+    label: "Готова к выезду (в резерве)",
+    legendLabel: "Готов",
+    color: PES_ICON_COLOR_READY,
+  },
+  {
+    status: "command_sent",
+    label: "Дана команда на выезд",
+    legendLabel: "Выезд",
+    color: PES_ICON_COLOR_COMMAND_SENT,
+  },
+  {
+    status: "delay",
+    label: "Задержка выезда",
+    legendLabel: "Задержка",
+    color: PES_ICON_COLOR_DELAY,
+    blink: true,
+  },
+  {
+    status: "en_route",
+    label: "В пути",
+    legendLabel: "В пути",
+    color: PES_ICON_COLOR_EN_ROUTE,
+  },
+  {
+    status: "connected",
+    label: "Подключена (в работе)",
+    legendLabel: "Подключена",
+    color: PES_ICON_COLOR_CONNECTED,
+    haloColor: PES_HALO_COLOR_CONNECTED,
+  },
+  {
+    status: "repair",
+    label: "В ремонте",
+    legendLabel: "В ремонте",
+    color: PES_ICON_COLOR_REPAIR,
+  },
+];
+
+const PES_STATUS_LABEL_BY_STATUS = PES_STATUS_LEGEND.reduce((acc, item) => {
+  acc[item.status] = item.label;
+  return acc;
+}, {});
+
 const normalizePesNumber = (value) => {
   const raw = String(value == null ? "" : value);
   if (!raw.trim()) return "";
@@ -173,13 +219,7 @@ const formatTime = (ms) => {
 };
 
 const pesStatusLabel = (status) => {
-  if (status === "connected") return "Подключена (в работе)";
-  if (status === "command_sent") return "Дана команда на выезд";
-  if (status === "delay") return "Задержка выезда";
-  if (status === "en_route") return "В пути";
-  if (status === "repair") return "В ремонте";
-  if (status === "ready") return "Готова к выезду (в резерве)";
-  return "—";
+  return PES_STATUS_LABEL_BY_STATUS[status] || "—";
 };
 
 export const buildPesPopupHtml = ({
