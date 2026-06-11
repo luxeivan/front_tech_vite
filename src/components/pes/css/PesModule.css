@@ -92,7 +92,10 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  transition: transform 120ms ease, box-shadow 120ms ease, outline 120ms ease;
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease,
+    outline 120ms ease;
 }
 
 .pes-tile:hover {
@@ -198,8 +201,22 @@
     0 4px 10px rgba(22, 119, 255, 0.35);
 }
 
+.pes-tile-tooltip-overlay {
+  --pes-tile-tooltip-width: 320px;
+  max-width: none;
+}
+
+.pes-tile-tooltip-overlay .ant-tooltip-inner {
+  width: var(--pes-tile-tooltip-width);
+  max-width: calc(100vw - 32px);
+}
+
 .pes-tile-tooltip {
-  max-width: 320px;
+  width: 100%;
+}
+
+.pes-tile-tooltip__status {
+  white-space: nowrap;
 }
 
 @keyframes pes-easter-wave {

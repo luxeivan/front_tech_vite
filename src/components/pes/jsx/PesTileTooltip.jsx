@@ -22,7 +22,7 @@ export default function PesTileTooltip({ item, meta }) {
         {item.branch || "—"} / {item.po || "—"}
       </div>
       <div>Мощность: {formatPowerKw(item.powerKw)} кВт</div>
-      <div>Статус: {meta.label}</div>
+      <div className="pes-tile-tooltip__status">Статус: {meta.label}</div>
       <div>Адрес: {getDestinationText(item)}</div>
       <div>Выезд: {formatDateTime(item.actualDepartureAt)}</div>
       <div>Подключение: {formatDateTime(item.connectedAt)}</div>

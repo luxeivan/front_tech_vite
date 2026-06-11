@@ -23,6 +23,7 @@ function PesTile({ item, selected, onToggle, selectable }) {
   return (
     <Tooltip
       title={<PesTileTooltip item={item} meta={meta} />}
+      overlayClassName="pes-tile-tooltip-overlay"
       placement="top"
       mouseEnterDelay={0.1}
     >

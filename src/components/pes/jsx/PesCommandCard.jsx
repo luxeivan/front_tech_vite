@@ -1,5 +1,5 @@
 import React from "react";
-import { Alert, Button, Card, Col, Divider, Input, Row, Select, Space, Typography } from "antd";
+import { Alert, Button, Card, Col, Input, Row, Select, Space, Typography } from "antd";
 
 const { Text } = Typography;
 
@@ -155,15 +155,6 @@ export default function PesCommandCard({
           </Button>
           <Button
             size="small"
-            onClick={() => runAction("reroute")}
-            loading={sending}
-            disabled={actionState("reroute").disabled || sending}
-            title={actionState("reroute").reason}
-          >
-            Корректировка маршрута
-          </Button>
-          <Button
-            size="small"
             onClick={() => runAction("cancel")}
             loading={sending}
             disabled={actionState("cancel").disabled || sending}
@@ -171,7 +162,6 @@ export default function PesCommandCard({
           >
             Отмена выезда
           </Button>
-          <Divider type="vertical" />
           <Button
             size="small"
             onClick={() => runAction("depart")}
