@@ -416,7 +416,7 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
 
     return (
       <div style={donutPanelStyle}>
-        <div style={donutTitleStyle}>Всего</div>
+        <div style={donutTitleStyle}>За сегодня</div>
         <div style={donutBodyStyle}>
           <div style={ringStyle}>
             <div style={innerStyle}>
@@ -430,7 +430,7 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
                 {total}
               </div>
               <div style={{ fontSize: medium ? 10 : 12, color: "#6b778c" }}>
-                за сегодня
+                всего
               </div>
             </div>
           </div>
