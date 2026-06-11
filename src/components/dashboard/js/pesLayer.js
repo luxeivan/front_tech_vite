@@ -120,7 +120,7 @@ export const PES_STATUS_LEGEND = [
   {
     status: "ready",
     label: "Готова к выезду (в резерве)",
-    legendLabel: "Готов",
+    legendLabel: "Готова",
     color: PES_ICON_COLOR_READY,
   },
   {

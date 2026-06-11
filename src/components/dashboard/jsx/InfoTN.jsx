@@ -430,7 +430,7 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
                 {total}
               </div>
               <div style={{ fontSize: medium ? 10 : 12, color: "#6b778c" }}>
-                всего
+                за сегодня
               </div>
             </div>
           </div>
