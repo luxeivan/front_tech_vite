@@ -3,6 +3,7 @@ import React, { useMemo } from "react";
 import { Tooltip } from "antd";
 import { formatPowerKw, STATUS_META } from "../js/pesModuleMeta";
 import { buildGroupedPes } from "../js/pesTilesBoard.utils";
+import PesTileTooltip from "./PesTileTooltip";
 
 function PesTile({ item, selected, onToggle, selectable }) {
   const status = item?.effectiveStatus || "ready";
@@ -19,24 +20,12 @@ function PesTile({ item, selected, onToggle, selectable }) {
     .filter(Boolean)
     .join(" ");
 
-  const tooltip = (
-    <div className="pes-tile-tooltip">
-      <div>
-        <b>ПЭС №{item.number}</b>
-      </div>
-      <div>{item.name || "—"}</div>
-      <div>
-        {item.branch || "—"} / {item.po || "—"}
-      </div>
-      <div>Мощность: {formatPowerKw(item.powerKw)} кВт</div>
-      <div>Телефон диспетчера: {item.dispatcherPhone || "—"}</div>
-      <div>Статус: {meta.label}</div>
-      {isPriority ? <div>Приоритет: да</div> : null}
-    </div>
-  );
-
   return (
-    <Tooltip title={tooltip} placement="top" mouseEnterDelay={0.1}>
+    <Tooltip
+      title={<PesTileTooltip item={item} meta={meta} />}
+      placement="top"
+      mouseEnterDelay={0.1}
+    >
       <div
         className={className}
         role={selectable ? "button" : "group"}
