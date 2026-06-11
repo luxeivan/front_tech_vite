@@ -1,4 +1,5 @@
 import dayjs from "dayjs";
+import { engineeringDayKey } from "./engineeringDay";
 
 export const URL = import.meta.env.VITE_URL_BACKEND;
 
@@ -71,8 +72,7 @@ export const recoveryDate = (row) =>
 export const formatDateTime = (v) => (v ? dayjs(v).format("DD.MM.YYYY HH:mm:ss") : "—");
 
 // Рабочие сутки 08:00→08:00.
-export const dayKey0808 = (v) =>
-  v ? dayjs(v).subtract(8, "hour").format("YYYY-MM-DD") : null;
+export const dayKey0808 = engineeringDayKey;
 
 export const uniqueSorted = (arr) =>
   Array.from(new Set(arr.filter(Boolean).map((x) => String(x).replace(/\s+/g, " ").trim()))).sort(

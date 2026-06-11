@@ -1,5 +1,5 @@
-import dayjs from "dayjs";
 import { isDashboardBaseType } from "./dashboardCommon";
+import { buildEngineeringSince7dIso } from "./engineeringDay";
 
 export const MAP_SCALE = 0.55;
 
@@ -55,7 +55,7 @@ export const extractFiasFromRow = (row) => {
 export async function fetchDashboardRows({ axios, jwt }) {
   if (!jwt) throw new Error("Нет JWT: авторизуйтесь");
 
-  const since7d = dayjs().startOf("day").add(8, "hour").subtract(6, "day").toISOString();
+  const since7d = buildEngineeringSince7dIso();
 
   const qsOpen = [
     "pagination[page]=1",

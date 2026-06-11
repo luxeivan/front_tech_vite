@@ -21,8 +21,11 @@ import {
   startDate,
   formatDateTime,
   recoveryDate,
-  dayKey0808,
 } from "../js/dashboardCommon"; // Общие хелперы dashboard.
+import {
+  buildEngineeringSince7dIso,
+  engineeringDayKey,
+} from "../js/engineeringDay"; // Инженерные сутки 08:00→08:00.
 
 /**
  * InfoTN — БЛОК 1: "Информация о ТН"
@@ -71,7 +74,7 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
         const jwt = localStorage.getItem("jwt");
         if (!jwt) throw new Error("Нет JWT");
 
-        const since7d = dayjs().startOf("day").add(8, "hour").subtract(6, "day").toISOString();
+        const since7d = buildEngineeringSince7dIso();
         const qsAll7d = [
           "pagination[page]=1",
           "pagination[pageSize]=1000",
@@ -235,9 +238,9 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
   };
 
   const todayStats = React.useMemo(() => {
-    const todayKey = dayKey0808(durationNow);
+    const todayKey = engineeringDayKey(durationNow);
     const nowTs = durationNow.valueOf();
-    const sameWorkday = (v) => (v ? dayKey0808(v) === todayKey : false);
+    const sameWorkday = (v) => (v ? engineeringDayKey(v) === todayKey : false);
     const createdToday = effectiveRows7d.filter((r) =>
       sameWorkday(startDate(r))
     );
