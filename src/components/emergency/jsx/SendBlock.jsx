@@ -14,7 +14,7 @@ import {
 } from "antd";
 import axios from "axios";
 import { buildEddsPayload, sendToEdds } from "../js/Edds";
-import { buildEddsNewPayload, fetchEddsNewMappings } from "../js/EddsNew";
+import { buildEddsNewPayload, fetchEddsNewMappings, resolveAccidentLocation, sendToEddsNew } from "../js/EddsNew";
 import {
   buildMosEnergoSbytPayload,
   sendToMes,
@@ -58,6 +58,12 @@ export default function SendBlock({
   const [sendResults, setSendResults] = useState([]);
   const isUnplannedMode = mode === "unplanned";
   const canUseTestButtons = hasFeatureAccess(user?.view_role, "tnTestButtons");
+
+  useEffect(() => {
+    setEddsNewSelected(false);
+    setMesTestSelected(false);
+    setSiteTgMaxNewSelected(false);
+  }, [documentId]);
 
   const showAlert = (type, text, autoHideMs = 6000) => {
     setNotice({ type, text });
@@ -104,7 +110,7 @@ export default function SendBlock({
     return cleaned;
   };
 
-  const makeResultEntry = ({ channel, action, request, response, ok, summary, tone }) => ({
+  const makeResultEntry = ({ channel, action, request, response, ok, summary, tone, accidentLocation, equipmentType, district }) => ({
     key: `${channel}-${action}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     channel,
     action,
@@ -113,6 +119,9 @@ export default function SendBlock({
     ok: Boolean(ok),
     summary: summary || (ok ? "Операция выполнена" : "Получена ошибка"),
     tone: tone || (ok ? "success" : "error"),
+    accidentLocation: accidentLocation || null,
+    equipmentType: equipmentType || null,
+    district: district || null,
   });
 
   const getResultTag = (item) => {
@@ -335,7 +344,7 @@ export default function SendBlock({
         );
         return makeResultEntry({
           channel: "ЕДДС new",
-          action: "json_build",
+          action: "send",
           request: {},
           response: {
             message: "ЕДДС new: не удалось получить маппинги из Strapi",
@@ -347,7 +356,24 @@ export default function SendBlock({
         });
       }
 
-      const built = buildEddsNewPayload(tn, mappings);
+      const jwt = localStorage.getItem("jwt");
+      const obj = tn?.data || tn;
+      const raw = obj?.data || {};
+      const fiasIds = (raw.FIAS_LIST || "").split(/[;,]+/).map(s => s.trim()).filter(Boolean);
+      const districtRules = Array.isArray(mappings?.district_fias) ? mappings.district_fias : [];
+      const districtSource = raw.DISTRICT || raw.SCNAME || obj.district || obj.dispCenter || "";
+      let districtFiasId = "";
+      for (const rule of districtRules) {
+        const src = districtSource.toLowerCase().replace(/ё/g, "е").replace(/[^a-zа-я0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+        const rv = (rule.sourceValue || "").toLowerCase().replace(/ё/g, "е").replace(/[^a-zа-я0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+        if (src && rv && (rule.matchType === "contains" ? src.includes(rv) : src === rv)) {
+          districtFiasId = rule.targetValue;
+          break;
+        }
+      }
+      const accidentLocation = await resolveAccidentLocation(fiasIds, districtFiasId, API_URL, jwt);
+
+      const built = buildEddsNewPayload(tn, mappings, accidentLocation);
       const payload = built?.payload || null;
       const errors = Array.isArray(built?.errors) ? built.errors : [];
       const meta = built?.meta || {};
@@ -368,7 +394,7 @@ export default function SendBlock({
         );
         return makeResultEntry({
           channel: "ЕДДС new",
-          action: "json_build",
+          action: "send",
           request: {},
           response: {
             message: "ЕДДС new: не удалось сформировать JSON",
@@ -380,29 +406,67 @@ export default function SendBlock({
         });
       }
 
-      showAlert("success", "ЕДДС new: JSON сформирован");
-      const request = payload;
-      const response = {
-        message: "ЕДДС new: JSON сформирован",
-        errors: [],
-        meta,
-      };
-      logAuditEvent(
-        {
-          action: "edds_new_build_ok",
-          entity: "edds",
-          entity_id: String(documentId || ""),
-          details: { ok: true, fields: Object.keys(payload || {}).length },
-        },
-        user
-      );
+      const resp = await sendToEddsNew(SERVICES_URL, payload, jwt);
+      const ok = resp?.success === true || resp?.ok === true;
+
+      if (ok) {
+        try {
+          await patchFlags({ sendedEdds: true });
+        } catch (e) {
+          console.warn(
+            "[flags] Не удалось обновить Strapi по sendedEdds (не критично):",
+            e?.response?.data || e?.message
+          );
+        }
+        setSentEdds(true);
+        setEddsSelected(false);
+
+        const okText =
+          resp?.message ||
+          (resp?.data?.claim_id
+            ? `Данные приняты (ID: ${resp.data.claim_id})`
+            : "Данные отправлены");
+
+        showAlert("success", `ЕДДС new: ${okText}`);
+        logAuditEvent(
+          {
+            action: "send_edds_ok",
+            entity: "tn",
+            entity_id: String(documentId || ""),
+            details: { message: okText, version: "new" },
+          },
+          user
+        );
+      } else {
+        const details =
+          resp?.error || resp?.message || "Ответ без сообщения";
+        showAlert("error", "ЕДДС new: ошибка - " + details);
+        logAuditEvent(
+          {
+            action: "send_edds_error",
+            entity: "tn",
+            entity_id: String(documentId || ""),
+            details: { error: details, version: "new" },
+          },
+          user
+        );
+      }
+
       return makeResultEntry({
         channel: "ЕДДС new",
-        action: "json_build",
-        request,
-        response,
-        ok: true,
-        summary: "JSON сформирован",
+        action: "send",
+        request: payload,
+        response: resp,
+        ok,
+        summary: ok
+          ? resp?.message ||
+            (resp?.data?.claim_id
+              ? `Данные приняты (ID: ${resp.data.claim_id})`
+              : "Данные отправлены")
+          : resp?.error || "Ответ без сообщения",
+        accidentLocation: accidentLocation || null,
+        equipmentType: payload?.equipmentType || null,
+        district: payload?.districtFiasIds?.[0] || null,
       });
     } catch (e) {
       const errors = [
@@ -411,18 +475,12 @@ export default function SendBlock({
           e?.message ||
           "Неизвестная ошибка",
       ];
-      showAlert("error", `ЕДДС new: не удалось сформировать JSON — ${errors[0]}`, 10000);
-      const request = {};
-      const response = {
-        ok: false,
-        message: "ЕДДС new: не удалось сформировать JSON",
-        errors,
-      };
+      showAlert("error", `ЕДДС new: ошибка — ${errors[0]}`, 10000);
       return makeResultEntry({
         channel: "ЕДДС new",
-        action: "json_build",
-        request,
-        response,
+        action: "send",
+        request: {},
+        response: { ok: false, message: "ЕДДС new: ошибка отправки", errors },
         ok: false,
         summary: errors[0] || "Ошибка без деталей",
       });
@@ -878,6 +936,25 @@ export default function SendBlock({
                         }
                         description={item.summary}
                       />
+
+                      {item.ok && item.accidentLocation && (
+                        <div style={{ marginTop: 8 }}>
+                          <Typography.Text strong>Координаты:</Typography.Text>
+                          <div style={{ marginTop: 4 }}>
+                            <Typography.Text>
+                              {item.accidentLocation.latitude}, {item.accidentLocation.longitude}
+                            </Typography.Text>
+                          </div>
+                          <a
+                            href={`https://yandex.ru/maps/?ll=${item.accidentLocation.longitude},${item.accidentLocation.latitude}&z=16&pt=${item.accidentLocation.longitude},${item.accidentLocation.latitude},pm2rdm`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ marginTop: 4, display: "inline-block" }}
+                          >
+                            Открыть на Яндекс картах
+                          </a>
+                        </div>
+                      )}
 
                       <div
                         style={{
