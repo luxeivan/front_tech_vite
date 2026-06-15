@@ -409,6 +409,9 @@ export function buildEddsNewPayload(tn, mappings, accidentLocation = null) {
   }
 
   const { values: reasons, errors: reasonErrors } = mapReasons(raw?.BRIGADE_ACTION, reasonRules);
+  if (reasons.length === 0) {
+    reasons.push("safety_outage");
+  }
   errors.push(...reasonErrors);
 
   const fiasIds = parseFiasList(raw?.FIAS_LIST);
