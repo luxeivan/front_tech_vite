@@ -128,7 +128,7 @@ function mapRow(item, sendStatus) {
   const guid = extractGuid(item);
   const numberKey = plannedNum != null ? String(plannedNum) : null;
   const sendByGuid = guid ? sendStatus.byGuid[String(guid).toLowerCase()] : null;
-  const send = sendByGuid || (numberKey ? sendStatus.byNumber[numberKey] : null);
+  const send = sendByGuid;
 
   const documentId =
     getField(item, "documentId") ||

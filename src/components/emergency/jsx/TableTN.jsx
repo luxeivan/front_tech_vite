@@ -763,7 +763,7 @@ export default function TableTN() {
     const sendByGuid = resolvedGuid
       ? sendStatus.byGuid[String(resolvedGuid).toLowerCase()]
       : null;
-    const send = sendByGuid || (numKey ? sendStatus.byNumber[numKey] : null);
+    const send = sendByGuid;
     const durationClass = getDurationHighlightClass(item);
 
     return {
