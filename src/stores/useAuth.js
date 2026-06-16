@@ -104,10 +104,6 @@ const useAuth = create((set) => ({
   },
   getFieldsSetting: async () => {
     try {
-      // console.log(
-      //   `${urlBackend}/api/nastrojki-polejs?pagination[pageSize]=100`
-      // );
-
       const res = await axios.get(
         `${urlBackend}/api/nastrojki-polejs?pagination[pageSize]=100`,
         {
@@ -117,7 +113,8 @@ const useAuth = create((set) => ({
         }
       );
       if (res.data) {
-        // console.log(res.data);
+        const count = res.data.data?.length || 0;
+        console.log(`[fieldsSetting] загружено ${count} записей из nastrojki-polejs`);
         set((state) => ({ fieldsSetting: res.data.data }));
       }
     } catch (error) {
