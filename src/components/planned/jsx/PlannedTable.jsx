@@ -5,6 +5,7 @@ import {
   DatePicker,
   Flex,
   Input,
+  Modal,
   Pagination,
   Select,
   Space,
@@ -13,6 +14,7 @@ import {
   Tag,
   Tooltip,
   Typography,
+  message,
 } from "antd";
 import axios from "axios";
 import dayjs from "dayjs";
@@ -34,6 +36,8 @@ import {
   parseJournalStatuses,
 } from "../js/plannedTable.utils";
 import "../css/PlannedTable.css";
+
+const { RangePicker } = DatePicker;
 
 const defaultPageSize = 15;
 const PAGE_SIZE_OPTIONS = [15, 30, 50, 100];
@@ -179,6 +183,9 @@ export default function PlannedTable() {
   const [hasLoadedSendStatus, setHasLoadedSendStatus] = useState(false);
   const [plannedTns, setPlannedTns] = useState({ data: [] });
   const [isLoadingPlannedTns, setIsLoadingPlannedTns] = useState(false);
+  const [exportRange, setExportRange] = useState(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const lastDataKeyRef = useRef(null);
   const primaryDataRequestSeqRef = useRef(0);
   const sendStatusInFlightRef = useRef(false);
@@ -422,86 +429,102 @@ export default function PlannedTable() {
   const startIndex = (pagination.page - 1) * pagination.pageSize;
   const dataSource = sorted.slice(startIndex, startIndex + pagination.pageSize);
 
-  const exportToExcel = useCallback(() => {
-    const rowsToExport = sorted.map((row) => ({
-      "№": row.number,
-      "Вид заявки": row.violationType,
-      "Начало работ (план)": row.startPlan,
-      "Начало работ (факт)": row.startFact,
-      "Окончание работ (план)": row.endPlan,
-      "Окончание работ (факт)": row.endFact,
-      "Филиал": row.branch,
-      "ПО": row.po,
-      "Объект": row.objectName,
-      "Адреса": row.addressList,
-      "СЗО": Array.isArray(row.szoTags) && row.szoTags.length > 0
-        ? row.szoTags.map((tag) => `${tag.label}: ${tag.count}`).join("; ")
-        : "—",
-      "Описание": row.description,
-      "Статус": row.statusName,
-      "Отправки": row.send
-        ? SEND_CHANNELS.map((channel) => `${channel.label}: ${row.send[channel.key] === true ? "да" : row.send[channel.key] === false ? "нет" : "—"}`).join("; ")
-        : "—",
-    }));
+  const fetchAllForExport = useCallback(async () => {
+    if (!exportRange || exportRange.length !== 2 || !exportRange[0] || !exportRange[1]) {
+      message.warning("Выберите период для экспорта");
+      return;
+    }
+    setIsExporting(true);
+    try {
+      const jwt = localStorage.getItem("jwt");
+      const base = `${import.meta.env.VITE_URL_BACKEND}/api/teh-narusheniyas`;
+      const [start, end] = exportRange;
+      const startIso = new Date(start.year(), start.month(), start.date(), 0, 0, 0).toISOString();
+      const endIso = new Date(end.year(), end.month(), end.date(), 23, 59, 59).toISOString();
 
-    const headers = Object.keys(rowsToExport[0] || {
-      "№": "",
-      "Вид заявки": "",
-      "Начало работ (план)": "",
-      "Начало работ (факт)": "",
-      "Окончание работ (план)": "",
-      "Окончание работ (факт)": "",
-      "Филиал": "",
-      "ПО": "",
-      "Объект": "",
-      "Адреса": "",
-      "СЗО": "",
-      "Описание": "",
-      "Статус": "",
-      "Отправки": "",
-    });
+      let allItems = [];
+      let page = 1;
+      const pageSize = 100;
+      let hasMore = true;
 
-    const escapeHtml = (value) =>
-      String(value ?? "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/\"/g, "&quot;");
+      while (hasMore) {
+        const params = {
+          "pagination[page]": page,
+          "pagination[pageSize]": pageSize,
+          "sort[0]": "createDateTime:DESC",
+          "filters[BASE_TYPE][$eq]": 1,
+          "filters[createDateTime][$gte]": startIso,
+          "filters[createDateTime][$lte]": endIso,
+        };
+        const { data } = await axios.get(base, {
+          params,
+          headers: { Authorization: `Bearer ${jwt}` },
+        });
+        const list = Array.isArray(data?.data) ? data.data : [];
+        const normalized = list.map((x) => (x?.attributes ? { id: x.id, ...x.attributes } : x));
+        allItems = allItems.concat(normalized.filter((item) => isPlannedType(item)));
+        const total = data?.meta?.pagination?.total ?? 0;
+        hasMore = page * pageSize < total && list.length > 0;
+        page++;
+      }
 
-    const headHtml = `<tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr>`;
-    const bodyHtml = rowsToExport
-      .map((row) => `<tr>${headers.map((header) => `<td>${escapeHtml(row[header])}</td>`).join("")}</tr>`)
-      .join("");
+      if (allItems.length === 0) {
+        message.info("Нет данных за выбранный период");
+        return;
+      }
 
-    const html = `
-      <html xmlns:o="urn:schemas-microsoft-com:office:office"
-            xmlns:x="urn:schemas-microsoft-com:office:excel"
-            xmlns="http://www.w3.org/TR/REC-html40">
-        <head>
-          <meta charset="utf-8" />
-        </head>
-        <body>
-          <table border="1">
-            <thead>${headHtml}</thead>
-            <tbody>${bodyHtml}</tbody>
-          </table>
-        </body>
-      </html>
-    `;
+      const rowsToExport = allItems.map((item) => {
+        const mapped = mapRow(item, sendStatus);
+        return {
+          "№": mapped.number,
+          "Вид заявки": mapped.violationType,
+          "Начало работ (план)": mapped.startPlan,
+          "Начало работ (факт)": mapped.startFact,
+          "Окончание работ (план)": mapped.endPlan,
+          "Окончание работ (факт)": mapped.endFact,
+          "Филиал": mapped.branch,
+          "ПО": mapped.po,
+          "Объект": mapped.objectName,
+          "Адреса": mapped.addressList,
+          "СЗО": Array.isArray(mapped.szoTags) && mapped.szoTags.length > 0
+            ? mapped.szoTags.map((tag) => `${tag.label}: ${tag.count}`).join("; ")
+            : "—",
+          "Описание": mapped.description,
+          "Статус": mapped.statusName,
+          "Отправки": mapped.send
+            ? SEND_CHANNELS.map((ch) => `${ch.label}: ${mapped.send[ch.key] === true ? "да" : mapped.send[ch.key] === false ? "нет" : "—"}`).join("; ")
+            : "—",
+        };
+      });
 
-    const blob = new Blob(["\ufeff", html], {
-      type: "application/vnd.ms-excel;charset=utf-8;",
-    });
-    const link = document.createElement("a");
-    const objectUrl = URL.createObjectURL(blob);
-    const datePart = date ? dayjs(date).format("YYYY-MM-DD") : dayjs().format("YYYY-MM-DD");
-    link.href = objectUrl;
-    link.download = `planovye-otklyucheniya-${datePart}.xls`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(objectUrl);
-  }, [sorted, date]);
+      const headers = Object.keys(rowsToExport[0]);
+      const escapeHtml = (v) =>
+        String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;");
+      const headHtml = `<tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr>`;
+      const bodyHtml = rowsToExport.map((row) => `<tr>${headers.map((h) => `<td>${escapeHtml(row[h])}</td>`).join("")}</tr>`).join("");
+      const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8" /></head><body><table border="1"><thead>${headHtml}</thead><tbody>${bodyHtml}</tbody></table></body></html>`;
+
+      const blob = new Blob(["\ufeff", html], { type: "application/vnd.ms-excel;charset=utf-8;" });
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const dateFrom = dayjs(start).format("YYYY-MM-DD");
+      const dateTo = dayjs(end).format("YYYY-MM-DD");
+      link.href = objectUrl;
+      link.download = `planovye-otklyucheniya-${dateFrom}--${dateTo}.xls`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(objectUrl);
+      message.success(`Экспортировано ${allItems.length} ТН`);
+      setIsExportModalOpen(false);
+      setExportRange(null);
+    } catch (err) {
+      console.error("Ошибка экспорта:", err);
+      message.error("Ошибка при экспорте данных");
+    } finally {
+      setIsExporting(false);
+    }
+  }, [exportRange, sendStatus]);
 
   const columns = [
     {
@@ -707,7 +730,9 @@ export default function PlannedTable() {
           />
         </Flex>
         <Flex gap={8} wrap justify="flex-end">
-          <Button onClick={exportToExcel}>Выгрузка в Excel</Button>
+          <Button type="primary" onClick={() => setIsExportModalOpen(true)}>
+            Выгрузка в Excel
+          </Button>
           <Button
             onClick={() => {
               setDate(null);
@@ -793,6 +818,50 @@ export default function PlannedTable() {
         open={isJournalOpen}
         onClose={() => setIsJournalOpen(false)}
       />
+
+      <Modal
+        title="Выгрузка в Excel"
+        open={isExportModalOpen}
+        onCancel={() => {
+          setIsExportModalOpen(false);
+          setExportRange(null);
+        }}
+        footer={[
+          <Button
+            key="cancel"
+            onClick={() => {
+              setIsExportModalOpen(false);
+              setExportRange(null);
+            }}
+          >
+            Отмена
+          </Button>,
+          <Button
+            key="export"
+            type="primary"
+            loading={isExporting}
+            disabled={!exportRange || exportRange.length !== 2}
+            onClick={fetchAllForExport}
+          >
+            Экспортировать
+          </Button>,
+        ]}
+        destroyOnClose
+      >
+        <div style={{ padding: "8px 0" }}>
+          <Typography.Text style={{ display: "block", marginBottom: 8 }}>
+            Выберите период для выгрузки:
+          </Typography.Text>
+          <RangePicker
+            value={exportRange}
+            onChange={(v) => setExportRange(v)}
+            format="DD.MM.YYYY"
+            placeholder={["Дата начала", "Дата окончания"]}
+            style={{ width: "100%" }}
+            size="large"
+          />
+        </div>
+      </Modal>
     </ConfigProvider>
   );
 }
