@@ -35,19 +35,6 @@ export function createBaseLayers({ onProviderError } = {}) {
       }),
       visible: false,
     }),
-    stamenTerrain: new TileLayer({
-      source: new XYZ({
-        url: `https://tiles.stadiamaps.com/tiles/stamen_terrain/{z}/{x}/{y}{r}.png${
-          import.meta.env.VITE_STADIA_KEY
-            ? "?api_key=" + import.meta.env.VITE_STADIA_KEY
-            : ""
-        }`,
-        crossOrigin: "anonymous",
-        attributions:
-          "Map © Stadia Maps, © Stamen • Data © OpenStreetMap contributors",
-      }),
-      visible: false,
-    }),
     openTopoMap: new TileLayer({
       source: new XYZ({
         url: "https://{a-c}.tile.opentopomap.org/{z}/{x}/{y}.png",
@@ -59,6 +46,13 @@ export function createBaseLayers({ onProviderError } = {}) {
     rgis: new TileLayer({
       source: new XYZ({
         url: "https://rgis.mosreg.ru/wmts/m10/{z}/{x}/{y}.png",
+      }),
+      visible: false,
+    }),
+    rgisSatellite: new TileLayer({
+      source: new XYZ({
+        url: "https://rgis.mosreg.ru/wmts/ofm2020/{z}/{x}/{y}.jpeg",
+        crossOrigin: "anonymous",
       }),
       visible: false,
     }),
@@ -100,9 +94,6 @@ export function createBaseLayers({ onProviderError } = {}) {
       } catch (_) {}
     });
   };
-
-  hookTileErrors("stamenTerrain");
-  hookTileErrors("openTopoMap");
 
   return {
     baseLayers,

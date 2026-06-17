@@ -561,9 +561,9 @@ export default function MapPanel({
         }}
       >
         <div className="mo-map-toolbar">
-          <div className="mo-map-layers">
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
             <Radio.Group
-              value={activeLayer}
+              value={activeLayer === "rgisSatellite" ? "rgis" : activeLayer}
               onChange={(e) => setActiveLayer(e.target.value)}
               optionType="button"
               buttonStyle="solid"
@@ -574,10 +574,22 @@ export default function MapPanel({
                 { label: "OSM", value: "osm" },
                 { label: "Carto Light", value: "cartoLight" },
                 { label: "Carto Dark", value: "cartoDark" },
-                { label: "Terrain", value: "stamenTerrain" },
                 { label: "Topo", value: "openTopoMap" },
               ]}
             />
+            {(activeLayer === "rgis" || activeLayer === "rgisSatellite") && (
+              <Radio.Group
+                value={activeLayer === "rgisSatellite" ? "satellite" : "map"}
+                onChange={(e) => setActiveLayer(e.target.value === "satellite" ? "rgisSatellite" : "rgis")}
+                optionType="button"
+                buttonStyle="solid"
+                size="small"
+                options={[
+                  { label: "Карта", value: "map" },
+                  { label: "Спутник", value: "satellite" },
+                ]}
+              />
+            )}
           </div>
           <div className="mo-map-search">
             <Input
