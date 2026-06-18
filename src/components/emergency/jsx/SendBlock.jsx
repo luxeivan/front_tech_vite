@@ -53,7 +53,8 @@ export default function SendBlock({
   const [sendResultsOpen, setSendResultsOpen] = useState(false);
   const [sendResults, setSendResults] = useState([]);
   const isUnplannedMode = mode === "unplanned";
-  const canUseTestButtons = hasFeatureAccess(user?.view_role, "tnTestButtons");
+  const canUseEddsNewSend = hasFeatureAccess(user?.view_role, "eddsNewSend");
+  const canUseMesSend = hasFeatureAccess(user?.view_role, "mesSend");
 
   useEffect(() => {
     setEddsNewSelected(false);
@@ -439,8 +440,8 @@ export default function SendBlock({
   const handleSend = async () => {
     try {
       const toEdds = eddsSelected;
-      const toEddsNewTest = canUseTestButtons && isUnplannedMode && eddsNewSelected;
-      const toMes = mesSelected;
+      const toEddsNewTest = canUseEddsNewSend && isUnplannedMode && eddsNewSelected;
+      const toMes = canUseMesSend && mesSelected;
       const activeExtraChannels = extraChannels.filter(
         (channel) => extraSelected[channel.key]
       );
@@ -606,9 +607,9 @@ export default function SendBlock({
   const canSend =
     !sending &&
     (eddsSelected ||
-      mesSelected ||
+      (canUseMesSend && mesSelected) ||
       hasExtraSelected ||
-      (canUseTestButtons &&
+      (canUseEddsNewSend &&
         isUnplannedMode &&
         eddsNewSelected));
 
@@ -648,7 +649,7 @@ export default function SendBlock({
             ЕДДС
           </Checkbox>
 
-          {isUnplannedMode && canUseTestButtons && (
+          {isUnplannedMode && canUseEddsNewSend && (
             <Checkbox
               checked={eddsNewSelected}
               disabled={readOnly}
@@ -658,13 +659,15 @@ export default function SendBlock({
             </Checkbox>
           )}
 
-          <Checkbox
-            checked={mesSelected}
-            disabled={readOnly}
-            onChange={(e) => setMesSelected(e.target.checked)}
-          >
-            Мосэнергосбыт
-          </Checkbox>
+          {canUseMesSend && (
+            <Checkbox
+              checked={mesSelected}
+              disabled={readOnly}
+              onChange={(e) => setMesSelected(e.target.checked)}
+            >
+              Мосэнергосбыт
+            </Checkbox>
+          )}
 
           {extraChannels.map((channel) => (
             <Checkbox
