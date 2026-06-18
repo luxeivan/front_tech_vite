@@ -49,6 +49,10 @@ export default function pesModuleLogic() {
   const [comment, setComment] = useState("");
   const [sending, setSending] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyActionFilter, setHistoryActionFilter] = useState("__all__");
+  const [historyStatusFilter, setHistoryStatusFilter] = useState("__all__");
+  const [historyPesIds, setHistoryPesIds] = useState([]);
+  const [historyDateRange, setHistoryDateRange] = useState([null, null]);
   // UI: каскадные фильтры для поиска ТП.
   const [tpBranchFilter, setTpBranchFilter] = useState("__all__");
   const [tpPoFilter, setTpPoFilter] = useState("__all__");
@@ -69,6 +73,8 @@ export default function pesModuleLogic() {
     historyPage,
     historyPageSize,
     historyTotal,
+    historyMetrics,
+    historyFilterOptions,
     loadHistory,
     applyUpdated,
   } = usePesModuleDataStore();
@@ -164,15 +170,21 @@ export default function pesModuleLogic() {
   }, []);
 
   const refreshHistory = useCallback(async ({ nextPage, nextPageSize } = {}) => {
+    const [dateFrom, dateTo] = Array.isArray(historyDateRange) ? historyDateRange : [null, null];
     const err = await loadHistory({
       nextPage,
       nextPageSize,
       branchFilter,
       poFilter,
+      historyActionFilter,
+      historyStatusFilter,
+      historyPesIds,
+      historyDateFrom: dateFrom ? dateFrom.toISOString() : null,
+      historyDateTo: dateTo ? dateTo.toISOString() : null,
       user,
     });
     if (err) showHistoryError(err);
-  }, [branchFilter, loadHistory, poFilter, showHistoryError, user]);
+  }, [branchFilter, historyActionFilter, historyDateRange, historyPesIds, historyStatusFilter, loadHistory, poFilter, showHistoryError, user]);
 
   useEffect(() => {
     loadItems(user);
@@ -317,7 +329,7 @@ export default function pesModuleLogic() {
   useEffect(() => {
     if (!historyOpen) return;
     refreshHistory({ nextPage: 1, nextPageSize: historyPageSize });
-  }, [historyOpen, historyPageSize, branchFilter, poFilter, refreshHistory]);
+  }, [historyOpen, historyPageSize, branchFilter, poFilter, historyActionFilter, historyStatusFilter, historyPesIds, historyDateRange, refreshHistory]);
 
   const branchOptions = useMemo(
     () => [
@@ -550,6 +562,16 @@ export default function pesModuleLogic() {
     historyPage,
     historyPageSize,
     historyTotal,
+    historyMetrics,
+    historyFilterOptions,
+    historyActionFilter,
+    setHistoryActionFilter,
+    historyStatusFilter,
+    setHistoryStatusFilter,
+    historyPesIds,
+    setHistoryPesIds,
+    historyDateRange,
+    setHistoryDateRange,
     refreshHistory,
 
     selected,

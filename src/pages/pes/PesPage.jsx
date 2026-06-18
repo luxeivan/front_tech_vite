@@ -47,6 +47,16 @@ export default function PesPage() {
     historyPage,
     historyPageSize,
     historyTotal,
+    historyMetrics,
+    historyFilterOptions,
+    historyActionFilter,
+    setHistoryActionFilter,
+    historyStatusFilter,
+    setHistoryStatusFilter,
+    historyPesIds,
+    setHistoryPesIds,
+    historyDateRange,
+    setHistoryDateRange,
     refreshHistory,
 
     selected,
@@ -239,6 +249,16 @@ export default function PesPage() {
         historyPage={historyPage}
         historyPageSize={historyPageSize}
         historyTotal={historyTotal}
+        historyMetrics={historyMetrics}
+        historyFilterOptions={historyFilterOptions}
+        historyActionFilter={historyActionFilter}
+        onHistoryActionFilterChange={setHistoryActionFilter}
+        historyStatusFilter={historyStatusFilter}
+        onHistoryStatusFilterChange={setHistoryStatusFilter}
+        historyPesIds={historyPesIds}
+        onHistoryPesIdsChange={setHistoryPesIds}
+        historyDateRange={historyDateRange}
+        onHistoryDateRangeChange={setHistoryDateRange}
         onRefresh={refreshHistory}
         onPageChange={(nextPage, nextPageSize) => refreshHistory({ nextPage, nextPageSize })}
       />

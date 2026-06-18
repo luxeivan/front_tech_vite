@@ -19,6 +19,8 @@ const usePesModuleDataStore = create((set, get) => ({
   historyPage: 1,
   historyPageSize: 20,
   historyTotal: 0,
+  historyMetrics: null,
+  historyFilterOptions: { actions: [], statuses: [], pes: [] },
 
   applyUpdated: (updated) => {
     const list = Array.isArray(updated) ? updated : [];
@@ -71,6 +73,11 @@ const usePesModuleDataStore = create((set, get) => ({
     nextPageSize,
     branchFilter = "__all__",
     poFilter = "__all__",
+    historyActionFilter = "__all__",
+    historyStatusFilter = "__all__",
+    historyPesIds = [],
+    historyDateFrom = null,
+    historyDateTo = null,
     user,
   } = {}) => {
     const { historyPage, historyPageSize } = get();
@@ -84,6 +91,11 @@ const usePesModuleDataStore = create((set, get) => ({
       const params = { page, pageSize };
       if (branchFilter !== "__all__") params.branch = branchFilter;
       if (poFilter !== "__all__") params.po = poFilter;
+      if (historyActionFilter !== "__all__") params.action = historyActionFilter;
+      if (historyStatusFilter !== "__all__") params.status = historyStatusFilter;
+      if (Array.isArray(historyPesIds) && historyPesIds.length) params.pesIds = historyPesIds.join(",");
+      if (historyDateFrom) params.dateFrom = historyDateFrom;
+      if (historyDateTo) params.dateTo = historyDateTo;
 
       const { data } = await axios.get(`${base}/services/pes/module/history`, {
         params,
@@ -101,6 +113,8 @@ const usePesModuleDataStore = create((set, get) => ({
         historyPage: Number(pg.page || page),
         historyPageSize: Number(pg.pageSize || pageSize),
         historyTotal: Number(pg.total || rows.length),
+        historyMetrics: data?.metrics || null,
+        historyFilterOptions: data?.filterOptions || { actions: [], statuses: [], pes: [] },
       });
 
       return null;
