@@ -91,6 +91,30 @@ function toInt(v, fallback = 0) {
   return digits ? Number(digits[0]) : fallback;
 }
 
+function isValidCoordinatePair(value) {
+  if (!value || typeof value !== "object") return false;
+  if (
+    value.latitude === null ||
+    value.latitude === undefined ||
+    value.latitude === "" ||
+    value.longitude === null ||
+    value.longitude === undefined ||
+    value.longitude === ""
+  ) {
+    return false;
+  }
+  const latitude = Number(value.latitude);
+  const longitude = Number(value.longitude);
+  return (
+    Number.isFinite(latitude) &&
+    Number.isFinite(longitude) &&
+    latitude >= -90 &&
+    latitude <= 90 &&
+    longitude >= -180 &&
+    longitude <= 180
+  );
+}
+
 function toIso(v) {
   if (!v) return null;
   const d = dayjs(v);
@@ -435,11 +459,20 @@ export function buildEddsNewPayload(tn, mappings, accidentLocation = null) {
   const placesCount = toInt(raw?.SETTLEMENT_COUNT);
   const commentText = buildCommentText(raw);
 
+  if (!isValidCoordinatePair(accidentLocation)) {
+    errors.push(
+      "Не удалось определить обязательные координаты accidentLocation по FIAS_LIST или DISTRICT."
+    );
+  }
+
   const payload =
     errors.length === 0
       ? {
           districtFiasIds: [districtFiasId],
-          ...(accidentLocation ? { accidentLocation } : {}),
+          accidentLocation: {
+            latitude: Number(Number(accidentLocation.latitude).toFixed(6)),
+            longitude: Number(Number(accidentLocation.longitude).toFixed(6)),
+          },
           equipmentType,
           equipmentName,
           recoveryWorkInfo: {
