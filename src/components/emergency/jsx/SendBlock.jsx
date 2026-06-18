@@ -18,7 +18,6 @@ import { buildEddsNewPayload, fetchEddsNewMappings, resolveAccidentLocation, sen
 import {
   buildMosEnergoSbytPayload,
   sendToMes,
-  testMesAuth,
 } from "../js/MosEnergoSbyt";
 import useAuth from "../../../stores/useAuth";
 import { buildAuditHeaders, logAuditEvent } from "../../../utils/auditLogger";
@@ -42,7 +41,6 @@ export default function SendBlock({
 }) {
   const user = useAuth((s) => s.user);
   const [sentEdds, setSentEdds] = useState(false);
-  const [sentMes, setSentMes] = useState(false);
   const [eddsSelected, setEddsSelected] = useState(true);
   const [mesSelected, setMesSelected] = useState(true);
   const [sending, setSending] = useState(false);
@@ -51,8 +49,6 @@ export default function SendBlock({
   const [mesTestLoading, setMesTestLoading] = useState(false);
   const [eddsTestLoading, setEddsTestLoading] = useState(false);
   const [eddsNewSelected, setEddsNewSelected] = useState(false);
-  const [mesTestSelected, setMesTestSelected] = useState(false);
-  const [siteTgMaxNewSelected, setSiteTgMaxNewSelected] = useState(false);
   const [eddsNewMappings, setEddsNewMappings] = useState(null);
   const [sendResultsOpen, setSendResultsOpen] = useState(false);
   const [sendResults, setSendResults] = useState([]);
@@ -61,8 +57,6 @@ export default function SendBlock({
 
   useEffect(() => {
     setEddsNewSelected(false);
-    setMesTestSelected(false);
-    setSiteTgMaxNewSelected(false);
   }, [documentId]);
 
   const showAlert = (type, text, autoHideMs = 6000) => {
@@ -135,7 +129,6 @@ export default function SendBlock({
     const eddsSent = Boolean(d?.sendedEdds);
     const mesSent = Boolean(d?.sendedMosEnergoSbit);
     setSentEdds(eddsSent);
-    setSentMes(mesSent);
     setEddsSelected(eddsSent ? false : true);
     setMesSelected(mesSent ? false : true);
   }, [
@@ -155,8 +148,6 @@ export default function SendBlock({
 
   useEffect(() => {
     setEddsNewSelected(false);
-    setMesTestSelected(false);
-    setSiteTgMaxNewSelected(false);
   }, [documentId]);
 
   const eddsPayload = useMemo(() => buildEddsPayload(tn), [tn?.data]);
@@ -172,62 +163,6 @@ export default function SendBlock({
     );
   };
 
-  const runMesAuthTest = async () => {
-    try {
-      setMesTestLoading(true);
-      const jwt = localStorage.getItem("jwt");
-      const resp = await testMesAuth(SERVICES_URL, jwt, buildAuditHeaders(user, "/"));
-      const ok = Boolean(resp?.ok);
-      logAuditEvent(
-        {
-          action: "mes_auth_test",
-          entity: "mes",
-          entity_id: String(documentId || ""),
-          details: {
-            ok: Boolean(resp?.ok),
-            message: resp?.message || null,
-            session: resp?.session || null,
-          },
-        },
-        user
-      );
-      return makeResultEntry({
-        channel: "МосЭнергоСбыт new",
-        action: "test",
-        request: {
-          method: "GET",
-          url: `${SERVICES_URL}/services/mes/auth-test`,
-          body: null,
-        },
-        response: resp,
-        ok,
-        summary: ok
-          ? "Сессионный токен получен"
-          : formatErrorDetails(resp) || "Ошибка без деталей",
-      });
-    } catch (e) {
-      const response = e?.response?.data || {
-        ok: false,
-        message: e?.message || "Неизвестная ошибка",
-        code: e?.code || null,
-      };
-      return makeResultEntry({
-        channel: "МосЭнергоСбыт new",
-        action: "test",
-        request: {
-          method: "GET",
-          url: `${SERVICES_URL}/services/mes/auth-test`,
-          body: null,
-        },
-        response,
-        ok: false,
-        summary: formatErrorDetails(response) || "Ошибка без деталей",
-      });
-    } finally {
-      setMesTestLoading(false);
-    }
-  };
-
   const runMesNewUpload = async () => {
     const request = {
       method: "POST",
@@ -238,16 +173,28 @@ export default function SendBlock({
     try {
       setMesTestLoading(true);
       const jwt = localStorage.getItem("jwt");
-      console.groupCollapsed?.("[МосЭнергоСбыт new] отправка из аварийки");
-      console.log("[МосЭнергоСбыт new] request:", request);
+      console.groupCollapsed?.("[Мосэнергосбыт] отправка");
+      console.log("[Мосэнергосбыт] request:", request);
       const resp = await sendToMes(
         SERVICES_URL,
         mesPayload,
         jwt,
         buildAuditHeaders(user, "/")
       );
-      console.log("[МосЭнергоСбыт new] response:", resp);
+      console.log("[Мосэнергосбыт] response:", resp);
       const ok = Boolean(resp?.ok);
+
+      if (ok) {
+        try {
+          await patchFlags({ sendedMosEnergoSbit: true });
+          setMesSelected(false);
+        } catch (e) {
+          console.warn(
+            "[flags] Не удалось обновить Strapi по sendedMosEnergoSbit (не критично):",
+            e?.response?.data || e?.message
+          );
+        }
+      }
 
       logAuditEvent(
         {
@@ -267,13 +214,13 @@ export default function SendBlock({
       showAlert(
         ok ? "success" : "error",
         ok
-          ? "МосЭнергоСбыт new: отправлено"
-          : `МосЭнергоСбыт new: ошибка - ${formatErrorDetails(resp) || "Ответ без сообщения"}`,
+          ? "Мосэнергосбыт: отправлено"
+          : `Мосэнергосбыт: ошибка - ${formatErrorDetails(resp) || "Ответ без сообщения"}`,
         ok ? 6000 : 12000
       );
 
       return makeResultEntry({
-        channel: "МосЭнергоСбыт new",
+        channel: "Мосэнергосбыт",
         action: "send",
         request,
         response: resp,
@@ -288,7 +235,7 @@ export default function SendBlock({
         message: e?.message || "Неизвестная ошибка",
         code: e?.code || null,
       };
-      console.error("[МосЭнергоСбыт new] error:", response);
+      console.error("[Мосэнергосбыт] error:", response);
       logAuditEvent(
         {
           action: "send_mes_new_error",
@@ -303,11 +250,11 @@ export default function SendBlock({
       );
       showAlert(
         "error",
-        `МосЭнергоСбыт new: ошибка - ${formatErrorDetails(response) || response?.message || "Ответ без сообщения"}`,
+        `Мосэнергосбыт: ошибка - ${formatErrorDetails(response) || response?.message || "Ответ без сообщения"}`,
         12000
       );
       return makeResultEntry({
-        channel: "МосЭнергоСбыт new",
+        channel: "Мосэнергосбыт",
         action: "send",
         request,
         response,
@@ -494,8 +441,6 @@ export default function SendBlock({
       const toEdds = eddsSelected;
       const toEddsNewTest = canUseTestButtons && isUnplannedMode && eddsNewSelected;
       const toMes = mesSelected;
-      const toMesTest = canUseTestButtons && isUnplannedMode && mesTestSelected;
-      const toSiteTgMaxNew = canUseTestButtons && isUnplannedMode && siteTgMaxNewSelected;
       const activeExtraChannels = extraChannels.filter(
         (channel) => extraSelected[channel.key]
       );
@@ -504,8 +449,6 @@ export default function SendBlock({
         !toEdds &&
         !toEddsNewTest &&
         !toMes &&
-        !toMesTest &&
-        !toSiteTgMaxNew &&
         activeExtraChannels.length === 0
       ) {
         logAuditEvent({ action: "send_block_no_target", entity: "send_block", details: { documentId } }, user);
@@ -517,11 +460,7 @@ export default function SendBlock({
         return;
       }
       if (toMes && !mesPayload) {
-        showAlert("error", "МосЭнергоСбыт: нет данных для отправки");
-        return;
-      }
-      if (toMesTest && !mesPayload) {
-        showAlert("error", "МосЭнергоСбыт new: нет данных для отправки");
+        showAlert("error", "Мосэнергосбыт: нет данных для отправки");
         return;
       }
       setSending(true);
@@ -600,95 +539,11 @@ export default function SendBlock({
       }
 
       if (toMes) {
-        const jwt = localStorage.getItem("jwt");
-        const resp = await sendToMes(
-          SERVICES_URL,
-          mesPayload,
-          jwt,
-          buildAuditHeaders(user, "/")
-        );
-        if (resp?.ok === true) {
-          await patchFlags({ sendedMosEnergoSbit: true });
-          setSentMes(true);
-          setMesSelected(false);
-          showAlert("success", "МосЭнергоСбыт: отправлено");
-          console.log("МосЭнергоСбыт ответ:", JSON.stringify(resp, null, 2));
-          logAuditEvent(
-            {
-              action: "send_mes_ok",
-              entity: "tn",
-              entity_id: String(documentId || ""),
-            },
-            user
-          );
-        } else {
-          const details = formatErrorDetails(resp) || "Ответ без сообщения";
-          showAlert("error", "МосЭнергоСбыт: ошибка - " + details);
-          logAuditEvent(
-            {
-              action: "send_mes_error",
-              entity: "tn",
-              entity_id: String(documentId || ""),
-              details: { error: details },
-            },
-            user
-          );
-        }
-
-        results.push(
-          makeResultEntry({
-            channel: "МосЭнергоСбыт",
-            action: "send",
-            request: {
-              method: "POST",
-              url: `${SERVICES_URL}/services/mes/upload`,
-              body: mesPayload,
-            },
-            response: resp,
-            ok: Boolean(resp?.ok),
-            summary: resp?.ok
-              ? resp?.message || "Данные отправлены"
-              : formatErrorDetails(resp) || "Ответ без сообщения",
-          })
-        );
+        results.push(await runMesNewUpload());
       }
 
       if (toEddsNewTest) {
         results.push(await runEddsNewTest());
-      }
-
-      if (toMesTest) {
-        results.push(await runMesNewUpload());
-      }
-
-      if (toSiteTgMaxNew) {
-        const response = {
-          message:
-            "Канал Сайт/TG/MAX new подготовлен на интерфейсе. Маршруты отправки будут подключены следующим этапом.",
-        };
-        logAuditEvent(
-          {
-            action: "site_tg_max_new_prepare",
-            entity: "send_block",
-            entity_id: String(documentId || ""),
-          },
-          user
-        );
-        results.push(
-          makeResultEntry({
-            channel: "Сайт/TG/MAX new",
-            action: "prepare",
-            request: {
-              method: "—",
-              url: "—",
-              body: null,
-            },
-            response,
-            ok: false,
-            tone: "info",
-            summary: "Канал подготовлен, маршруты отправки будут подключены позже",
-          })
-        );
       }
 
       const unsupportedExtraChannels = activeExtraChannels;
@@ -755,7 +610,7 @@ export default function SendBlock({
       hasExtraSelected ||
       (canUseTestButtons &&
         isUnplannedMode &&
-        (eddsNewSelected || mesTestSelected || siteTgMaxNewSelected)));
+        eddsNewSelected));
 
   return (
     <div>
@@ -808,28 +663,8 @@ export default function SendBlock({
             disabled={readOnly}
             onChange={(e) => setMesSelected(e.target.checked)}
           >
-            МосЭнергоСбыт
+            Мосэнергосбыт
           </Checkbox>
-
-          {isUnplannedMode && canUseTestButtons && (
-            <Checkbox
-              checked={mesTestSelected}
-              disabled={readOnly}
-              onChange={(e) => setMesTestSelected(e.target.checked)}
-            >
-              МосЭнергоСбыт new
-            </Checkbox>
-          )}
-
-          {isUnplannedMode && canUseTestButtons && (
-            <Checkbox
-              checked={siteTgMaxNewSelected}
-              disabled={readOnly}
-              onChange={(e) => setSiteTgMaxNewSelected(e.target.checked)}
-            >
-              Сайт/TG/MAX new
-            </Checkbox>
-          )}
 
           {extraChannels.map((channel) => (
             <Checkbox
