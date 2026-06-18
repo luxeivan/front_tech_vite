@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo } from "react";
 import {
   Button,
   ConfigProvider,
@@ -16,7 +16,6 @@ import {
   Typography,
   message,
 } from "antd";
-import axios from "axios";
 import dayjs from "dayjs";
 import ruRU from "antd/locale/ru_RU";
 import { ReloadOutlined } from "@ant-design/icons";
@@ -27,39 +26,26 @@ import JournalOpenModal from "../../journalOpen/JournalOpenModal";
 import {
   SzoCell,
   PLANNED_STATUS_OPTIONS,
-  parseJournalStatuses,
 } from "../js/plannedTable.utils";
 import {
   ALL_BRANCHES,
   ALL_PO,
   DEFAULT_PAGE_SIZE,
-  DEFAULT_PLANNED_STATUSES,
-  DEFAULT_TNS_PAGE_SIZE,
   PAGE_SIZE_OPTIONS,
   buildBranchOptions,
-  buildPlannedDataKey,
   buildPlannedStats,
   buildPoOptions,
-  buildPrimaryRequestParams,
   filterPlannedRows,
-  getEffectiveStatuses,
   mapPlannedRow,
   normalizePlannedRows,
   paginateRows,
   sortPlannedRows,
 } from "../js/plannedTableFilters";
+import { SEND_CHANNELS, DATE_TIME_COLUMN_WIDTH } from "../js/plannedTable.constants";
+import usePlannedStore from "../../../stores/planned/usePlannedStore";
 import "../css/PlannedTable.css";
 
 const { RangePicker } = DatePicker;
-
-const DATE_TIME_COLUMN_WIDTH = 132;
-
-const SEND_CHANNELS = [
-  { key: "edds", label: "ЕДДС" },
-  { key: "mes", label: "МЭС" },
-  { key: "minenergo", label: "МинЭ" },
-  { key: "mosenergosbyt", label: "МосЭсб" },
-];
 
 function StatusDot({ ok, label }) {
   const color = ok === true ? "#52c41a" : ok === false ? "#ff4d4f" : "#d9d9d9";
@@ -105,273 +91,145 @@ function PlannedStatsHeader({ planned, started, loading }) {
 }
 
 export default function PlannedTable() {
-  const [pagination, setPagination] = useState({
-    page: 1,
-    pageSize: DEFAULT_PAGE_SIZE,
-  });
-  const [date, setDate] = useState(null);
-  const [selectedBranch, setSelectedBranch] = useState(ALL_BRANCHES);
-  const [selectedPo, setSelectedPo] = useState(ALL_PO);
-  const [selectedStatuses, setSelectedStatuses] = useState(DEFAULT_PLANNED_STATUSES);
-  const [numberQuery, setNumberQuery] = useState("");
-  const [sorter, setSorter] = useState({
-    field: "startPlan",
-    order: "descend",
-  });
-  const [modalDocId, setModalDocId] = useState(false);
-  const [isJournalOpen, setIsJournalOpen] = useState(false);
-  const [sendStatus, setSendStatus] = useState({ byGuid: {}, byNumber: {} });
-  const [isSendStatusLoading, setIsSendStatusLoading] = useState(false);
-  const [hasLoadedSendStatus, setHasLoadedSendStatus] = useState(false);
-  const [plannedTns, setPlannedTns] = useState({ data: [] });
-  const [totalCount, setTotalCount] = useState(0);
-  const [isLoadingPlannedTns, setIsLoadingPlannedTns] = useState(false);
-  const [exportRange, setExportRange] = useState(null);
-  const [isExporting, setIsExporting] = useState(false);
-  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-  const lastDataKeyRef = useRef(null);
-  const primaryDataRequestSeqRef = useRef(0);
-  const sendStatusInFlightRef = useRef(false);
-
   const user = useAuth((s) => s.user);
   const showJournal = hasFeatureAccess(user?.view_role, "journal");
 
-  const loadSendStatus = useCallback(async ({ force = false } = {}) => {
-    if (sendStatusInFlightRef.current && !force) return;
-    try {
-      sendStatusInFlightRef.current = true;
-      setIsSendStatusLoading(true);
-      const base = import.meta.env.VITE_URL_BACKEND;
-      const url = `${base}/api/zhurnal-otpravkis`;
-      const params = {
-        "pagination[page]": 1,
-        "pagination[pageSize]": 1,
-        "sort[0]": "updatedAt:desc",
-      };
-      const { data: payload } = await axios.get(url, { params });
-      const firstItem =
-        Array.isArray(payload?.data) && payload.data.length > 0
-          ? payload.data[0]
-          : null;
-      let arr = firstItem?.attributes?.data ?? firstItem?.data ?? [];
-      if (!Array.isArray(arr) && typeof arr === "string") {
-        arr = arr.split(/\r?\n/).filter(Boolean);
-      }
-      setSendStatus(parseJournalStatuses(arr));
-      setHasLoadedSendStatus(true);
-    } catch {
-      setSendStatus({ byGuid: {}, byNumber: {} });
-      setHasLoadedSendStatus(true);
-    } finally {
-      sendStatusInFlightRef.current = false;
-      setIsSendStatusLoading(false);
-    }
-  }, []);
+  const pagination = usePlannedStore((s) => s.pagination);
+  const date = usePlannedStore((s) => s.date);
+  const selectedBranch = usePlannedStore((s) => s.selectedBranch);
+  const selectedPo = usePlannedStore((s) => s.selectedPo);
+  const selectedStatuses = usePlannedStore((s) => s.selectedStatuses);
+  const numberQuery = usePlannedStore((s) => s.numberQuery);
+  const sorter = usePlannedStore((s) => s.sorter);
+  const modalDocId = usePlannedStore((s) => s.modalDocId);
+  const isJournalOpen = usePlannedStore((s) => s.isJournalOpen);
+  const isLoadingPlannedTns = usePlannedStore((s) => s.isLoadingPlannedTns);
+  const isSendStatusLoading = usePlannedStore((s) => s.isSendStatusLoading);
+  const exportRange = usePlannedStore((s) => s.exportRange);
+  const isExporting = usePlannedStore((s) => s.isExporting);
+  const isExportModalOpen = usePlannedStore((s) => s.isExportModalOpen);
+  const plannedTns = usePlannedStore((s) => s.plannedTns);
+  const sendStatus = usePlannedStore((s) => s.sendStatus);
+  const totalCount = usePlannedStore((s) => s.totalCount);
 
-  const fetchPrimaryData = useCallback(
-    async ({ nextDate = date, force = false } = {}) => {
-      const key = buildPlannedDataKey({
-        date: nextDate,
-        statuses: selectedStatuses,
-        numberQuery,
-      });
-      if (!force && lastDataKeyRef.current === key) return;
-      lastDataKeyRef.current = key;
-      const requestSeq = primaryDataRequestSeqRef.current + 1;
-      primaryDataRequestSeqRef.current = requestSeq;
-      if (getEffectiveStatuses(selectedStatuses).length === 0) {
-        setPlannedTns({ data: [] });
-        setTotalCount(0);
-        setIsLoadingPlannedTns(false);
-        return;
-      }
-      try {
-        setIsLoadingPlannedTns(true);
-        const jwt = localStorage.getItem("jwt");
-        const base = `${import.meta.env.VITE_URL_BACKEND}/api/teh-narusheniyas`;
-        const requestPageSize = DEFAULT_TNS_PAGE_SIZE;
-        let requestPage = 1;
-        let allItems = [];
-        let total = 0;
-
-        while (true) {
-          const params = buildPrimaryRequestParams({
-            page: requestPage,
-            pageSize: requestPageSize,
-            date: nextDate,
-            statuses: selectedStatuses,
-            numberQuery,
-          });
-
-          const { data } = await axios.get(base, {
-            params,
-            headers: { Authorization: `Bearer ${jwt}` },
-          });
-          const list = Array.isArray(data?.data) ? data.data : [];
-          total = data?.meta?.pagination?.total ?? list.length;
-          allItems = allItems.concat(list);
-
-          if (allItems.length >= total || list.length === 0) break;
-          requestPage += 1;
-        }
-
-        if (primaryDataRequestSeqRef.current !== requestSeq) return;
-        setPlannedTns({ data: allItems });
-      } catch (error) {
-        if (primaryDataRequestSeqRef.current !== requestSeq) return;
-        console.log("Ошибка при получении плановых ТН", error);
-        setPlannedTns({ data: [] });
-        setTotalCount(0);
-      } finally {
-        if (primaryDataRequestSeqRef.current === requestSeq) {
-          setIsLoadingPlannedTns(false);
-        }
-      }
-    },
-    [date, numberQuery, selectedStatuses]
-  );
+  const setDate = usePlannedStore((s) => s.setDate);
+  const setSelectedBranch = usePlannedStore((s) => s.setSelectedBranch);
+  const setSelectedPo = usePlannedStore((s) => s.setSelectedPo);
+  const setSelectedStatuses = usePlannedStore((s) => s.setSelectedStatuses);
+  const setNumberQuery = usePlannedStore((s) => s.setNumberQuery);
+  const setSorter = usePlannedStore((s) => s.setSorter);
+  const setPagination = usePlannedStore((s) => s.setPagination);
+  const setModalDocId = usePlannedStore((s) => s.setModalDocId);
+  const setIsJournalOpen = usePlannedStore((s) => s.setIsJournalOpen);
+  const setExportRange = usePlannedStore((s) => s.setExportRange);
+  const setIsExportModalOpen = usePlannedStore((s) => s.setIsExportModalOpen);
+  const resetFilters = usePlannedStore((s) => s.resetFilters);
+  const fetchPrimaryData = usePlannedStore((s) => s.fetchPrimaryData);
+  const loadSendStatus = usePlannedStore((s) => s.loadSendStatus);
+  const fetchAllForExport = usePlannedStore((s) => s.fetchAllForExport);
+  const refreshAll = usePlannedStore((s) => s.refreshAll);
+  const refreshAfterModal = usePlannedStore((s) => s.refreshAfterModal);
+  const updateTotalCount = usePlannedStore((s) => s.updateTotalCount);
 
   useEffect(() => {
-    fetchPrimaryData({
-      nextDate: date,
-      force: false,
-    });
-  }, [date, fetchPrimaryData]);
+    fetchPrimaryData({ force: false });
+  }, [date, selectedStatuses, numberQuery, fetchPrimaryData]);
 
   useEffect(() => {
     loadSendStatus({ force: false });
   }, [loadSendStatus]);
 
-  const rows = useMemo(() => {
-    return normalizePlannedRows(plannedTns);
-  }, [plannedTns?.data]);
+  const rawRows = useMemo(() => normalizePlannedRows(plannedTns), [plannedTns]);
 
   const poOptions = useMemo(
-    () => buildPoOptions(rows, selectedBranch),
-    [rows, selectedBranch]
+    () => buildPoOptions(rawRows, selectedBranch),
+    [rawRows, selectedBranch]
   );
 
-  const branchOptions = useMemo(() => buildBranchOptions(rows), [rows]);
+  const branchOptions = useMemo(() => buildBranchOptions(rawRows), [rawRows]);
 
-  const filtered = useMemo(() => {
-    return filterPlannedRows({
-      rows,
-      statuses: selectedStatuses,
-      selectedBranch,
-      selectedPo,
-      sendStatus,
-    });
-  }, [rows, selectedStatuses, selectedBranch, selectedPo, sendStatus]);
+  const filtered = useMemo(
+    () =>
+      filterPlannedRows({
+        rows: rawRows,
+        statuses: selectedStatuses,
+        selectedBranch,
+        selectedPo,
+        sendStatus,
+      }),
+    [rawRows, selectedStatuses, selectedBranch, selectedPo, sendStatus]
+  );
 
   const plannedStats = useMemo(() => buildPlannedStats(filtered), [filtered]);
 
   const sorted = useMemo(() => sortPlannedRows(filtered, sorter), [filtered, sorter]);
 
-  const startIndex = (pagination.page - 1) * pagination.pageSize;
-  const dataSource = paginateRows(sorted, pagination);
+  const dataSource = useMemo(() => paginateRows(sorted, pagination), [sorted, pagination]);
 
   useEffect(() => {
-    setTotalCount(sorted.length);
-    if (sorted.length > 0 && startIndex >= sorted.length) {
-      setPagination((p) => ({ ...p, page: 1 }));
-    }
-  }, [sorted.length, startIndex]);
+    updateTotalCount();
+  }, [sorted.length, updateTotalCount]);
 
-  const fetchAllForExport = useCallback(async () => {
-    if (!exportRange || exportRange.length !== 2 || !exportRange[0] || !exportRange[1]) {
-      message.warning("Выберите период для экспорта");
+  const handleExport = async () => {
+    const result = await fetchAllForExport();
+    if (result.error) {
+      message.warning(result.error);
       return;
     }
-    setIsExporting(true);
-    try {
-      const jwt = localStorage.getItem("jwt");
-      const base = `${import.meta.env.VITE_URL_BACKEND}/api/teh-narusheniyas`;
-      const [start, end] = exportRange;
-      const startIso = new Date(start.year(), start.month(), start.date(), 0, 0, 0).toISOString();
-      const endIso = new Date(end.year(), end.month(), end.date(), 23, 59, 59).toISOString();
 
-      let allItems = [];
-      let page = 1;
-      const pageSize = 100;
-      let hasMore = true;
-
-      while (hasMore) {
-        const params = {
-          "pagination[page]": page,
-          "pagination[pageSize]": pageSize,
-          "sort[0]": "createDateTime:DESC",
-          "filters[BASE_TYPE][$eq]": 1,
-          "filters[createDateTime][$gte]": startIso,
-          "filters[createDateTime][$lte]": endIso,
-        };
-        const { data } = await axios.get(base, {
-          params,
-          headers: { Authorization: `Bearer ${jwt}` },
-        });
-        const list = Array.isArray(data?.data) ? data.data : [];
-        allItems = allItems.concat(normalizePlannedRows({ data: list }));
-        const total = data?.meta?.pagination?.total ?? 0;
-        hasMore = page * pageSize < total && list.length > 0;
-        page++;
-      }
-
-      if (allItems.length === 0) {
-        message.info("Нет данных за выбранный период");
-        return;
-      }
-
-      const rowsToExport = allItems.map((item) => {
-        const mapped = mapPlannedRow(item, sendStatus);
-        return {
-          "№": mapped.number,
-          "Вид заявки": mapped.violationType,
-          "Начало работ (план)": mapped.startPlan,
-          "Начало работ (факт)": mapped.startFact,
-          "Окончание работ (план)": mapped.endPlan,
-          "Окончание работ (факт)": mapped.endFact,
-          "Филиал": mapped.branch,
-          "ПО": mapped.po,
-          "Объект": mapped.objectName,
-          "Адреса": mapped.addressList,
-          "СЗО": Array.isArray(mapped.szoTags) && mapped.szoTags.length > 0
-            ? mapped.szoTags.map((tag) => `${tag.label}: ${tag.count}`).join("; ")
-            : "—",
-          "Описание": mapped.description,
-          "Статус": mapped.statusName,
-          "Отправки": mapped.send
-            ? SEND_CHANNELS.map((ch) => `${ch.label}: ${mapped.send[ch.key] === true ? "да" : mapped.send[ch.key] === false ? "нет" : "—"}`).join("; ")
-            : "—",
-        };
-      });
-
-      const headers = Object.keys(rowsToExport[0]);
-      const escapeHtml = (v) =>
-        String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;");
-      const headHtml = `<tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr>`;
-      const bodyHtml = rowsToExport.map((row) => `<tr>${headers.map((h) => `<td>${escapeHtml(row[h])}</td>`).join("")}</tr>`).join("");
-      const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8" /></head><body><table border="1"><thead>${headHtml}</thead><tbody>${bodyHtml}</tbody></table></body></html>`;
-
-      const blob = new Blob(["\ufeff", html], { type: "application/vnd.ms-excel;charset=utf-8;" });
-      const objectUrl = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      const dateFrom = dayjs(start).format("YYYY-MM-DD");
-      const dateTo = dayjs(end).format("YYYY-MM-DD");
-      link.href = objectUrl;
-      link.download = `planovye-otklyucheniya-${dateFrom}--${dateTo}.xls`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(objectUrl);
-      message.success(`Экспортировано ${allItems.length} ТН`);
-      setIsExportModalOpen(false);
-      setExportRange(null);
-    } catch (err) {
-      console.error("Ошибка экспорта:", err);
-      message.error("Ошибка при экспорте данных");
-    } finally {
-      setIsExporting(false);
+    const { items, sendStatus } = result;
+    if (items.length === 0) {
+      message.info("Нет данных за выбранный период");
+      return;
     }
-  }, [exportRange, sendStatus]);
+
+    const rowsToExport = items.map((item) => {
+      const mapped = mapPlannedRow(item, sendStatus);
+      return {
+        "№": mapped.number,
+        "Вид заявки": mapped.violationType,
+        "Начало работ (план)": mapped.startPlan,
+        "Начало работ (факт)": mapped.startFact,
+        "Окончание работ (план)": mapped.endPlan,
+        "Окончание работ (факт)": mapped.endFact,
+        "Филиал": mapped.branch,
+        "ПО": mapped.po,
+        "Объект": mapped.objectName,
+        "Адреса": mapped.addressList,
+        "СЗО": Array.isArray(mapped.szoTags) && mapped.szoTags.length > 0
+          ? mapped.szoTags.map((tag) => `${tag.label}: ${tag.count}`).join("; ")
+          : "—",
+        "Описание": mapped.description,
+        "Статус": mapped.statusName,
+        "Отправки": mapped.send
+          ? SEND_CHANNELS.map((ch) => `${ch.label}: ${mapped.send[ch.key] === true ? "да" : mapped.send[ch.key] === false ? "нет" : "—"}`).join("; ")
+          : "—",
+      };
+    });
+
+    const headers = Object.keys(rowsToExport[0]);
+    const escapeHtml = (v) =>
+      String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;");
+    const headHtml = `<tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr>`;
+    const bodyHtml = rowsToExport.map((row) => `<tr>${headers.map((h) => `<td>${escapeHtml(row[h])}</td>`).join("")}</tr>`).join("");
+    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8" /></head><body><table border="1"><thead>${headHtml}</thead><tbody>${bodyHtml}</tbody></table></body></html>`;
+
+    const blob = new Blob(["\ufeff", html], { type: "application/vnd.ms-excel;charset=utf-8;" });
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const [start, end] = exportRange;
+    const dateFrom = dayjs(start).format("YYYY-MM-DD");
+    const dateTo = dayjs(end).format("YYYY-MM-DD");
+    link.href = objectUrl;
+    link.download = `planovye-otklyucheniya-${dateFrom}--${dateTo}.xls`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(objectUrl);
+    message.success(`Экспортировано ${items.length} ТН`);
+    setIsExportModalOpen(false);
+    setExportRange(null);
+  };
 
   const columns = [
     {
@@ -515,10 +373,7 @@ export default function PlannedTable() {
           <DatePicker
             value={date}
             format={"DD.MM.YYYY"}
-            onChange={(v) => {
-              setDate(v);
-              setPagination((p) => ({ ...p, page: 1 }));
-            }}
+            onChange={(v) => setDate(v)}
             placeholder="Выберите дату"
             allowClear
           />
@@ -527,11 +382,7 @@ export default function PlannedTable() {
             style={{ minWidth: 220 }}
             placeholder="Все филиалы"
             value={selectedBranch}
-            onChange={(val) => {
-              setSelectedBranch(val || ALL_BRANCHES);
-              setSelectedPo(ALL_PO);
-              setPagination((p) => ({ ...p, page: 1 }));
-            }}
+            onChange={(val) => setSelectedBranch(val)}
             options={branchOptions}
             dropdownMatchSelectWidth={false}
           />
@@ -541,10 +392,7 @@ export default function PlannedTable() {
             style={{ minWidth: 240 }}
             placeholder="Все ПО"
             value={selectedPo}
-            onChange={(val) => {
-              setSelectedPo(val || ALL_PO);
-              setPagination((p) => ({ ...p, page: 1 }));
-            }}
+            onChange={(val) => setSelectedPo(val)}
             options={poOptions}
             dropdownMatchSelectWidth={false}
           />
@@ -557,10 +405,7 @@ export default function PlannedTable() {
             style={{ minWidth: 260 }}
             placeholder="Выберите статус(ы)"
             value={selectedStatuses}
-            onChange={(values) => {
-              setSelectedStatuses(values || []);
-              setPagination((p) => ({ ...p, page: 1 }));
-            }}
+            onChange={(values) => setSelectedStatuses(values)}
             options={PLANNED_STATUS_OPTIONS}
             dropdownMatchSelectWidth={false}
             maxTagCount={false}
@@ -570,44 +415,19 @@ export default function PlannedTable() {
             style={{ width: 150 }}
             placeholder="№ ТН..."
             value={numberQuery}
-            onChange={(e) => {
-              setNumberQuery(e.target.value);
-              setPagination((p) => ({ ...p, page: 1 }));
-            }}
+            onChange={(e) => setNumberQuery(e.target.value)}
           />
         </Flex>
         <Flex gap={8} wrap justify="flex-end">
           <Button type="primary" onClick={() => setIsExportModalOpen(true)}>
             Выгрузка в Excel
           </Button>
-          <Button
-            onClick={() => {
-              setDate(null);
-              setSelectedBranch(ALL_BRANCHES);
-              setSelectedPo(ALL_PO);
-              setSelectedStatuses(DEFAULT_PLANNED_STATUSES);
-              setNumberQuery("");
-              setPagination({ page: 1, pageSize: DEFAULT_PAGE_SIZE });
-              lastDataKeyRef.current = null;
-              loadSendStatus({ force: true });
-            }}
-          >
-            Сброс
-          </Button>
+          <Button onClick={resetFilters}>Сброс</Button>
           {showJournal && (
             <Button onClick={() => setIsJournalOpen(true)}>Журнал отправки</Button>
           )}
           <Button
-            onClick={() => {
-              lastDataKeyRef.current = null;
-              fetchPrimaryData({
-                nextDate: date,
-                page: pagination.page,
-                pageSize: pagination.pageSize,
-                force: true,
-              });
-              loadSendStatus({ force: true });
-            }}
+            onClick={refreshAll}
             disabled={isLoadingPlannedTns || isSendStatusLoading}
           >
             <ReloadOutlined />
@@ -646,9 +466,7 @@ export default function PlannedTable() {
           pageSize={pagination.pageSize}
           pageSizeOptions={PAGE_SIZE_OPTIONS}
           showSizeChanger
-          onChange={(page, pageSize) => {
-            setPagination({ page, pageSize });
-          }}
+          onChange={(page, pageSize) => setPagination({ page, pageSize })}
           showTotal={(total, range) => `${range[0]}-${range[1]} из ${total} ТН`}
         />
       </div>
@@ -657,16 +475,7 @@ export default function PlannedTable() {
         open={modalDocId}
         onClose={() => {
           setModalDocId(false);
-          setTimeout(() => {
-            lastDataKeyRef.current = null;
-            fetchPrimaryData({
-              nextDate: date,
-              page: pagination.page,
-              pageSize: pagination.pageSize,
-              force: true,
-            });
-            loadSendStatus({ force: true });
-          }, 0);
+          refreshAfterModal();
         }}
         documentId={modalDocId}
         mode="planned"
@@ -699,7 +508,7 @@ export default function PlannedTable() {
             type="primary"
             loading={isExporting}
             disabled={!exportRange || exportRange.length !== 2}
-            onClick={fetchAllForExport}
+            onClick={handleExport}
           >
             Экспортировать
           </Button>,
