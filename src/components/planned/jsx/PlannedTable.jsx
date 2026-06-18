@@ -26,30 +26,33 @@ import TNModal from "../../emergency/jsx/TNModal";
 import JournalOpenModal from "../../journalOpen/JournalOpenModal";
 import {
   SzoCell,
-  buildSzoSummaryFromItem,
-  extractGuid,
-  formatDateTime,
-  getField,
-  isPlannedType,
-  getPlannedStatusName,
   PLANNED_STATUS_OPTIONS,
   parseJournalStatuses,
 } from "../js/plannedTable.utils";
+import {
+  ALL_BRANCHES,
+  ALL_PO,
+  DEFAULT_PAGE_SIZE,
+  DEFAULT_PLANNED_STATUSES,
+  DEFAULT_TNS_PAGE_SIZE,
+  PAGE_SIZE_OPTIONS,
+  buildBranchOptions,
+  buildPlannedDataKey,
+  buildPlannedStats,
+  buildPoOptions,
+  buildPrimaryRequestParams,
+  filterPlannedRows,
+  getEffectiveStatuses,
+  mapPlannedRow,
+  normalizePlannedRows,
+  paginateRows,
+  sortPlannedRows,
+} from "../js/plannedTableFilters";
 import "../css/PlannedTable.css";
 
 const { RangePicker } = DatePicker;
 
-const defaultPageSize = 15;
-const PAGE_SIZE_OPTIONS = [15, 30, 50, 100];
-const DEFAULT_TNS_PAGE_SIZE = 100;
 const DATE_TIME_COLUMN_WIDTH = 132;
-const ALL_BRANCHES = "__all__";
-const ALL_PO = "__all__";
-const SCOPED_PO_SEPARATOR = ":::";
-const ACTIVE_PLANNED_STATUSES = ["запланировано", "начата"];
-const DEFAULT_PLANNED_STATUSES = PLANNED_STATUS_OPTIONS
-  .filter((item) => ACTIVE_PLANNED_STATUSES.includes(item.value))
-  .map((item) => item.value);
 
 const SEND_CHANNELS = [
   { key: "edds", label: "ЕДДС" },
@@ -101,71 +104,10 @@ function PlannedStatsHeader({ planned, started, loading }) {
   );
 }
 
-function getCreateTs(item) {
-  const raw = getField(item, "F81_060_EVENTDATETIME") || getField(item, "createDateTime");
-  const ts = dayjs(raw).valueOf();
-  return Number.isFinite(ts) ? ts : 0;
-}
-
-function ruSort(a, b) {
-  return String(a).localeCompare(String(b), "ru", {
-    sensitivity: "base",
-    numeric: true,
-  });
-}
-
-function makeScopedPoValue(branch, po) {
-  return `${branch}${SCOPED_PO_SEPARATOR}${po}`;
-}
-
-function parseScopedPoValue(value) {
-  if (typeof value !== "string" || !value.includes(SCOPED_PO_SEPARATOR)) return null;
-  const [branch, po] = value.split(SCOPED_PO_SEPARATOR);
-  return { branch, po };
-}
-
-function mapRow(item, sendStatus) {
-  const plannedNum =
-    getField(item, "F81_010_NUMB") ??
-    getField(item, "F81_010_NUMBER") ??
-    getField(item, "number");
-  const guid = extractGuid(item);
-  const numberKey = plannedNum != null ? String(plannedNum) : null;
-  const sendByGuid = guid ? sendStatus.byGuid[String(guid).toLowerCase()] : null;
-  const send = sendByGuid;
-
-  const documentId =
-    getField(item, "documentId") ||
-    getField(item, "guid") ||
-    getField(item, "VIOLATION_GUID_STR") ||
-    getField(item, "id");
-
-  return {
-    key: getField(item, "id") ?? documentId,
-    documentId,
-    number: plannedNum ?? "—",
-    violationType: Number(getField(item, "BASE_TYPE")) === 1 ? "Плановая" : "—",
-    startPlan: formatDateTime(getField(item, "F81_060_EVENTDATETIME")),
-    startFact: formatDateTime(getField(item, "STARTDATETIME")),
-    endPlan: formatDateTime(getField(item, "F81_070_RESTOR_SUPPLAYDATETIME")),
-    endFact: formatDateTime(getField(item, "F81_290_RECOVERYDATETIME")),
-    branch: getField(item, "OWN_SCNAME") ?? "—",
-    po: getField(item, "SCNAME") ?? "—",
-    objectName: getField(item, "F81_041_ENERGOOBJECTNAME") ?? "—",
-    addressList: getField(item, "ADDRESS_LIST") ?? "—",
-    description: getField(item, "BRIGADE_ACTION") ?? "—",
-    statusName: getPlannedStatusName(item),
-    szoTags: buildSzoSummaryFromItem(item),
-    send,
-    createTs: getCreateTs(item),
-    guid,
-  };
-}
-
 export default function PlannedTable() {
   const [pagination, setPagination] = useState({
     page: 1,
-    pageSize: defaultPageSize,
+    pageSize: DEFAULT_PAGE_SIZE,
   });
   const [date, setDate] = useState(null);
   const [selectedBranch, setSelectedBranch] = useState(ALL_BRANCHES);
@@ -182,6 +124,7 @@ export default function PlannedTable() {
   const [isSendStatusLoading, setIsSendStatusLoading] = useState(false);
   const [hasLoadedSendStatus, setHasLoadedSendStatus] = useState(false);
   const [plannedTns, setPlannedTns] = useState({ data: [] });
+  const [totalCount, setTotalCount] = useState(0);
   const [isLoadingPlannedTns, setIsLoadingPlannedTns] = useState(false);
   const [exportRange, setExportRange] = useState(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -227,51 +170,72 @@ export default function PlannedTable() {
 
   const fetchPrimaryData = useCallback(
     async ({ nextDate = date, force = false } = {}) => {
-      const key = nextDate ? dayjs(nextDate).format("YYYY-MM-DD") : "all";
+      const key = buildPlannedDataKey({
+        date: nextDate,
+        statuses: selectedStatuses,
+        numberQuery,
+      });
       if (!force && lastDataKeyRef.current === key) return;
       lastDataKeyRef.current = key;
       const requestSeq = primaryDataRequestSeqRef.current + 1;
       primaryDataRequestSeqRef.current = requestSeq;
+      if (getEffectiveStatuses(selectedStatuses).length === 0) {
+        setPlannedTns({ data: [] });
+        setTotalCount(0);
+        setIsLoadingPlannedTns(false);
+        return;
+      }
       try {
         setIsLoadingPlannedTns(true);
         const jwt = localStorage.getItem("jwt");
         const base = `${import.meta.env.VITE_URL_BACKEND}/api/teh-narusheniyas`;
-        const params = {
-          "pagination[page]": 1,
-          "pagination[pageSize]": DEFAULT_TNS_PAGE_SIZE,
-          "sort[0]": "createDateTime:DESC",
-          "filters[BASE_TYPE][$eq]": 1,
-        };
+        const requestPageSize = DEFAULT_TNS_PAGE_SIZE;
+        let requestPage = 1;
+        let allItems = [];
+        let total = 0;
 
-        if (nextDate) {
-          const d = nextDate;
-          const start = new Date(d.year(), d.month(), d.date(), 0, 0, 0).toISOString();
-          const end = new Date(d.year(), d.month(), d.date(), 23, 59, 59).toISOString();
-          params["filters[createDateTime][$gte]"] = start;
-          params["filters[createDateTime][$lte]"] = end;
+        while (true) {
+          const params = buildPrimaryRequestParams({
+            page: requestPage,
+            pageSize: requestPageSize,
+            date: nextDate,
+            statuses: selectedStatuses,
+            numberQuery,
+          });
+
+          const { data } = await axios.get(base, {
+            params,
+            headers: { Authorization: `Bearer ${jwt}` },
+          });
+          const list = Array.isArray(data?.data) ? data.data : [];
+          total = data?.meta?.pagination?.total ?? list.length;
+          allItems = allItems.concat(list);
+
+          if (allItems.length >= total || list.length === 0) break;
+          requestPage += 1;
         }
 
-        const { data } = await axios.get(base, {
-          params,
-          headers: { Authorization: `Bearer ${jwt}` },
-        });
         if (primaryDataRequestSeqRef.current !== requestSeq) return;
-        setPlannedTns(data || { data: [] });
+        setPlannedTns({ data: allItems });
       } catch (error) {
         if (primaryDataRequestSeqRef.current !== requestSeq) return;
         console.log("Ошибка при получении плановых ТН", error);
         setPlannedTns({ data: [] });
+        setTotalCount(0);
       } finally {
         if (primaryDataRequestSeqRef.current === requestSeq) {
           setIsLoadingPlannedTns(false);
         }
       }
     },
-    [date]
+    [date, numberQuery, selectedStatuses]
   );
 
   useEffect(() => {
-    fetchPrimaryData({ nextDate: date, force: false });
+    fetchPrimaryData({
+      nextDate: date,
+      force: false,
+    });
   }, [date, fetchPrimaryData]);
 
   useEffect(() => {
@@ -279,155 +243,39 @@ export default function PlannedTable() {
   }, [loadSendStatus]);
 
   const rows = useMemo(() => {
-    const list = Array.isArray(plannedTns?.data) ? plannedTns.data : [];
-    return list
-      .map((x) => (x?.attributes ? { id: x.id, ...x.attributes } : x))
-      .filter((item) => isPlannedType(item));
+    return normalizePlannedRows(plannedTns);
   }, [plannedTns?.data]);
 
-  const plannedStats = useMemo(() => {
-    return rows.reduce(
-      (acc, item) => {
-        const status = getPlannedStatusName(item);
-        if (status === "запланировано") acc.planned += 1;
-        if (status === "начата") acc.started += 1;
-        return acc;
-      },
-      { planned: 0, started: 0 }
-    );
-  }, [rows]);
+  const poOptions = useMemo(
+    () => buildPoOptions(rows, selectedBranch),
+    [rows, selectedBranch]
+  );
 
-  const poOptions = useMemo(() => {
-    if (selectedBranch !== ALL_BRANCHES) {
-      const values = Array.from(
-        new Set(
-          rows
-            .filter((item) => String(getField(item, "OWN_SCNAME") || "").trim() === selectedBranch)
-            .map((item) => String(getField(item, "SCNAME") || "").trim())
-            .filter(Boolean)
-        )
-      ).sort(ruSort);
-
-      return [
-        { label: "Все ПО", value: ALL_PO },
-        ...values.map((po) => ({
-          label: po,
-          value: makeScopedPoValue(selectedBranch, po),
-        })),
-      ];
-    }
-
-    const byBranch = new Map();
-    rows.forEach((item) => {
-      const branch = String(getField(item, "OWN_SCNAME") || "").trim();
-      const po = String(getField(item, "SCNAME") || "").trim();
-      if (!branch || !po) return;
-      if (!byBranch.has(branch)) byBranch.set(branch, new Set());
-      byBranch.get(branch).add(po);
-    });
-
-    const groups = Array.from(byBranch.keys())
-      .sort(ruSort)
-      .map((branch) => ({
-        label: branch,
-        options: Array.from(byBranch.get(branch))
-          .sort(ruSort)
-          .map((po) => ({
-            label: po,
-            value: makeScopedPoValue(branch, po),
-          })),
-      }));
-
-    return [{ label: "Все ПО", value: ALL_PO }, ...groups];
-  }, [rows, selectedBranch]);
-
-  const branchOptions = useMemo(() => {
-    const values = Array.from(
-      new Set(rows.map((item) => String(getField(item, "OWN_SCNAME") || "").trim()).filter(Boolean))
-    ).sort(ruSort);
-
-    return [{ label: "Все филиалы", value: ALL_BRANCHES }, ...values.map((branch) => ({
-      label: branch,
-      value: branch,
-    }))];
-  }, [rows]);
+  const branchOptions = useMemo(() => buildBranchOptions(rows), [rows]);
 
   const filtered = useMemo(() => {
-    const normalizedNumberQuery = String(numberQuery || "").trim().toLowerCase();
-
-    return rows
-      .filter((item) => {
-        const branch = String(getField(item, "OWN_SCNAME") || "").trim();
-        if (selectedBranch !== ALL_BRANCHES && branch !== selectedBranch) return false;
-
-        if (selectedPo !== ALL_PO) {
-          const po = String(getField(item, "SCNAME") || "").trim();
-          const scoped = parseScopedPoValue(selectedPo);
-          if (scoped) {
-            if (branch !== scoped.branch || po !== scoped.po) return false;
-          } else if (po !== selectedPo) {
-            return false;
-          }
-        }
-
-        const statusName = getPlannedStatusName(item);
-        const effectiveStatuses =
-          selectedStatuses.length > 0 ? selectedStatuses : DEFAULT_PLANNED_STATUSES;
-
-        if (!effectiveStatuses.includes(statusName)) return false;
-
-        if (normalizedNumberQuery) {
-          const numberValue =
-            getField(item, "F81_010_NUMBER") ?? getField(item, "number") ?? "";
-
-          if (!String(numberValue).toLowerCase().includes(normalizedNumberQuery)) {
-            return false;
-          }
-        }
-
-        return true;
-      })
-      .map((item) => mapRow(item, sendStatus));
-  }, [rows, selectedBranch, selectedPo, selectedStatuses, numberQuery, sendStatus]);
-
-  const sorted = useMemo(() => {
-    const arr = [...filtered];
-    const cmpStr = (a = "", b = "") =>
-      String(a).localeCompare(String(b), "ru", {
-        numeric: true,
-        sensitivity: "base",
-      });
-    arr.sort((a, b) => {
-      let res = 0;
-      switch (sorter.field) {
-        case "number":
-          res = (Number(a.number) || 0) - (Number(b.number) || 0);
-          break;
-        case "startPlan":
-          res = (a.createTs || 0) - (b.createTs || 0);
-          break;
-        case "branch":
-          res = cmpStr(a.branch, b.branch);
-          break;
-        case "po":
-          res = cmpStr(a.po, b.po);
-          break;
-        case "objectName":
-          res = cmpStr(a.objectName, b.objectName);
-          break;
-        case "statusName":
-          res = cmpStr(a.statusName, b.statusName);
-          break;
-        default:
-          res = (a.createTs || 0) - (b.createTs || 0);
-      }
-      return sorter.order === "descend" ? -res : res;
+    return filterPlannedRows({
+      rows,
+      statuses: selectedStatuses,
+      selectedBranch,
+      selectedPo,
+      sendStatus,
     });
-    return arr;
-  }, [filtered, sorter]);
+  }, [rows, selectedStatuses, selectedBranch, selectedPo, sendStatus]);
+
+  const plannedStats = useMemo(() => buildPlannedStats(filtered), [filtered]);
+
+  const sorted = useMemo(() => sortPlannedRows(filtered, sorter), [filtered, sorter]);
 
   const startIndex = (pagination.page - 1) * pagination.pageSize;
-  const dataSource = sorted.slice(startIndex, startIndex + pagination.pageSize);
+  const dataSource = paginateRows(sorted, pagination);
+
+  useEffect(() => {
+    setTotalCount(sorted.length);
+    if (sorted.length > 0 && startIndex >= sorted.length) {
+      setPagination((p) => ({ ...p, page: 1 }));
+    }
+  }, [sorted.length, startIndex]);
 
   const fetchAllForExport = useCallback(async () => {
     if (!exportRange || exportRange.length !== 2 || !exportRange[0] || !exportRange[1]) {
@@ -461,8 +309,7 @@ export default function PlannedTable() {
           headers: { Authorization: `Bearer ${jwt}` },
         });
         const list = Array.isArray(data?.data) ? data.data : [];
-        const normalized = list.map((x) => (x?.attributes ? { id: x.id, ...x.attributes } : x));
-        allItems = allItems.concat(normalized.filter((item) => isPlannedType(item)));
+        allItems = allItems.concat(normalizePlannedRows({ data: list }));
         const total = data?.meta?.pagination?.total ?? 0;
         hasMore = page * pageSize < total && list.length > 0;
         page++;
@@ -474,7 +321,7 @@ export default function PlannedTable() {
       }
 
       const rowsToExport = allItems.map((item) => {
-        const mapped = mapRow(item, sendStatus);
+        const mapped = mapPlannedRow(item, sendStatus);
         return {
           "№": mapped.number,
           "Вид заявки": mapped.violationType,
@@ -740,9 +587,8 @@ export default function PlannedTable() {
               setSelectedPo(ALL_PO);
               setSelectedStatuses(DEFAULT_PLANNED_STATUSES);
               setNumberQuery("");
-              setPagination({ page: 1, pageSize: defaultPageSize });
+              setPagination({ page: 1, pageSize: DEFAULT_PAGE_SIZE });
               lastDataKeyRef.current = null;
-              fetchPrimaryData({ nextDate: null, force: true });
               loadSendStatus({ force: true });
             }}
           >
@@ -754,7 +600,12 @@ export default function PlannedTable() {
           <Button
             onClick={() => {
               lastDataKeyRef.current = null;
-              fetchPrimaryData({ nextDate: date, force: true });
+              fetchPrimaryData({
+                nextDate: date,
+                page: pagination.page,
+                pageSize: pagination.pageSize,
+                force: true,
+              });
               loadSendStatus({ force: true });
             }}
             disabled={isLoadingPlannedTns || isSendStatusLoading}
@@ -790,12 +641,14 @@ export default function PlannedTable() {
       <div style={{ marginTop: 10 }}>
         <Pagination
           align="center"
-          total={sorted.length}
+          total={totalCount}
           current={pagination.page}
           pageSize={pagination.pageSize}
           pageSizeOptions={PAGE_SIZE_OPTIONS}
           showSizeChanger
-          onChange={(page, pageSize) => setPagination({ page, pageSize })}
+          onChange={(page, pageSize) => {
+            setPagination({ page, pageSize });
+          }}
           showTotal={(total, range) => `${range[0]}-${range[1]} из ${total} ТН`}
         />
       </div>
@@ -806,7 +659,12 @@ export default function PlannedTable() {
           setModalDocId(false);
           setTimeout(() => {
             lastDataKeyRef.current = null;
-            fetchPrimaryData({ nextDate: date, force: true });
+            fetchPrimaryData({
+              nextDate: date,
+              page: pagination.page,
+              pageSize: pagination.pageSize,
+              force: true,
+            });
             loadSendStatus({ force: true });
           }, 0);
         }}
