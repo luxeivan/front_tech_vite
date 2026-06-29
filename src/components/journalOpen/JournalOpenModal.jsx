@@ -1,7 +1,6 @@
 import React from "react";
 import { Modal, Alert, List, Space, Typography, Skeleton, message } from "antd";
 import axios from "axios";
-import useAuth from "../../stores/useAuth";
 
 const { Text } = Typography;
 
@@ -21,16 +20,12 @@ function parseDateFromLine(line) {
 }
 
 export default function JournalOpenModal({ open, onClose }) {
-  const { getUserMe } = useAuth((s) => s);
   const [lines, setLines] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
 
   const loadJournal = React.useCallback(async () => {
     try {
       setLoading(true);
-
-      // Обновим пользователя/сессию (интерцептор сам подмешает JWT)
-      await getUserMe?.();
 
       const base = import.meta.env.VITE_URL_BACKEND;
       const url = `${base}/api/zhurnal-otpravkis`;
@@ -73,7 +68,7 @@ export default function JournalOpenModal({ open, onClose }) {
     } finally {
       setLoading(false);
     }
-  }, [getUserMe]);
+  }, []);
 
   React.useEffect(() => {
     if (open) loadJournal();
