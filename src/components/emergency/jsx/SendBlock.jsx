@@ -720,7 +720,7 @@ export default function SendBlock({
       <Divider style={{ margin: "8px 0 0" }} />
 
       <Drawer
-        title="Результат отправки"
+        title="Результат отправки."
         placement="right"
         width={720}
         open={sendResultsOpen}
