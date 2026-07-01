@@ -21,7 +21,7 @@ import ruRU from "antd/locale/ru_RU";
 import { ReloadOutlined } from "@ant-design/icons";
 import useAuth from "../../../stores/useAuth";
 import { hasFeatureAccess } from "../../../config/viewRoleAccess";
-import TNModal from "../../emergency/jsx/TNModal";
+// import TNModal from "../../emergency/jsx/TNModal"; // закомментировано: автоотправка плановых в ЕДДС, модалка не нужна
 import JournalOpenModal from "../../journalOpen/JournalOpenModal";
 import {
   SzoCell,
@@ -452,10 +452,12 @@ export default function PlannedTable() {
             setSorter({ field: "startPlan", order: "descend" });
           }
         }}
+        /* onRow закомментировано: модалка плановых отключена, автоотправка в ЕДДС
         onRow={(record) => ({
           style: { cursor: "pointer" },
           onClick: () => setModalDocId(record.documentId),
         })}
+        */
       />
 
       <div style={{ marginTop: 10 }}>
@@ -471,6 +473,7 @@ export default function PlannedTable() {
         />
       </div>
 
+      {/* TNModal закомментирован: модалка плановых отключена, автоотправка в ЕДДС
       <TNModal
         open={modalDocId}
         onClose={() => {
@@ -480,6 +483,7 @@ export default function PlannedTable() {
         documentId={modalDocId}
         mode="planned"
       />
+      */}
 
       <JournalOpenModal
         open={isJournalOpen}
