@@ -510,14 +510,16 @@ export default function TableTN() {
       const url = `${base}/api/zhurnal-otpravkis`;
       const params = {
         'pagination[page]': 1,
-        'pagination[pageSize]': 1,
-        'sort[0]': 'updatedAt:desc',
+        'pagination[pageSize]': 10,
+        'sort[0]': 'createdAt:asc',
       };
       const { data: payload } = await axios.get(url, { params });
-      const firstItem = Array.isArray(payload?.data) && payload.data.length > 0 ? payload.data[0] : null;
-      let arr = firstItem?.attributes?.data ?? firstItem?.data ?? [];
-      if (!Array.isArray(arr) && typeof arr === 'string') {
-        arr = arr.split(/\r?\n/).filter(Boolean);
+      const items = Array.isArray(payload?.data) ? payload.data : [];
+      let arr = [];
+      for (const item of items) {
+        const d = item?.attributes?.data ?? item?.data ?? [];
+        if (Array.isArray(d)) arr = arr.concat(d);
+        else if (typeof d === 'string') arr = arr.concat(d.split(/\r?\n/).filter(Boolean));
       }
       setSendStatus(parseJournalStatuses(arr));
     } catch (e) {
