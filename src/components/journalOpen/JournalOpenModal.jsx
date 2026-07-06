@@ -19,7 +19,7 @@ function parseDateFromLine(line) {
   return d.getTime();
 }
 
-export default function JournalOpenModal({ open, onClose }) {
+export default function JournalOpenModal({ open, onClose, journalIndex = 0 }) {
   const [lines, setLines] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
 
@@ -30,7 +30,6 @@ export default function JournalOpenModal({ open, onClose }) {
       const base = import.meta.env.VITE_URL_BACKEND;
       const url = `${base}/api/zhurnal-otpravkis`;
 
-      // В axios корректно сериализуем вложенные параметры в стиле Strapi
       const params = {
         'pagination[page]': 1,
         'pagination[pageSize]': 10,
@@ -40,18 +39,19 @@ export default function JournalOpenModal({ open, onClose }) {
       const { data: payload } = await axios.get(url, { params });
 
       const items = Array.isArray(payload?.data) ? payload.data : [];
+      const target = items[journalIndex] ?? null;
       let arr = [];
-      for (const item of items) {
-        const d = item?.attributes?.data ?? item?.data ?? [];
-        if (Array.isArray(d)) arr = arr.concat(d);
-        else if (typeof d === "string") arr = arr.concat(d.split(/\r?\n/).filter(Boolean));
+      if (target) {
+        const d = target?.attributes?.data ?? target?.data ?? [];
+        if (Array.isArray(d)) arr = d.slice();
+        else if (typeof d === "string") arr = d.split(/\r?\n/).filter(Boolean);
       }
 
       const prepared = Array.isArray(arr) ? [...arr] : [];
       prepared.sort((a, b) => parseDateFromLine(b) - parseDateFromLine(a));
       setLines(prepared);
 
-      console.log("[journalModal] loaded entries:", Array.isArray(prepared) ? prepared.length : 0);
+      console.log("[journalModal] loaded entries (index %d):", journalIndex, Array.isArray(prepared) ? prepared.length : 0);
     } catch (e) {
       const status = e?.response?.status;
       const backendMsg = e?.response?.data?.error?.message;
@@ -67,7 +67,7 @@ export default function JournalOpenModal({ open, onClose }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [journalIndex]);
 
   React.useEffect(() => {
     if (open) loadJournal();

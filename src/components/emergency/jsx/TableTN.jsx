@@ -515,11 +515,12 @@ export default function TableTN() {
       };
       const { data: payload } = await axios.get(url, { params });
       const items = Array.isArray(payload?.data) ? payload.data : [];
+      const target = items[0] ?? null;
       let arr = [];
-      for (const item of items) {
-        const d = item?.attributes?.data ?? item?.data ?? [];
-        if (Array.isArray(d)) arr = arr.concat(d);
-        else if (typeof d === 'string') arr = arr.concat(d.split(/\r?\n/).filter(Boolean));
+      if (target) {
+        const d = target?.attributes?.data ?? target?.data ?? [];
+        if (Array.isArray(d)) arr = d.slice();
+        else if (typeof d === 'string') arr = d.split(/\r?\n/).filter(Boolean);
       }
       setSendStatus(parseJournalStatuses(arr));
     } catch (e) {
@@ -1054,6 +1055,7 @@ export default function TableTN() {
       <JournalOpenModal
         open={isJournalOpen}
         onClose={() => setIsJournalOpen(false)}
+        journalIndex={0}
       />
     </ConfigProvider>
   );

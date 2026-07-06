@@ -488,6 +488,7 @@ export default function PlannedTable() {
       <JournalOpenModal
         open={isJournalOpen}
         onClose={() => setIsJournalOpen(false)}
+        journalIndex={1}
       />
 
       <Modal

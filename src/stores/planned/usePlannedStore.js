@@ -91,11 +91,12 @@ const usePlannedStore = create((set, get) => ({
       const params = { "pagination[page]": 1, "pagination[pageSize]": 10, "sort[0]": "createdAt:asc" };
       const { data: payload } = await axios.get(url, { params });
       const items = Array.isArray(payload?.data) ? payload.data : [];
+      const target = items[1] ?? null;
       let arr = [];
-      for (const item of items) {
-        const d = item?.attributes?.data ?? item?.data ?? [];
-        if (Array.isArray(d)) arr = arr.concat(d);
-        else if (typeof d === "string") arr = arr.concat(d.split(/\r?\n/).filter(Boolean));
+      if (target) {
+        const d = target?.attributes?.data ?? target?.data ?? [];
+        if (Array.isArray(d)) arr = d.slice();
+        else if (typeof d === "string") arr = d.split(/\r?\n/).filter(Boolean);
       }
       set({ sendStatus: parseJournalStatuses(arr), hasLoadedSendStatus: true });
     } catch {
