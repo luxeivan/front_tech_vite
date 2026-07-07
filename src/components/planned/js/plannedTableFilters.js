@@ -181,6 +181,11 @@ export function mapPlannedRow(item, sendStatus) {
     getField(item, "number");
   const guid = extractGuid(item);
   const sendByGuid = guid ? sendStatus.byGuid[String(guid).toLowerCase()] : null;
+  const sendByNumber =
+    plannedNum !== null && plannedNum !== undefined
+      ? sendStatus.byNumber[String(plannedNum).trim()]
+      : null;
+  const send = sendByGuid || sendByNumber || null;
 
   const documentId =
     getField(item, "documentId") ||
@@ -190,6 +195,7 @@ export function mapPlannedRow(item, sendStatus) {
 
   return {
     key: getField(item, "id") ?? documentId,
+    strapiId: Number(getField(item, "id")) || 0,
     documentId,
     number: plannedNum ?? "—",
     violationType: Number(getField(item, "BASE_TYPE")) === 1 ? "Плановая" : "—",
@@ -204,7 +210,7 @@ export function mapPlannedRow(item, sendStatus) {
     description: getField(item, "BRIGADE_ACTION") ?? "—",
     statusName: getPlannedStatusName(item),
     szoTags: buildSzoSummaryFromItem(item),
-    send: sendByGuid,
+    send,
     createTs: getCreateTs(item),
     guid,
   };
@@ -262,6 +268,9 @@ export function sortPlannedRows(rows, sorter) {
         break;
       case "startPlan":
         res = (a.createTs || 0) - (b.createTs || 0);
+        break;
+      case "strapiId":
+        res = (a.strapiId || 0) - (b.strapiId || 0);
         break;
       case "branch":
         res = cmpStr(a.branch, b.branch);

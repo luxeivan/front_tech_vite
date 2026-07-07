@@ -85,10 +85,14 @@ export function isOpen(item) {
 export function isGuid36(v) {
   return (
     typeof v === "string" &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    /^[0-9a-z]{8}-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{12}$/i.test(
       v.trim()
     )
   );
+}
+
+function isJournalId(v) {
+  return typeof v === "string" && v.trim().length > 0;
 }
 
 export function extractGuid(item) {
@@ -102,7 +106,7 @@ export function extractGuid(item) {
     item?.documentId,
     item?.data?.data?.VIOLATION_GUID_STR,
     item?.data?.data?.guid,
-  ].filter(isGuid36);
+  ].filter(isJournalId);
   return candidates.length ? String(candidates[0]).toLowerCase() : null;
 }
 
@@ -286,6 +290,24 @@ export function normalizeChannelName(raw) {
   return null;
 }
 
+function extractJournalGuid(line) {
+  const byDateDelimiter =
+    (
+      line.match(
+        /№\s*\d+\s*-\s*(.*?)\s*-\s*\d{2}\.\d{2}\.\d{4}\s\d{2}:\d{2}:\d{2}\s*-/i
+      ) || []
+    )[1] || null;
+  if (byDateDelimiter) return byDateDelimiter.trim().toLowerCase();
+
+  const guidRaw =
+    (
+      line.match(
+        /[0-9a-z]{8}-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{12}/i
+      ) || []
+    )[0] || null;
+  return guidRaw ? guidRaw.toLowerCase() : null;
+}
+
 export function parseJournalStatuses(lines) {
   const byGuid = {};
   const byNumber = {};
@@ -305,13 +327,7 @@ export function parseJournalStatuses(lines) {
     if (typeof line !== "string" || !line.trim()) return;
     const ts = parseDateFromJournalLine(line);
     const num = (line.match(/№\s*(\d+)/i) || [])[1] || null;
-    const guidRaw =
-      (
-        line.match(
-          /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i
-        ) || []
-      )[0] || null;
-    const guid = isGuid36(guidRaw) ? guidRaw.toLowerCase() : null;
+    const guid = extractJournalGuid(line);
     const ch = normalizeChannelName(
       (
         line.match(

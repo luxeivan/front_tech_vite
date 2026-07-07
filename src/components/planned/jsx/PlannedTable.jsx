@@ -93,6 +93,8 @@ function PlannedStatsHeader({ planned, started, loading }) {
 export default function PlannedTable() {
   const user = useAuth((s) => s.user);
   const showJournal = hasFeatureAccess(user?.view_role, "journal");
+  const showFreshSortButton =
+    String(user?.email || "").trim().toLowerCase() === "yanutst@yandex.ru";
 
   const pagination = usePlannedStore((s) => s.pagination);
   const date = usePlannedStore((s) => s.date);
@@ -417,6 +419,17 @@ export default function PlannedTable() {
             value={numberQuery}
             onChange={(e) => setNumberQuery(e.target.value)}
           />
+          {showFreshSortButton && (
+            <Tooltip title="Свежие поступления">
+              <Button
+                size="small"
+                type={sorter.field === "strapiId" ? "primary" : "default"}
+                onClick={() => setSorter({ field: "strapiId", order: "descend" })}
+              >
+                ↓ID
+              </Button>
+            </Tooltip>
+          )}
         </Flex>
         <Flex gap={8} wrap justify="flex-end">
           <Button type="primary" onClick={() => setIsExportModalOpen(true)}>
