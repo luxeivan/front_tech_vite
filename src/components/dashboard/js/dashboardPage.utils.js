@@ -5,6 +5,7 @@ export const MAP_SCALE = 0.55;
 
 export const URL = import.meta.env.VITE_URL_BACKEND;
 export const FIAS_COLLECTION = import.meta.env.VITE_STRAPI_FIAS_COLLECTION || "adress";
+export const OPERATIONAL_CHART_YEAR = 2026;
 
 // Унифицированный доступ к полям из плоского/вложенного источника.
 export const pick = (obj, key) => obj?.[key] ?? obj?.data?.[key] ?? obj?.data?.data?.[key] ?? null;
@@ -56,35 +57,67 @@ export async function fetchDashboardRows({ axios, jwt }) {
   if (!jwt) throw new Error("Нет JWT: авторизуйтесь");
 
   const since7d = buildEngineeringSince7dIso();
+  const mapIt = (x) => (x?.attributes ? { id: x.id, ...x.attributes } : x);
+
+  const fetchAllPages = async (queryParts, pageSize = 1000) => {
+    const headers = { Authorization: `Bearer ${jwt}` };
+    const firstQuery = [
+      "pagination[page]=1",
+      `pagination[pageSize]=${pageSize}`,
+      ...queryParts,
+    ].join("&");
+    const firstResp = await axios.get(`${URL}/api/teh-narusheniyas?${firstQuery}`, { headers });
+    const firstList = Array.isArray(firstResp?.data?.data) ? firstResp.data.data.map(mapIt) : [];
+    const pageCount = Number(firstResp?.data?.meta?.pagination?.pageCount || 1);
+
+    if (pageCount <= 1) return firstList;
+
+    const restRequests = Array.from({ length: pageCount - 1 }, (_, index) => {
+      const page = index + 2;
+      const query = [
+        `pagination[page]=${page}`,
+        `pagination[pageSize]=${pageSize}`,
+        ...queryParts,
+      ].join("&");
+      return axios.get(`${URL}/api/teh-narusheniyas?${query}`, { headers });
+    });
+
+    const restResponses = await Promise.all(restRequests);
+    const restList = restResponses.flatMap((resp) =>
+      Array.isArray(resp?.data?.data) ? resp.data.data.map(mapIt) : []
+    );
+
+    return [...firstList, ...restList];
+  };
 
   const qsOpen = [
-    "pagination[page]=1",
-    "pagination[pageSize]=500",
     "sort[0]=createDateTime:DESC",
     "filters[isActive][$eq]=true",
     "filters[BASE_TYPE][$eq]=0",
-  ].join("&");
+  ];
 
   const qsAll7d = [
-    "pagination[page]=1",
-    "pagination[pageSize]=1000",
     "sort[0]=createDateTime:DESC",
     `filters[createDateTime][$gte]=${encodeURIComponent(since7d)}`,
     "filters[BASE_TYPE][$eq]=0",
-  ].join("&");
+  ];
 
-  const headers = { Authorization: `Bearer ${jwt}` };
-  const [respOpen, respAll] = await Promise.all([
-    axios.get(`${URL}/api/teh-narusheniyas?${qsOpen}`, { headers }),
-    axios.get(`${URL}/api/teh-narusheniyas?${qsAll7d}`, { headers }),
+  const qsCurrentYear = [
+    "sort[0]=createDateTime:DESC",
+    `filters[createDateTime][$gte]=${encodeURIComponent(`${OPERATIONAL_CHART_YEAR}-01-01T00:00:00.000+03:00`)}`,
+    `filters[createDateTime][$lt]=${encodeURIComponent(`${OPERATIONAL_CHART_YEAR + 1}-01-01T00:00:00.000+03:00`)}`,
+    "filters[BASE_TYPE][$eq]=0",
+  ];
+
+  const [listOpen, listAll7d, listCurrentYear] = await Promise.all([
+    fetchAllPages(qsOpen, 500),
+    fetchAllPages(qsAll7d, 1000),
+    fetchAllPages(qsCurrentYear, 1000),
   ]);
-
-  const mapIt = (x) => (x?.attributes ? { id: x.id, ...x.attributes } : x);
-  const listOpen = Array.isArray(respOpen?.data?.data) ? respOpen.data.data.map(mapIt) : [];
-  const listAll7d = Array.isArray(respAll?.data?.data) ? respAll.data.data.map(mapIt) : [];
 
   return {
     rows: listOpen.filter((row) => isOpenTN(row) && isDashboardBaseType(row)),
     rows7d: listAll7d.filter(isDashboardBaseType),
+    rowsCurrentYear: listCurrentYear.filter(isDashboardBaseType),
   };
 }

@@ -26,7 +26,7 @@ const EMPTY_NUMERIC_VALUES = {
   pes: 0,
 };
 
-const normalizeBranchName = (value) => {
+export const normalizeBranchName = (value) => {
   const normalized = String(value || "")
     .replace(/\s*(?:филиал|фил\.?)\s*$/giu, "")
     .replace(/\s+/g, " ")

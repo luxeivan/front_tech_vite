@@ -6,9 +6,11 @@ import { fetchDashboardRows } from "../../components/dashboard/js/dashboardPage.
 const useOperationalDashboardStore = create((set) => ({
   isLoading: false,
   error: null,
+  hasLoaded: false,
   lastUpdatedAt: null,
   rows: [],
   rows7d: [],
+  rowsCurrentYear: [],
 
   setLoading: (isLoading) => set({ isLoading }),
   setError: (error) => set({ error }),
@@ -22,12 +24,16 @@ const useOperationalDashboardStore = create((set) => ({
       set({
         rows: data.rows,
         rows7d: data.rows7d,
+        rowsCurrentYear: data.rowsCurrentYear,
+        hasLoaded: true,
         lastUpdatedAt: new Date().toISOString(),
       });
     } catch (error) {
       set({
         rows: [],
         rows7d: [],
+        rowsCurrentYear: [],
+        hasLoaded: true,
         error: error?.message || "Ошибка загрузки данных",
       });
     } finally {
