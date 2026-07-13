@@ -56,14 +56,14 @@ export default function Header() {
             >
               Дашборд
             </Button>
-            {canSeeOperationalDashboard && (
+            {/* {canSeeOperationalDashboard && (
               <Button
                 type={location.pathname === "/dashboard-oo" ? "primary" : "default"}
                 onClick={() => goTo("/dashboard-oo", "click_operational_dashboard")}
               >
                 Дашборд ОО
               </Button>
-            )}
+            )} */}
             <Button
               type={location.pathname === "/pes" ? "primary" : "default"}
               onClick={() => goTo("/pes", "click_pes_module")}
