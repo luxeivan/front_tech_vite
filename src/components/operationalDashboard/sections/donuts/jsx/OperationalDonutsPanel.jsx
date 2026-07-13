@@ -130,13 +130,13 @@ function PopulationDonut({ data }) {
   const config = getPieConfig({
     data: chartData,
     total,
-    height: 300,
+    height: 270,
     radius: 0.72,
-    labelPadding: [28, 128, 28, 128],
+    labelPadding: [20, 128, 20, 128],
     labelPosition: "spider",
     labelText: (datum) =>
       datum.value > 0
-        ? `${datum.type}\n${formatNumber(datum.value)} чел.`
+        ? `${datum.type}\n${formatNumber(datum.value)}`
         : "",
   });
 

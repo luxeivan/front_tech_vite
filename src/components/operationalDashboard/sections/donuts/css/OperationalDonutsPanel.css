@@ -40,8 +40,8 @@
 }
 
 .operational-donuts-panel__chart--population {
-  height: 300px;
-  min-height: 300px;
+  height: 270px;
+  min-height: 270px;
 }
 
 .operational-donuts-panel__chart canvas {

@@ -1,7 +1,6 @@
 import dayjs from "dayjs";
 
 import {
-  districtName,
   getRowPeopleCount,
   isDashboardBaseType,
   isOpenTN,
@@ -12,9 +11,11 @@ import {
 
 const isMediumVoltageLineOutage = (row) => {
   const raw = row?.data?.data ?? row?.data ?? row ?? {};
-  const lines = toNumber(raw.LINESN_ALL ?? raw.LINESN_SECTION);
-  const voltage = String(raw.VOLTAGECLASS ?? pick(row, "VOLTAGECLASS") ?? "").toLowerCase();
-  return lines > 0 || /(^|[^0-9])(3|6|10|20)\s*кв/.test(voltage);
+  const line110 = toNumber(raw.LINE110_ALL ?? pick(row, "LINE110_ALL"));
+  const line35 = toNumber(raw.LINE35_ALL ?? pick(row, "LINE35_ALL"));
+  const linesn = toNumber(raw.LINESN_ALL ?? pick(row, "LINESN_ALL"));
+  const linenn = toNumber(raw.LINENN_ALL ?? pick(row, "LINENN_ALL"));
+  return line110 + line35 + linesn + linenn > 0;
 };
 
 const durationHours = (row, now) => {
@@ -59,8 +60,11 @@ export const buildPopulationDonutData = (rows) => {
   source
     .filter((row) => isDashboardBaseType(row) && isOpenTN(row))
     .forEach((row) => {
-      const raw = districtName(row) || "Без округа";
-      const district = raw.replace(/\s*г\.?\s*о\.?\s*/g, "").trim();
+      const raw = pick(row, "OWN_SCNAME") || "Без округа";
+      const district = raw
+        .replace(/\s*г\.?\s*о\.?\s*/g, "")
+        .replace(/\s*(?:филиал|фил\.?)\s*$/giu, "")
+        .trim();
       const people = getRowPeopleCount(row);
       if (people > 0) {
         districtTotals.set(district, (districtTotals.get(district) || 0) + people);
