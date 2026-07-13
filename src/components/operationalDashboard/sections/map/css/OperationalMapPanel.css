@@ -1,0 +1,14 @@
+.operational-map-panel__surface {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 100%;
+  background:
+    linear-gradient(rgba(21, 117, 188, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(21, 117, 188, 0.08) 1px, transparent 1px),
+    #ffffff;
+  background-size: 32px 32px;
+  color: #1575bc;
+  font-size: 14px;
+}

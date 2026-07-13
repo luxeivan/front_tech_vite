@@ -12,6 +12,7 @@ export default function Header() {
   const navigate = useNavigate();
   const location = useLocation();
   const canSeeAuditLogs = hasFeatureAccess(user?.view_role, "auditLogging");
+  const canSeeOperationalDashboard = hasFeatureAccess(user?.view_role, "operationalDashboard");
   const displayName =
     user?.fullName ||
     user?.username ||
@@ -55,6 +56,14 @@ export default function Header() {
             >
               Дашборд
             </Button>
+            {canSeeOperationalDashboard && (
+              <Button
+                type={location.pathname === "/dashboard-oo" ? "primary" : "default"}
+                onClick={() => goTo("/dashboard-oo", "click_operational_dashboard")}
+              >
+                Дашборд ОО
+              </Button>
+            )}
             <Button
               type={location.pathname === "/pes" ? "primary" : "default"}
               onClick={() => goTo("/pes", "click_pes_module")}

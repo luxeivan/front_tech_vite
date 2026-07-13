@@ -11,6 +11,7 @@ import Header from "./components/Header";
 import Footer from "./components/Footer";
 import AuthForm from "./components/AuthForm";
 import DashboardPage from "./pages/dashboard/DashboardPage";
+import OperationalDashboardPage from "./pages/operationalDashboard/OperationalDashboardPage";
 import Portal404 from "./components/Portal404/Portal404";
 import PesPage from "./pages/pes/PesPage";
 import PlannedPage from "./pages/planned/PlannedPage";
@@ -65,8 +66,8 @@ function App() {
     return children;
   };
 
-  const PreviewOnly = ({ children }) => {
-    if (!hasFeatureAccess(user?.view_role, "auditLogging")) {
+  const FeatureOnly = ({ featureKey, children }) => {
+    if (!hasFeatureAccess(user?.view_role, featureKey)) {
       return <Navigate to="/" replace />;
     }
     return children;
@@ -103,6 +104,16 @@ function App() {
               </Protected>
             }
           />
+          <Route
+            path="/dashboard-oo"
+            element={
+              <Protected>
+                <FeatureOnly featureKey="operationalDashboard">
+                  <OperationalDashboardPage />
+                </FeatureOnly>
+              </Protected>
+            }
+          />
 
             <Route
               path="/pes"
@@ -124,9 +135,9 @@ function App() {
               path="/logging"
               element={
                 <Protected>
-                  <PreviewOnly>
+                  <FeatureOnly featureKey="auditLogging">
                     <LoggingPage />
-                  </PreviewOnly>
+                  </FeatureOnly>
                 </Protected>
               }
             />

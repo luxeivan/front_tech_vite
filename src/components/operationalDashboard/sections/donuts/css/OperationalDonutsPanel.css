@@ -1,0 +1,223 @@
+.operational-donuts-panel .ant-spin-nested-loading,
+.operational-donuts-panel .ant-spin-container {
+  min-height: 100%;
+}
+
+.operational-donuts-panel__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  min-height: 100%;
+  overflow: hidden;
+}
+
+.operational-donuts-panel__item {
+  display: grid;
+  grid-template-rows: 70px 1fr;
+  min-width: 0;
+  min-height: 100%;
+  padding: 0 16px;
+}
+
+.operational-donuts-panel__title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 70px;
+  margin: 0;
+  color: #1575bc;
+  font-size: clamp(14px, 1vw, 20px);
+  font-weight: 500;
+  line-height: 1.18;
+  text-align: center;
+}
+
+.operational-donuts-panel__chart {
+  position: relative;
+  height: 270px;
+  min-height: 270px;
+  overflow: visible;
+}
+
+.operational-donuts-panel__chart--population {
+  padding-bottom: 0;
+}
+
+.operational-donuts-panel__chart canvas {
+  display: block;
+}
+
+.operational-donuts-panel__stage {
+  position: relative;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  padding: 20px 64px 10px;
+}
+
+.operational-donuts-panel__ring {
+  position: relative;
+  z-index: 2;
+  width: min(74%, 286px);
+  aspect-ratio: 1;
+}
+
+.operational-donuts-panel__ring svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.operational-donuts-panel__ring-empty {
+  stroke: #dbe6f0;
+}
+
+.operational-donuts-panel__center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 120px;
+  height: 120px;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #1575bc;
+  text-align: center;
+}
+
+.operational-donuts-panel__center strong {
+  font-size: clamp(34px, 3vw, 54px);
+  font-weight: 400;
+  line-height: 1;
+}
+
+.operational-donuts-panel__center span {
+  margin-top: 4px;
+  color: #6b7890;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.operational-donuts-panel__callout {
+  position: absolute;
+  z-index: 3;
+  color: #1575bc;
+  font-size: clamp(13px, 0.95vw, 18px);
+  font-weight: 500;
+  line-height: 1.05;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.operational-donuts-panel__callout strong,
+.operational-donuts-panel__callout span {
+  display: block;
+}
+
+.operational-donuts-panel__callout::after {
+  content: "";
+  position: absolute;
+  height: 2px;
+  background: #9eb1c4;
+  transform-origin: left center;
+}
+
+.operational-donuts-panel__callout--duration-top {
+  top: 20%;
+  left: 4%;
+}
+
+.operational-donuts-panel__callout--duration-top::after {
+  top: 54%;
+  left: 100%;
+  width: 82px;
+  transform: rotate(12deg);
+}
+
+.operational-donuts-panel__callout--duration-bottom {
+  top: 54%;
+  left: 2%;
+}
+
+.operational-donuts-panel__callout--duration-bottom::after {
+  top: 46%;
+  left: 100%;
+  width: 88px;
+  transform: rotate(-10deg);
+}
+
+.operational-donuts-panel__callout--population-top-left {
+  top: 16%;
+  left: 4%;
+}
+
+.operational-donuts-panel__callout--population-top-left::after {
+  top: 62%;
+  left: 100%;
+  width: 118px;
+  transform: rotate(18deg);
+}
+
+.operational-donuts-panel__callout--population-top-right {
+  top: 12%;
+  right: 2%;
+}
+
+.operational-donuts-panel__callout--population-top-right::after {
+  top: 66%;
+  right: 100%;
+  width: 106px;
+  transform: rotate(154deg);
+  transform-origin: right center;
+}
+
+.operational-donuts-panel__callout--population-bottom-left {
+  bottom: 6%;
+  left: 4%;
+}
+
+.operational-donuts-panel__callout--population-bottom-left::after {
+  top: 0;
+  left: 100%;
+  width: 124px;
+  transform: rotate(-24deg);
+}
+
+.operational-donuts-panel__callout--population-bottom-right {
+  right: 4%;
+  bottom: 9%;
+}
+
+.operational-donuts-panel__callout--population-bottom-right::after {
+  top: 0;
+  right: 100%;
+  width: 86px;
+  transform: rotate(218deg);
+  transform-origin: right center;
+}
+
+@media (max-width: 1500px) {
+  .operational-donuts-panel__grid {
+    gap: 12px;
+  }
+
+  .operational-donuts-panel__stage {
+    min-height: 250px;
+    padding: 18px 40px 6px;
+  }
+
+  .operational-donuts-panel__ring {
+    width: min(74%, 220px);
+  }
+}
+
+@media (max-width: 920px) {
+  .operational-donuts-panel__grid {
+    grid-template-columns: 1fr;
+  }
+}
