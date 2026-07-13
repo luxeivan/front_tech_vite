@@ -18,30 +18,36 @@ import "../css/OperationalDonutsPanel.css";
 const formatNumber = (value) => Number(value || 0).toLocaleString("ru-RU");
 
 const getDurationChartData = (data) =>
-  DURATION_DONUT_CONFIG.segments.map((segment) => ({
-    type: segment.label,
-    value: data?.values?.[segment.key] || 0,
-    colorKey: segment.label,
-    color: segment.color,
-  }));
+  DURATION_DONUT_CONFIG.segments
+    .map((segment) => ({
+      type: segment.label,
+      value: data?.values?.[segment.key] || 0,
+      colorKey: segment.label,
+      color: segment.color,
+    }))
+    .filter((item) => item.value > 0);
 
 const getPopulationChartData = (data) => {
   const districts = data?.districts || [];
   if (districts.length) {
-    return districts.map((item) => ({
-      type: item.name,
-      value: item.people,
-      colorKey: item.name,
-      color: getPopulationColor(item.people),
-    }));
+    return districts
+      .map((item) => ({
+        type: item.name,
+        value: item.people,
+        colorKey: item.name,
+        color: getPopulationColor(item.people),
+      }))
+      .filter((item) => item.value > 0);
   }
 
-  return POPULATION_DONUT_CONFIG.segments.map((segment) => ({
-    type: segment.label,
-    value: data?.values?.[segment.key] || 0,
-    colorKey: segment.label,
-    color: segment.color,
-  }));
+  return POPULATION_DONUT_CONFIG.segments
+    .map((segment) => ({
+      type: segment.label,
+      value: data?.values?.[segment.key] || 0,
+      colorKey: segment.label,
+      color: segment.color,
+    }))
+    .filter((item) => item.value > 0);
 };
 
 const getPieConfig = ({
@@ -105,6 +111,10 @@ function DurationDonut({ data }) {
   const config = getPieConfig({
     data: chartData,
     total,
+    height: 270,
+    radius: 0.72,
+    labelPadding: [20, 118, 20, 118],
+    labelPosition: "spider",
     labelText: (datum) =>
       datum.value > 0
         ? `${datum.type}\n${formatNumber(datum.value)}`

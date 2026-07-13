@@ -15,9 +15,29 @@
   flex: 1;
   display: grid;
   grid-template-columns: minmax(560px, 1.12fr) minmax(520px, 1fr);
-  grid-template-rows: minmax(360px, 0.95fr) minmax(320px, 1fr);
+  grid-template-rows: minmax(300px, 0.9fr) minmax(170px, 0.52fr) minmax(300px, 0.9fr);
+  grid-template-areas:
+    "donuts map"
+    "districts map"
+    "districts charts";
   gap: 18px 24px;
   min-height: calc(100vh - 122px);
+}
+
+.operational-dashboard__panel--donuts {
+  grid-area: donuts;
+}
+
+.operational-dashboard__panel--map {
+  grid-area: map;
+}
+
+.operational-dashboard__panel--districts {
+  grid-area: districts;
+}
+
+.operational-dashboard__panel--charts {
+  grid-area: charts;
 }
 
 .operational-dashboard__panel {
@@ -61,6 +81,11 @@
 @media (max-width: 1280px) {
   .operational-dashboard__grid {
     grid-template-columns: 1fr;
+    grid-template-areas:
+      "donuts"
+      "map"
+      "districts"
+      "charts";
     grid-template-rows: repeat(4, minmax(300px, auto));
     height: auto;
   }
