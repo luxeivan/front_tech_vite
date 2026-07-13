@@ -11,6 +11,10 @@
   height: 100%;
 }
 
+.operational-districts-panel__mobile-list {
+  display: none;
+}
+
 .operational-districts-panel__table .ant-spin-nested-loading,
 .operational-districts-panel__table .ant-spin-container,
 .operational-districts-panel__table .ant-table,
@@ -89,11 +93,68 @@
     padding: 8px;
   }
 
-  .operational-districts-panel__table .ant-table {
-    font-size: calc(var(--operational-branches-table-font-size) - 1px);
+  .operational-districts-panel__table {
+    display: none;
   }
 
-  .operational-districts-panel__table .ant-table-cell {
-    padding: 4px 3px;
+  .operational-districts-panel__mobile-list {
+    display: grid;
+    gap: 10px;
+  }
+
+  .operational-districts-panel__mobile-card {
+    border: 1px solid #e5ecf5;
+    border-radius: 8px;
+    background: #ffffff;
+    overflow: hidden;
+  }
+
+  .operational-districts-panel__mobile-card h3 {
+    margin: 0;
+    padding: 10px 12px;
+    background: #f7fbff;
+    color: #1575bc;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.15;
+  }
+
+  .operational-districts-panel__mobile-card--summary h3 {
+    background: #eef4fb;
+  }
+
+  .operational-districts-panel__mobile-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .operational-districts-panel__mobile-metric {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+    padding: 8px 10px;
+    border-top: 1px solid #edf2f7;
+  }
+
+  .operational-districts-panel__mobile-metric:nth-child(odd) {
+    border-right: 1px solid #edf2f7;
+  }
+
+  .operational-districts-panel__mobile-metric span {
+    color: #6b7890;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.15;
+  }
+
+  .operational-districts-panel__mobile-metric strong {
+    color: #1f2937;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .operational-districts-panel__mobile-card--summary .operational-districts-panel__mobile-metric strong {
+    color: #1575bc;
   }
 }

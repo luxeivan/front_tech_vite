@@ -166,6 +166,7 @@ function PopulationDonut({ data }) {
 export default function OperationalDonutsPanel() {
   const rows = useOperationalDashboardStore((store) => store.rows);
   const isLoading = useOperationalDashboardStore((store) => store.isLoading);
+  const hasLoaded = useOperationalDashboardStore((store) => store.hasLoaded);
   const error = useOperationalDashboardStore((store) => store.error);
   const [now, setNow] = useState(() => dayjs());
 
@@ -183,7 +184,7 @@ export default function OperationalDonutsPanel() {
         {error ? (
           <Alert type="error" showIcon message={error} />
         ) : (
-          <Spin spinning={isLoading}>
+          <Spin spinning={isLoading && hasLoaded}>
             <div className="operational-donuts-panel__grid">
               <DurationDonut data={durationData} />
               <PopulationDonut data={populationData} />

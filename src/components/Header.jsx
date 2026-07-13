@@ -1,5 +1,6 @@
-import { Button, Flex, Image } from "antd";
-import React from "react";
+import { Button, Drawer, Flex, Image } from "antd";
+import { MenuOutlined } from "@ant-design/icons";
+import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import useAuth from "../stores/useAuth";
 import { logAuditEvent } from "../utils/auditLogger";
@@ -11,8 +12,8 @@ export default function Header() {
   const { isAuth, exit, user } = useAuth((store) => store);
   const navigate = useNavigate();
   const location = useLocation();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const canSeeAuditLogs = hasFeatureAccess(user?.view_role, "auditLogging");
-  const canSeeOperationalDashboard = hasFeatureAccess(user?.view_role, "operationalDashboard");
   const displayName =
     user?.fullName ||
     user?.username ||
@@ -22,6 +23,41 @@ export default function Header() {
   const goTo = (path, action) => {
     logAuditEvent({ page: location.pathname, action, entity: "button" }, user);
     navigate(path);
+  };
+  const navItems = [
+    {
+      path: "/",
+      action: "click_unplanned_tn",
+      label: "Аварийные отключения",
+    },
+    {
+      path: "/planned",
+      action: "click_planned_tn",
+      label: "Плановые отключения",
+    },
+    {
+      path: "/dashboard",
+      action: "click_dashboard",
+      label: "Дашборд",
+    },
+    {
+      path: "/pes",
+      action: "click_pes_module",
+      label: "Модуль ПЭС",
+    },
+    ...(canSeeAuditLogs
+      ? [
+          {
+            path: "/logging",
+            action: "click_audit_logging",
+            label: "Журнал действий",
+          },
+        ]
+      : []),
+  ];
+  const handleNavigate = (item) => {
+    setMobileMenuOpen(false);
+    goTo(item.path, item.action);
   };
 
   // TODO: замена логотипа в одном месте.
@@ -38,24 +74,15 @@ export default function Header() {
         />
         {isAuth && (
           <Flex gap={8} wrap className={styles.navWrap}>
-            <Button
-              type={location.pathname === "/" ? "primary" : "default"}
-              onClick={() => goTo("/", "click_unplanned_tn")}
-            >
-              Аварийные отключения
-            </Button>
-            <Button
-              type={location.pathname === "/planned" ? "primary" : "default"}
-              onClick={() => goTo("/planned", "click_planned_tn")}
-            >
-              Плановые отключения
-            </Button>
-            <Button
-              type={location.pathname === "/dashboard" ? "primary" : "default"}
-              onClick={() => goTo("/dashboard", "click_dashboard")}
-            >
-              Дашборд
-            </Button>
+            {navItems.map((item) => (
+              <Button
+                key={item.path}
+                type={location.pathname === item.path ? "primary" : "default"}
+                onClick={() => handleNavigate(item)}
+              >
+                {item.label}
+              </Button>
+            ))}
             {/* {canSeeOperationalDashboard && (
               <Button
                 type={location.pathname === "/dashboard-oo" ? "primary" : "default"}
@@ -64,23 +91,18 @@ export default function Header() {
                 Дашборд ОО
               </Button>
             )} */}
-            <Button
-              type={location.pathname === "/pes" ? "primary" : "default"}
-              onClick={() => goTo("/pes", "click_pes_module")}
-            >
-              Модуль ПЭС
-            </Button>
-            {canSeeAuditLogs && (
-              <Button
-                type={location.pathname === "/logging" ? "primary" : "default"}
-                onClick={() => goTo("/logging", "click_audit_logging")}
-              >
-                Журнал действий
-              </Button>
-            )}
           </Flex>
         )}
       </Flex>
+      {isAuth ? (
+        <Button
+          className={styles.mobileMenuButton}
+          icon={<MenuOutlined />}
+          onClick={() => setMobileMenuOpen(true)}
+        >
+          Меню
+        </Button>
+      ) : null}
 
       {isAuth ? (
         <Flex align="center" gap={10} className={styles.rightSide}>
@@ -95,6 +117,41 @@ export default function Header() {
           </Button>
         </Flex>
       ) : null}
+      <Drawer
+        title="Меню"
+        placement="right"
+        open={mobileMenuOpen}
+        onClose={() => setMobileMenuOpen(false)}
+        width={310}
+        className={styles.mobileDrawer}
+      >
+        <div className={styles.mobileDrawerNav}>
+          {navItems.map((item) => (
+            <Button
+              key={item.path}
+              type={location.pathname === item.path ? "primary" : "default"}
+              onClick={() => handleNavigate(item)}
+              block
+            >
+              {item.label}
+            </Button>
+          ))}
+        </div>
+        <div className={styles.mobileDrawerFooter}>
+          <span>{displayName}</span>
+          <Button
+            type="primary"
+            danger
+            onClick={() => {
+              setMobileMenuOpen(false);
+              exit();
+            }}
+            block
+          >
+            Выйти
+          </Button>
+        </div>
+      </Drawer>
     </Flex>
   );
 }

@@ -89,11 +89,11 @@ export default function OperationalChartsPanel() {
       <div className="operational-dashboard__panel-body">
         <div className="operational-charts-panel__content">
           <h3 className="operational-charts-panel__title">{OPERATIONAL_CHART_TITLE}</h3>
-          {!hasLoaded || isLoading ? (
+          {hasLoaded && isLoading ? (
             <div className="operational-charts-panel__loading">
               <Spin size="large" />
             </div>
-          ) : (
+          ) : hasLoaded ? (
             <>
               <div className="operational-charts-panel__chart">
                 <div className="operational-charts-panel__y-axis" aria-hidden="true">
@@ -122,7 +122,7 @@ export default function OperationalChartsPanel() {
                 </div>
               </div>
             </>
-          )}
+          ) : null}
         </div>
       </div>
     </div>
