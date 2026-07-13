@@ -40,11 +40,26 @@
 }
 
 .operational-donuts-panel__chart--population {
-  padding-bottom: 0;
+  height: 300px;
+  min-height: 300px;
 }
 
 .operational-donuts-panel__chart canvas {
   display: block;
+}
+
+.operational-donuts-panel__center-number {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  transform: translate(-50%, -50%);
+  color: #1575bc;
+  font-size: 46px;
+  font-weight: 400;
+  line-height: 1;
+  pointer-events: none;
+  white-space: nowrap;
 }
 
 .operational-donuts-panel__stage {

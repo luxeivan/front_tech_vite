@@ -16,7 +16,6 @@ import {
 import "../css/OperationalDonutsPanel.css";
 
 const formatNumber = (value) => Number(value || 0).toLocaleString("ru-RU");
-const POPULATION_VISIBLE_LABELS = 3;
 
 const getDurationChartData = (data) =>
   DURATION_DONUT_CONFIG.segments.map((segment) => ({
@@ -29,12 +28,11 @@ const getDurationChartData = (data) =>
 const getPopulationChartData = (data) => {
   const districts = data?.districts || [];
   if (districts.length) {
-    return districts.map((item, index) => ({
+    return districts.map((item) => ({
       type: item.name,
       value: item.people,
       colorKey: item.name,
       color: getPopulationColor(item.people),
-      showLabel: index < POPULATION_VISIBLE_LABELS,
     }));
   }
 
@@ -43,40 +41,41 @@ const getPopulationChartData = (data) => {
     value: data?.values?.[segment.key] || 0,
     colorKey: segment.label,
     color: segment.color,
-    showLabel: true,
   }));
 };
 
-const getPieConfig = ({ data, labelText, total, labelPadding, labelPosition = "outside" }) => ({
+const getPieConfig = ({
+  data,
+  labelText,
+  total,
+  labelPadding,
+  labelPosition = "outside",
+  radius = 0.72,
+  height = 270,
+}) => ({
   data,
   angleField: "value",
   colorField: "colorKey",
   innerRadius: 0.62,
-  radius: 0.72,
-  height: 270,
+  radius,
+  height,
   padding: labelPadding || [20, 100, 20, 100],
   legend: false,
   tooltip: false,
-  label: {
-    position: labelPosition,
-    offset: 14,
-    text: labelText,
-    style: {
-      fill: "#1575bc",
-      fontSize: 11,
-      fontWeight: 600,
-      textAlign: "center",
-      lineHeight: 16,
-    },
-    connector: {
-      style: {
-        stroke: "#9eb1c4",
-        strokeWidth: 1,
-        lineDash: [3, 2],
-      },
-      length: 12,
-    },
-  },
+  label: labelText
+    ? {
+        position: labelPosition,
+        offset: 14,
+        text: labelText,
+        style: {
+          fill: "#1575bc",
+          fontSize: 11,
+          fontWeight: 600,
+          textAlign: "center",
+          lineHeight: 16,
+        },
+      }
+    : false,
   scale: {
     color: {
       range: data.map((item) => item.color),
@@ -117,6 +116,9 @@ function DurationDonut({ data }) {
       <h3 className="operational-donuts-panel__title">Количество аварийных отключений ЛЭП 3–20кВ</h3>
       <div className="operational-donuts-panel__chart">
         <Pie {...config} />
+        <div className="operational-donuts-panel__center-number">
+          {formatNumber(total)}
+        </div>
       </div>
     </div>
   );
@@ -128,10 +130,12 @@ function PopulationDonut({ data }) {
   const config = getPieConfig({
     data: chartData,
     total,
-    labelPadding: [24, 116, 28, 116],
+    height: 300,
+    radius: 0.72,
+    labelPadding: [28, 128, 28, 128],
     labelPosition: "spider",
     labelText: (datum) =>
-      datum.value > 0 && datum.showLabel
+      datum.value > 0
         ? `${datum.type}\n${formatNumber(datum.value)} чел.`
         : "",
   });
@@ -141,6 +145,9 @@ function PopulationDonut({ data }) {
       <h3 className="operational-donuts-panel__title">Обесточено населения</h3>
       <div className="operational-donuts-panel__chart operational-donuts-panel__chart--population">
         <Pie {...config} />
+        <div className="operational-donuts-panel__center-number">
+          {formatNumber(total)}
+        </div>
       </div>
     </div>
   );
