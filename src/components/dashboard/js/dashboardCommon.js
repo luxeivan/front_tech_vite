@@ -37,7 +37,7 @@ export const isOpenTN = (row) => {
 
 // Для dashboard учитываем только аварийные/внеплановые ТН.
 export const baseTypeOf = (row) => {
-  const raw = pick(row, "BASE_TYPE") ?? row?.BASE_TYPE ?? null;
+  const raw = row?.BASE_TYPE ?? row?.attributes?.BASE_TYPE ?? row?.data?.BASE_TYPE ?? row?.data?.data?.BASE_TYPE ?? null;
   const n = Number(raw);
   return Number.isFinite(n) ? n : null;
 };
@@ -45,6 +45,10 @@ export const baseTypeOf = (row) => {
 export const isDashboardBaseType = (row) => {
   return baseTypeOf(row) === 0;
 };
+
+export const statusNameOf = (row) => s(pick(row, "STATUS_NAME") ?? row?.STATUS_NAME);
+
+export const isNotDeletedTN = (row) => statusNameOf(row).toLowerCase() !== "удалена";
 
 export const s = (v) =>
   typeof v === "string" ? v.trim() : v == null ? "" : String(v).trim();

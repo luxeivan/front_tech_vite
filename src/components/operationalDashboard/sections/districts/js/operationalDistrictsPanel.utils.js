@@ -1,11 +1,13 @@
 import {
   isDashboardBaseType,
+  isNotDeletedTN,
   isOpenTN,
   pick,
   toNumber,
 } from "../../../../dashboard/js/dashboardCommon";
 
 import {
+  OPERATIONAL_DISPCENTER_TO_BRANCH,
   OPERATIONAL_BRANCH_UNKNOWN_VALUE,
   OPERATIONAL_BRANCHES,
 } from "./operationalDistrictsPanel.config";
@@ -38,6 +40,29 @@ export const normalizeBranchName = (value) => {
   return normalized;
 };
 
+const normalizeLookupName = (value) =>
+  String(value || "")
+    .replace(/ё/g, "е")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+
+const DISPCENTER_BRANCH_BY_NORMALIZED_NAME = new Map(
+  Object.entries(OPERATIONAL_DISPCENTER_TO_BRANCH).map(([dispcenter, branch]) => [
+    normalizeLookupName(dispcenter),
+    branch,
+  ])
+);
+
+export const getOperationalBranchByRow = (row) => {
+  const dispcenter = pick(row, "DISPCENTER_NAME_");
+  const branch = DISPCENTER_BRANCH_BY_NORMALIZED_NAME.get(normalizeLookupName(dispcenter));
+  return branch || null;
+};
+
+export const isOperationalDashboardRow = (row) =>
+  isDashboardBaseType(row) && isNotDeletedTN(row) && Boolean(getOperationalBranchByRow(row));
+
 const addFields = (row, fields) =>
   fields.reduce((sum, field) => sum + toNumber(pick(row, field)), 0);
 
@@ -69,24 +94,16 @@ export const buildOperationalBranchRows = (rows) => {
   const branchMap = new Map(OPERATIONAL_BRANCHES.map((branch) => [branch, createBranchRow(branch)]));
 
   (Array.isArray(rows) ? rows : [])
-    .filter((row) => isDashboardBaseType(row) && isOpenTN(row))
+    .filter((row) => isOperationalDashboardRow(row) && isOpenTN(row))
     .forEach((row) => {
-      const branch = normalizeBranchName(pick(row, "OWN_SCNAME"));
+      const branch = getOperationalBranchByRow(row);
       if (!branch) return;
-
-      if (!branchMap.has(branch)) {
-        branchMap.set(branch, createBranchRow(branch));
-      }
 
       addRowToTotals(branchMap.get(branch), row);
     });
 
   const ordered = OPERATIONAL_BRANCHES.map((branch) => branchMap.get(branch)).filter(Boolean);
-  const extra = Array.from(branchMap.values())
-    .filter((row) => !OPERATIONAL_BRANCHES.includes(row.branch))
-    .sort((a, b) => a.branch.localeCompare(b.branch, "ru", { sensitivity: "base" }));
-
-  return [...ordered, ...extra];
+  return ordered;
 };
 
 export const buildOperationalBranchSummary = (rows) => {

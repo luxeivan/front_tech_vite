@@ -1,6 +1,9 @@
-import { pick } from "../../../../dashboard/js/dashboardCommon";
+import { isDashboardBaseType, isNotDeletedTN, pick } from "../../../../dashboard/js/dashboardCommon";
 import { OPERATIONAL_BRANCHES } from "../../districts/js/operationalDistrictsPanel.config";
-import { normalizeBranchName } from "../../districts/js/operationalDistrictsPanel.utils";
+import {
+  getOperationalBranchByRow,
+  normalizeBranchName,
+} from "../../districts/js/operationalDistrictsPanel.utils";
 import {
   OPERATIONAL_CHART_BRANCH_LABELS,
   OPERATIONAL_CHART_CURRENT_YEAR,
@@ -14,9 +17,20 @@ export const buildBranchTechViolationChartData = (rowsCurrentYear) => {
   const counts = new Map(OPERATIONAL_BRANCHES.map((branch) => [branch, 0]));
 
   (Array.isArray(rowsCurrentYear) ? rowsCurrentYear : []).forEach((row) => {
-    const branch = normalizeBranchName(pick(row, "OWN_SCNAME"));
+    const rawCount = pick(row, "__count");
+    const precomputedCount = rawCount == null ? null : Number(rawCount);
+    const branch = Number.isFinite(precomputedCount)
+      ? normalizeBranchName(pick(row, "OWN_SCNAME"))
+      : getOperationalBranchByRow(row);
+
     if (!branch) return;
-    counts.set(branch, (counts.get(branch) || 0) + 1);
+    if (!Number.isFinite(precomputedCount) && (!isDashboardBaseType(row) || !isNotDeletedTN(row))) {
+      return;
+    }
+    counts.set(
+      branch,
+      (counts.get(branch) || 0) + (Number.isFinite(precomputedCount) ? precomputedCount : 1)
+    );
   });
 
   return OPERATIONAL_BRANCHES.flatMap((branch) => [

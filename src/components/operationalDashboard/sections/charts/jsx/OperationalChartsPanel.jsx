@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { Column } from "@ant-design/plots";
-import { Spin } from "antd";
+import { Alert, Spin } from "antd";
 
 import useOperationalDashboardStore from "../../../../../stores/operationalDashboard/useOperationalDashboardStore";
 import {
@@ -24,7 +24,8 @@ const getYAxisTicks = (data) => {
 };
 
 export default function OperationalChartsPanel() {
-  const isLoading = useOperationalDashboardStore((store) => store.isLoading);
+  const isStatsLoading = useOperationalDashboardStore((store) => store.isStatsLoading);
+  const statsError = useOperationalDashboardStore((store) => store.statsError);
   const hasLoaded = useOperationalDashboardStore((store) => store.hasLoaded);
   const rowsCurrentYear = useOperationalDashboardStore((store) => store.rowsCurrentYear);
 
@@ -89,7 +90,9 @@ export default function OperationalChartsPanel() {
       <div className="operational-dashboard__panel-body">
         <div className="operational-charts-panel__content">
           <h3 className="operational-charts-panel__title">{OPERATIONAL_CHART_TITLE}</h3>
-          {hasLoaded && isLoading ? (
+          {statsError ? (
+            <Alert type="warning" showIcon message={statsError} />
+          ) : hasLoaded && isStatsLoading ? (
             <div className="operational-charts-panel__loading">
               <Spin size="large" />
             </div>

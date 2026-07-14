@@ -1,11 +1,19 @@
 import { create } from "zustand";
 import axios from "axios";
 
-import { fetchDashboardRows } from "../../components/dashboard/js/dashboardPage.utils";
+import {
+  fetchOperationalDashboardCurrentYearRows,
+  fetchOperationalDashboardInitialRows,
+} from "../../components/dashboard/js/dashboardPage.utils";
+
+let loadPromise = null;
+let statsPromise = null;
 
 const useOperationalDashboardStore = create((set) => ({
   isLoading: false,
+  isStatsLoading: false,
   error: null,
+  statsError: null,
   hasLoaded: false,
   lastUpdatedAt: null,
   rows: [],
@@ -17,28 +25,80 @@ const useOperationalDashboardStore = create((set) => ({
   touchUpdatedAt: () => set({ lastUpdatedAt: new Date().toISOString() }),
 
   loadData: async () => {
-    try {
-      set({ isLoading: true, error: null });
-      const jwt = localStorage.getItem("jwt");
-      const data = await fetchDashboardRows({ axios, jwt });
-      set({
-        rows: data.rows,
-        rows7d: data.rows7d,
-        rowsCurrentYear: data.rowsCurrentYear,
-        hasLoaded: true,
-        lastUpdatedAt: new Date().toISOString(),
-      });
-    } catch (error) {
-      set({
-        rows: [],
-        rows7d: [],
-        rowsCurrentYear: [],
-        hasLoaded: true,
-        error: error?.message || "Ошибка загрузки данных",
-      });
-    } finally {
-      set({ isLoading: false });
-    }
+    if (loadPromise) return loadPromise;
+
+    loadPromise = (async () => {
+      try {
+        set({ isLoading: true, error: null, statsError: null });
+        const jwt = localStorage.getItem("jwt");
+        const rows = await fetchOperationalDashboardInitialRows({ axios, jwt });
+        set({
+          rows,
+          rows7d: [],
+          hasLoaded: true,
+          lastUpdatedAt: new Date().toISOString(),
+          isLoading: false,
+        });
+      } catch (error) {
+        set({
+          rows: [],
+          rows7d: [],
+          rowsCurrentYear: [],
+          hasLoaded: true,
+          error: error?.message || "Ошибка загрузки данных",
+          isLoading: false,
+        });
+        return;
+      } finally {
+        loadPromise = null;
+      }
+
+      if (statsPromise) return statsPromise;
+
+      statsPromise = (async () => {
+        try {
+          set({ isStatsLoading: true, statsError: null });
+          const jwt = localStorage.getItem("jwt");
+          const rowsCurrentYear = await fetchOperationalDashboardCurrentYearRows({ axios, jwt });
+          set({
+            rowsCurrentYear,
+            lastUpdatedAt: new Date().toISOString(),
+          });
+        } catch (error) {
+          set({ statsError: error?.message || "Ошибка загрузки статистики" });
+        } finally {
+          set({ isStatsLoading: false });
+          statsPromise = null;
+        }
+      })();
+
+      return statsPromise;
+    })();
+
+    return loadPromise;
+  },
+
+  reloadStats: async () => {
+    if (statsPromise) return statsPromise;
+
+    statsPromise = (async () => {
+      try {
+        set({ isStatsLoading: true, statsError: null });
+        const jwt = localStorage.getItem("jwt");
+        const rowsCurrentYear = await fetchOperationalDashboardCurrentYearRows({ axios, jwt });
+        set({
+          rowsCurrentYear,
+          lastUpdatedAt: new Date().toISOString(),
+        });
+      } catch (error) {
+        set({ statsError: error?.message || "Ошибка загрузки статистики" });
+      } finally {
+        set({ isStatsLoading: false });
+        statsPromise = null;
+      }
+    })();
+
+    return statsPromise;
   },
 }));
 

@@ -3,11 +3,13 @@ import dayjs from "dayjs";
 import {
   getRowPeopleCount,
   isDashboardBaseType,
+  isNotDeletedTN,
   isOpenTN,
   pick,
   startDate,
   toNumber,
 } from "../../../../dashboard/js/dashboardCommon";
+import { getOperationalBranchByRow } from "../../districts/js/operationalDistrictsPanel.utils";
 
 const isMediumVoltageLineOutage = (row) => {
   const raw = row?.data?.data ?? row?.data ?? row ?? {};
@@ -34,7 +36,14 @@ export const buildDurationDonutData = (rows, now = dayjs()) => {
   };
 
   source
-    .filter((row) => isDashboardBaseType(row) && isOpenTN(row) && isMediumVoltageLineOutage(row))
+    .filter(
+      (row) =>
+        isDashboardBaseType(row) &&
+        isNotDeletedTN(row) &&
+        isOpenTN(row) &&
+        Boolean(getOperationalBranchByRow(row)) &&
+        isMediumVoltageLineOutage(row)
+    )
     .forEach((row) => {
       const hours = durationHours(row, now);
       if (hours == null) return;
@@ -58,13 +67,10 @@ export const buildPopulationDonutData = (rows) => {
   const districtTotals = new Map();
 
   source
-    .filter((row) => isDashboardBaseType(row) && isOpenTN(row))
+    .filter((row) => isDashboardBaseType(row) && isNotDeletedTN(row) && isOpenTN(row))
     .forEach((row) => {
-      const raw = pick(row, "OWN_SCNAME") || "Без округа";
-      const district = raw
-        .replace(/\s*г\.?\s*о\.?\s*/g, "")
-        .replace(/\s*(?:филиал|фил\.?)\s*$/giu, "")
-        .trim();
+      const district = getOperationalBranchByRow(row);
+      if (!district) return;
       const people = getRowPeopleCount(row);
       if (people > 0) {
         districtTotals.set(district, (districtTotals.get(district) || 0) + people);
