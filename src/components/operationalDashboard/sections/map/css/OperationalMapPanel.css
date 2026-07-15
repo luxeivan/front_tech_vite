@@ -153,6 +153,45 @@
   backdrop-filter: none;
 }
 
+.operational-map-panel__mode-legend {
+  position: absolute;
+  left: 18px;
+  bottom: 14px;
+  z-index: 1;
+  display: grid;
+  gap: 3px;
+  color: #1575bc;
+  pointer-events: none;
+}
+
+.operational-map-panel__mode-legend h4 {
+  margin: 0;
+  color: #1575bc;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.1;
+  text-decoration: underline;
+}
+
+.operational-map-panel__mode-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #1575bc;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.operational-map-panel__mode-legend i {
+  display: inline-block;
+  width: 42px;
+  height: 12px;
+  border: 2px solid currentColor;
+  border-radius: 1px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
 .operational-map-panel__legend div {
   display: grid;
   gap: 3px;

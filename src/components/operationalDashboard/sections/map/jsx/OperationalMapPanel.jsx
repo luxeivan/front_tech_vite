@@ -452,6 +452,17 @@ export default function OperationalMapPanel() {
               aria-label="Карта оперативной обстановки"
             />
           </div>
+          <div className="operational-map-panel__mode-legend">
+            <h4>Действующие режимы:</h4>
+            <span>
+              <i style={{ borderColor: OPERATIONAL_MAP_MODE_STROKE_COLORS.rpg }} />
+              - введен РПГ
+            </span>
+            <span>
+              <i style={{ borderColor: OPERATIONAL_MAP_MODE_STROKE_COLORS.orr }} />
+              - введен ОРР
+            </span>
+          </div>
           <div className="operational-map-panel__legend">
             <div>
               <h4>Обесточено населения:</h4>
