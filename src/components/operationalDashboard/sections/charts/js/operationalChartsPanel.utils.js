@@ -8,8 +8,8 @@ import {
   OPERATIONAL_CHART_BRANCH_LABELS,
   OPERATIONAL_CHART_CURRENT_YEAR,
   OPERATIONAL_CHART_PREVIOUS_YEAR,
-  OPERATIONAL_CHART_PREVIOUS_YEAR_DEFAULT,
 } from "./operationalChartsPanel.config";
+import { OPERATIONAL_CHART_2025_VALUES } from "./operationalChartsPanel2025.data";
 
 const branchLabel = (branch) => OPERATIONAL_CHART_BRANCH_LABELS[branch] || branch;
 
@@ -37,7 +37,7 @@ export const buildBranchTechViolationChartData = (rowsCurrentYear) => {
     {
       branch: branchLabel(branch),
       year: String(OPERATIONAL_CHART_PREVIOUS_YEAR),
-      value: OPERATIONAL_CHART_PREVIOUS_YEAR_DEFAULT,
+      value: OPERATIONAL_CHART_2025_VALUES[branch] || 0,
     },
     {
       branch: branchLabel(branch),

@@ -22,6 +22,7 @@ import useAuth from "../../../stores/useAuth";
 import TableTNActionsBar from "./TableTNActionsBar";
 import TNModal from "./TNModal";
 import JournalOpenModal from "../../journalOpen/JournalOpenModal";
+import DistrictModeModal from "./DistrictModeModal";
 import { hasFeatureAccess } from "../../../config/viewRoleAccess";
 import ruRU from "antd/locale/ru_RU";
 import "dayjs/locale/ru";
@@ -511,6 +512,8 @@ export default function TableTN() {
   // === Journal send status state ===
   const { user, getUserMe } = useAuth((s) => s);
   const showJournal = hasFeatureAccess(user?.view_role, "journal");
+  const canManageDistrictMode = hasFeatureAccess(user?.view_role, "districtModeManage");
+  const [isDistrictModeModalOpen, setIsDistrictModeModalOpen] = useState(false);
   const [sendStatus, setSendStatus] = useState({ byGuid: {}, byNumber: {} });
   const loadSendStatus = React.useCallback(async () => {
     try {
@@ -943,6 +946,43 @@ export default function TableTN() {
         .tn-row-duration-orange > td { background: #fff7e6 !important; }
         .tn-row-duration-red > td { background: #fff1f0 !important; }
         .tn-row-new > td { animation: tnNewBlink 1.2s ease-in-out infinite; }
+        @property --tn-mode-beam-angle {
+          syntax: "<angle>";
+          initial-value: 0deg;
+          inherits: false;
+        }
+        @keyframes tnModeBeam {
+          to { --tn-mode-beam-angle: 360deg; }
+        }
+        .tn-mode-button-beam.ant-btn {
+          --tn-mode-beam-angle: 0deg;
+          position: relative;
+          border-color: transparent;
+          background:
+            linear-gradient(#ffffff, #ffffff) padding-box,
+            conic-gradient(
+              from var(--tn-mode-beam-angle),
+              rgba(255, 77, 79, 0) 0deg,
+              rgba(255, 77, 79, 0) 250deg,
+              #ff4d4f 292deg,
+              #ffccc7 318deg,
+              rgba(255, 77, 79, 0) 360deg
+            ) border-box;
+          box-shadow: 0 0 0 1px rgba(255, 77, 79, 0.12);
+          animation: tnModeBeam 2.4s linear infinite;
+        }
+        .tn-mode-button-beam.ant-btn:hover {
+          background:
+            linear-gradient(#f0f7ff, #f0f7ff) padding-box,
+            conic-gradient(
+              from var(--tn-mode-beam-angle),
+              rgba(255, 77, 79, 0) 0deg,
+              rgba(255, 77, 79, 0) 250deg,
+              #cf1322 292deg,
+              #ffa39e 318deg,
+              rgba(255, 77, 79, 0) 360deg
+            ) border-box;
+        }
       `}</style>
       <audio
         ref={audioRef}
@@ -999,6 +1039,14 @@ export default function TableTN() {
             {showJournal && (
               <Button onClick={() => setIsJournalOpen(true)}>
                 Журнал отправки
+              </Button>
+            )}
+            {canManageDistrictMode && (
+              <Button
+                className="tn-mode-button-beam"
+                onClick={() => setIsDistrictModeModalOpen(true)}
+              >
+                Режим
               </Button>
             )}
             <Button
@@ -1061,6 +1109,11 @@ export default function TableTN() {
           }, 0);
         }}
         documentId={isOpenModalTN}
+      />
+
+      <DistrictModeModal
+        open={isDistrictModeModalOpen}
+        onClose={() => setIsDistrictModeModalOpen(false)}
       />
 
       <JournalOpenModal

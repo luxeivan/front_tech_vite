@@ -5,7 +5,6 @@ export const OPERATIONAL_MAP_OFFSET_Y = 20;
 // Толщина границ округов, px: обычные / подсвеченные.
 export const OPERATIONAL_MAP_DISTRICT_STROKE_WIDTH = 1.7;
 export const OPERATIONAL_MAP_ACTIVE_DISTRICT_STROKE_WIDTH = 2;
-export const OPERATIONAL_MAP_GEOJSON_URL = "/data/moscow-region-municipalities.geojson";
 export const OPERATIONAL_WEATHER_LOCATION = {
   latitude: 55.7558,
   longitude: 37.6173,

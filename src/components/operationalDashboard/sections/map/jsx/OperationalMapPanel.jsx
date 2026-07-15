@@ -19,11 +19,14 @@ import {
   OPERATIONAL_MAP_ACTIVE_DISTRICT_STROKE_WIDTH,
   OPERATIONAL_MAP_COLORS,
   OPERATIONAL_MAP_DISTRICT_STROKE_WIDTH,
-  OPERATIONAL_MAP_GEOJSON_URL,
   OPERATIONAL_MAP_OFFSET_Y,
   OPERATIONAL_MAP_SCALE,
   OPERATIONAL_WEATHER_LOCATION,
 } from "../js/operationalMapPanel.config";
+import {
+  buildTnOkrugaFeatureCollection,
+  fetchTnOkrugaRows,
+} from "../../../../../utils/tnOkrugaApi";
 import {
   buildOperationalMapBranchData,
   formatMapNumber,
@@ -291,14 +294,10 @@ export default function OperationalMapPanel() {
     districtSourceRef.current = districtSource;
     districtLayerRef.current = districtLayer;
 
-    fetch(OPERATIONAL_MAP_GEOJSON_URL)
-      .then((response) => {
-        if (!response.ok) throw new Error(`GeoJSON ${response.status}`);
-        return response.json();
-      })
-      .then((data) => {
+    fetchTnOkrugaRows()
+      .then((rows) => {
         if (!mapRef.current || !districtSourceRef.current) return;
-        const features = new GeoJSON().readFeatures(data, {
+        const features = new GeoJSON().readFeatures(buildTnOkrugaFeatureCollection(rows), {
           featureProjection: "EPSG:3857",
         });
         districtSourceRef.current.clear();
