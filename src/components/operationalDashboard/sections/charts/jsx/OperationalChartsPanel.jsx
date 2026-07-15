@@ -27,6 +27,7 @@ export default function OperationalChartsPanel() {
   const isStatsLoading = useOperationalDashboardStore((store) => store.isStatsLoading);
   const statsError = useOperationalDashboardStore((store) => store.statsError);
   const hasLoaded = useOperationalDashboardStore((store) => store.hasLoaded);
+  const hasStatsLoaded = useOperationalDashboardStore((store) => store.hasStatsLoaded);
   const rowsCurrentYear = useOperationalDashboardStore((store) => store.rowsCurrentYear);
 
   const chartData = useMemo(
@@ -92,11 +93,11 @@ export default function OperationalChartsPanel() {
           <h3 className="operational-charts-panel__title">{OPERATIONAL_CHART_TITLE}</h3>
           {statsError ? (
             <Alert type="warning" showIcon message={statsError} />
-          ) : hasLoaded && isStatsLoading ? (
+          ) : hasLoaded && (isStatsLoading || !hasStatsLoaded) ? (
             <div className="operational-charts-panel__loading">
               <Spin size="large" />
             </div>
-          ) : hasLoaded ? (
+          ) : hasLoaded && hasStatsLoaded ? (
             <>
               <div className="operational-charts-panel__chart">
                 <div className="operational-charts-panel__y-axis" aria-hidden="true">

@@ -19,8 +19,12 @@ import {
   OPERATIONAL_MAP_ACTIVE_DISTRICT_STROKE_WIDTH,
   OPERATIONAL_MAP_COLORS,
   OPERATIONAL_MAP_DISTRICT_STROKE_WIDTH,
+  OPERATIONAL_MAP_FALLBACK_GEOJSON_URL,
+  OPERATIONAL_MAP_MODE_STROKE_COLORS,
+  OPERATIONAL_MAP_MODE_STROKE_WIDTH,
   OPERATIONAL_MAP_OFFSET_Y,
   OPERATIONAL_MAP_SCALE,
+  OPERATIONAL_MAP_STRETCH_Y,
   OPERATIONAL_WEATHER_LOCATION,
 } from "../js/operationalMapPanel.config";
 import {
@@ -124,7 +128,9 @@ const EMPTY_DISTRICT_STYLE = new Style({
 });
 const MAP_FALLBACK_CENTER = [38.25, 55.58];
 const MAP_FALLBACK_ZOOM = 8;
-const MAP_FIT_PADDING = [40, 16, 28, 16];
+const MAP_FIT_PADDING = [10, 6, 8, 6];
+const DISTRICT_REFRESH_INTERVAL_MS = 60 * 1000;
+const TN_OKRUGA_MAP_CACHE_KEY = "operationalDashboard.tnOkrugaRows";
 const MAP_ZOOM_DELTA =
   Number.isFinite(Number(OPERATIONAL_MAP_SCALE)) && Number(OPERATIONAL_MAP_SCALE) > 0
     ? Math.log2(Number(OPERATIONAL_MAP_SCALE))
@@ -144,22 +150,56 @@ const fitMapToSource = (view, source) => {
   }
 };
 
+const normalizeDistrictMode = (mode) =>
+  String(mode || "")
+    .trim()
+    .toLowerCase();
+
+const getModeStrokeColor = (mode) => {
+  const normalizedMode = normalizeDistrictMode(mode);
+  if (normalizedMode === "рпг") return OPERATIONAL_MAP_MODE_STROKE_COLORS.rpg;
+  if (normalizedMode === "орр") return OPERATIONAL_MAP_MODE_STROKE_COLORS.orr;
+  return OPERATIONAL_MAP_MODE_STROKE_COLORS[normalizedMode] || null;
+};
+
+const readCachedTnOkrugaRows = () => {
+  try {
+    const rawRows = window.localStorage.getItem(TN_OKRUGA_MAP_CACHE_KEY);
+    const rows = rawRows ? JSON.parse(rawRows) : [];
+    return Array.isArray(rows) ? rows : [];
+  } catch {
+    return [];
+  }
+};
+
+const writeCachedTnOkrugaRows = (rows) => {
+  try {
+    window.localStorage.setItem(TN_OKRUGA_MAP_CACHE_KEY, JSON.stringify(rows));
+  } catch {
+    // Кэш карты некритичен: если localStorage недоступен, Strapi/GeoJSON останутся источниками.
+  }
+};
+
 const getDistrictStyle = (feature, branchDataByBranch) => {
   const districtName = feature.get("district");
+  const modeStrokeColor = getModeStrokeColor(feature.get("rezim"));
   const branch = getBranchByDistrictName(districtName);
   const branchData = branch ? branchDataByBranch.get(branch) : null;
   const people = branchData?.people || 0;
   const fillColor = people > 0 ? branchData.color : "rgba(255, 255, 255, 0.96)";
-  const strokeColor = people > 0 ? "#ffffff" : "#cfd6de";
+  const strokeColor = modeStrokeColor || (people > 0 ? "#ffffff" : "#cfd6de");
   const label = people > 0 ? `${branch}\n${formatMapNumber(people)}` : "";
 
   return new Style({
+    zIndex: modeStrokeColor ? 10 : 1,
     fill: new Fill({ color: fillColor }),
     stroke: new Stroke({
       color: strokeColor,
-      width: people > 0
-        ? OPERATIONAL_MAP_ACTIVE_DISTRICT_STROKE_WIDTH
-        : OPERATIONAL_MAP_DISTRICT_STROKE_WIDTH,
+      width: modeStrokeColor
+        ? OPERATIONAL_MAP_MODE_STROKE_WIDTH
+        : people > 0
+          ? OPERATIONAL_MAP_ACTIVE_DISTRICT_STROKE_WIDTH
+          : OPERATIONAL_MAP_DISTRICT_STROKE_WIDTH,
     }),
     text: new Text({
       text: label,
@@ -294,17 +334,59 @@ export default function OperationalMapPanel() {
     districtSourceRef.current = districtSource;
     districtLayerRef.current = districtLayer;
 
-    fetchTnOkrugaRows()
-      .then((rows) => {
-        if (!mapRef.current || !districtSourceRef.current) return;
-        const features = new GeoJSON().readFeatures(buildTnOkrugaFeatureCollection(rows), {
-          featureProjection: "EPSG:3857",
-        });
-        districtSourceRef.current.clear();
-        districtSourceRef.current.addFeatures(features);
-        fitMapToSource(view, districtSourceRef.current);
-      })
-      .catch(() => {});
+    let cancelled = false;
+    const format = new GeoJSON();
+
+    const applyFeatureCollection = (featureCollection, { fit = false } = {}) => {
+      if (cancelled || !mapRef.current || !districtSourceRef.current) return;
+      const features = format.readFeatures(featureCollection, {
+        dataProjection: "EPSG:4326",
+        featureProjection: "EPSG:3857",
+      });
+      districtSourceRef.current.clear();
+      districtSourceRef.current.addFeatures(features);
+      districtLayerRef.current?.changed();
+      if (fit) fitMapToSource(view, districtSourceRef.current);
+    };
+
+    const applyDistrictRows = (rows, options) => {
+      applyFeatureCollection(buildTnOkrugaFeatureCollection(rows), options);
+    };
+
+    const loadFallbackFeatures = async () => {
+      try {
+        if (districtSourceRef.current?.getFeatures().length) return;
+        const response = await fetch(OPERATIONAL_MAP_FALLBACK_GEOJSON_URL);
+        if (!response.ok) return;
+        const featureCollection = await response.json();
+        if (districtSourceRef.current?.getFeatures().length) return;
+        applyFeatureCollection(featureCollection, { fit: true });
+      } catch {
+        // Локальный fallback не должен ломать загрузку дашборда.
+      }
+    };
+
+    const loadDistrictFeatures = async ({ fit = false } = {}) => {
+      try {
+        const rows = await fetchTnOkrugaRows();
+        if (cancelled || !mapRef.current || !districtSourceRef.current) return;
+        writeCachedTnOkrugaRows(rows);
+        applyDistrictRows(rows, { fit });
+      } catch {
+        // Если Strapi временно недоступен, оставляем текущую карту на экране.
+      }
+    };
+
+    const cachedRows = readCachedTnOkrugaRows();
+    if (cachedRows.length) {
+      applyDistrictRows(cachedRows, { fit: true });
+    }
+    loadFallbackFeatures();
+    loadDistrictFeatures({ fit: !cachedRows.length });
+    const districtRefreshTimer = window.setInterval(
+      () => loadDistrictFeatures(),
+      DISTRICT_REFRESH_INTERVAL_MS
+    );
 
     const resizeObserver = new ResizeObserver(() => {
       window.requestAnimationFrame(() => {
@@ -318,6 +400,8 @@ export default function OperationalMapPanel() {
     });
 
     return () => {
+      cancelled = true;
+      window.clearInterval(districtRefreshTimer);
       resizeObserver.disconnect();
       map.setTarget(null);
       mapRef.current = null;
@@ -361,7 +445,10 @@ export default function OperationalMapPanel() {
             <div
               ref={mapElRef}
               className="operational-map-panel__map"
-              style={{ transform: `translateY(${OPERATIONAL_MAP_OFFSET_Y}px)` }}
+              style={{
+                transform: `translateY(${OPERATIONAL_MAP_OFFSET_Y}px) scaleY(${OPERATIONAL_MAP_STRETCH_Y})`,
+                transformOrigin: "center center",
+              }}
               aria-label="Карта оперативной обстановки"
             />
           </div>

@@ -16,38 +16,53 @@ import {
 import "../css/OperationalDonutsPanel.css";
 
 const formatNumber = (value) => Number(value || 0).toLocaleString("ru-RU");
+const EMPTY_DONUT_SEGMENT = {
+  type: "Нет данных",
+  value: 1,
+  colorKey: "Нет данных",
+  color: "#d8e0ea",
+  isEmpty: true,
+};
+
+const ensureDonutData = (items) => (items.length ? items : [EMPTY_DONUT_SEGMENT]);
 
 const getDurationChartData = (data) =>
-  DURATION_DONUT_CONFIG.segments
-    .map((segment) => ({
-      type: segment.label,
-      value: data?.values?.[segment.key] || 0,
-      colorKey: segment.label,
-      color: segment.color,
-    }))
-    .filter((item) => item.value > 0);
+  ensureDonutData(
+    DURATION_DONUT_CONFIG.segments
+      .map((segment) => ({
+        type: segment.label,
+        value: data?.values?.[segment.key] || 0,
+        colorKey: segment.label,
+        color: segment.color,
+      }))
+      .filter((item) => item.value > 0)
+  );
 
 const getPopulationChartData = (data) => {
   const districts = data?.districts || [];
   if (districts.length) {
-    return districts
-      .map((item) => ({
-        type: item.name,
-        value: item.people,
-        colorKey: item.name,
-        color: getPopulationColor(item.people),
-      }))
-      .filter((item) => item.value > 0);
+    return ensureDonutData(
+      districts
+        .map((item) => ({
+          type: item.name,
+          value: item.people,
+          colorKey: item.name,
+          color: getPopulationColor(item.people),
+        }))
+        .filter((item) => item.value > 0)
+    );
   }
 
-  return POPULATION_DONUT_CONFIG.segments
-    .map((segment) => ({
-      type: segment.label,
-      value: data?.values?.[segment.key] || 0,
-      colorKey: segment.label,
-      color: segment.color,
-    }))
-    .filter((item) => item.value > 0);
+  return ensureDonutData(
+    POPULATION_DONUT_CONFIG.segments
+      .map((segment) => ({
+        type: segment.label,
+        value: data?.values?.[segment.key] || 0,
+        colorKey: segment.label,
+        color: segment.color,
+      }))
+      .filter((item) => item.value > 0)
+  );
 };
 
 const getPieConfig = ({
@@ -107,7 +122,8 @@ const getPieConfig = ({
 
 function DurationDonut({ data }) {
   const chartData = getDurationChartData(data);
-  const total = chartData.reduce((sum, item) => sum + item.value, 0);
+  const total = Number(data?.total || 0);
+  const hasValues = total > 0;
   const config = getPieConfig({
     data: chartData,
     total,
@@ -115,10 +131,12 @@ function DurationDonut({ data }) {
     radius: 0.72,
     labelPadding: [20, 118, 20, 118],
     labelPosition: "spider",
-    labelText: (datum) =>
-      datum.value > 0
-        ? `${datum.type}\n${formatNumber(datum.value)}`
-        : "",
+    labelText: hasValues
+      ? (datum) =>
+          !datum.isEmpty && datum.value > 0
+            ? `${datum.type}\n${formatNumber(datum.value)}`
+            : ""
+      : null,
   });
 
   return (
@@ -136,7 +154,8 @@ function DurationDonut({ data }) {
 
 function PopulationDonut({ data }) {
   const chartData = getPopulationChartData(data);
-  const total = chartData.reduce((sum, item) => sum + item.value, 0);
+  const total = Number(data?.total || 0);
+  const hasValues = total > 0;
   const config = getPieConfig({
     data: chartData,
     total,
@@ -144,10 +163,12 @@ function PopulationDonut({ data }) {
     radius: 0.72,
     labelPadding: [20, 128, 20, 128],
     labelPosition: "spider",
-    labelText: (datum) =>
-      datum.value > 0
-        ? `${datum.type}\n${formatNumber(datum.value)}`
-        : "",
+    labelText: hasValues
+      ? (datum) =>
+          !datum.isEmpty && datum.value > 0
+            ? `${datum.type}\n${formatNumber(datum.value)}`
+            : ""
+      : null,
   });
 
   return (

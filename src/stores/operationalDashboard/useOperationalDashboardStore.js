@@ -15,6 +15,7 @@ const useOperationalDashboardStore = create((set) => ({
   error: null,
   statsError: null,
   hasLoaded: false,
+  hasStatsLoaded: false,
   lastUpdatedAt: null,
   rows: [],
   rows7d: [],
@@ -45,6 +46,7 @@ const useOperationalDashboardStore = create((set) => ({
           rows7d: [],
           rowsCurrentYear: [],
           hasLoaded: true,
+          hasStatsLoaded: true,
           error: error?.message || "Ошибка загрузки данных",
           isLoading: false,
         });
@@ -57,15 +59,19 @@ const useOperationalDashboardStore = create((set) => ({
 
       statsPromise = (async () => {
         try {
-          set({ isStatsLoading: true, statsError: null });
+          set({ isStatsLoading: true, statsError: null, hasStatsLoaded: false });
           const jwt = localStorage.getItem("jwt");
           const rowsCurrentYear = await fetchOperationalDashboardCurrentYearRows({ axios, jwt });
           set({
             rowsCurrentYear,
+            hasStatsLoaded: true,
             lastUpdatedAt: new Date().toISOString(),
           });
         } catch (error) {
-          set({ statsError: error?.message || "Ошибка загрузки статистики" });
+          set({
+            statsError: error?.message || "Ошибка загрузки статистики",
+            hasStatsLoaded: true,
+          });
         } finally {
           set({ isStatsLoading: false });
           statsPromise = null;
@@ -83,15 +89,19 @@ const useOperationalDashboardStore = create((set) => ({
 
     statsPromise = (async () => {
       try {
-        set({ isStatsLoading: true, statsError: null });
+        set({ isStatsLoading: true, statsError: null, hasStatsLoaded: false });
         const jwt = localStorage.getItem("jwt");
         const rowsCurrentYear = await fetchOperationalDashboardCurrentYearRows({ axios, jwt });
         set({
           rowsCurrentYear,
+          hasStatsLoaded: true,
           lastUpdatedAt: new Date().toISOString(),
         });
       } catch (error) {
-        set({ statsError: error?.message || "Ошибка загрузки статистики" });
+        set({
+          statsError: error?.message || "Ошибка загрузки статистики",
+          hasStatsLoaded: true,
+        });
       } finally {
         set({ isStatsLoading: false });
         statsPromise = null;
