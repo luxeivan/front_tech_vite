@@ -27,15 +27,15 @@
 .operational-districts-panel__table .ant-table {
   overflow: hidden;
   border-radius: 0;
-  background: #ffffff;
-  color: #1f2937;
+  background: transparent;
+  color: #0a5f9d;
   font-size: var(--operational-branches-table-font-size) !important;
 }
 
 .operational-districts-panel__table .ant-table-thead > tr > th {
-  border: 1px solid #edf2f7;
-  background: #f7fbff;
-  color: #1575bc;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: #285a9c;
+  color: #ffffff;
   font-weight: 700;
   line-height: 1.15;
   text-align: center;
@@ -55,9 +55,9 @@
 }
 
 .operational-districts-panel__table .ant-table-tbody > tr > td {
-  border: 1px solid #edf2f7;
-  background: #ffffff;
-  color: #1f2937;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.5);
+  color: #0a5f9d;
   font-weight: 500;
   line-height: 1.08;
   word-break: break-word;
@@ -65,17 +65,17 @@
 }
 
 .operational-districts-panel__table .ant-table-tbody > tr:nth-child(odd) > td {
-  background: #fbfdff;
+  background: rgba(237, 246, 253, 0.72);
 }
 
 .operational-districts-panel__table .ant-table-tbody > tr:hover > td {
-  background: #eef6ff;
+  background: rgba(255, 255, 255, 0.78);
 }
 
 .operational-districts-panel__table .operational-districts-panel__row--summary > td,
 .operational-districts-panel__table .operational-districts-panel__row--summary:hover > td {
-  background: #eef4fb;
-  color: #1575bc;
+  background: rgba(126, 158, 210, 0.48);
+  color: #063f71;
   font-weight: 700;
 }
 

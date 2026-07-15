@@ -1,14 +1,17 @@
 .operational-dashboard {
-  --operational-dashboard-panel-border: 1px solid #e5ecf5;
+  --operational-dashboard-bg: #dbeaf6;
+  --operational-dashboard-panel-border-width: 0px;
+  --operational-dashboard-panel-border-color: rgba(101, 142, 179, 0.24);
+  --operational-dashboard-panel-border: var(--operational-dashboard-panel-border-width) solid var(--operational-dashboard-panel-border-color);
   --operational-dashboard-panel-radius: 8px;
-  --operational-dashboard-panel-shadow: 0 8px 22px rgba(16, 40, 75, 0.06);
+  --operational-dashboard-panel-shadow: none;
   width: 100%;
   flex: 1;
   display: flex;
   flex-direction: column;
   min-height: 0;
   padding: 14px 22px 16px;
-  background: #ffffff;
+  background: var(--operational-dashboard-bg);
 }
 
 .operational-dashboard__grid {
@@ -48,7 +51,7 @@
   overflow: hidden;
   border: var(--operational-dashboard-panel-border);
   border-radius: var(--operational-dashboard-panel-radius);
-  background: #ffffff;
+  background: rgba(255, 255, 255, 0.16);
   box-shadow: var(--operational-dashboard-panel-shadow);
 }
 
