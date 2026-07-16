@@ -17,6 +17,34 @@ import "../css/OperationalChartsPanel.css";
 const formatNumber = (value) => Number(value || 0).toLocaleString("ru-RU");
 const CHART_PADDING = [30, 18, 48, 54];
 
+const formatStatsDate = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return null;
+
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+};
+
+const getNextRefreshText = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  const diffMs = date.getTime() - Date.now();
+  if (!Number.isFinite(diffMs)) return null;
+  if (diffMs <= 0) return "скоро";
+
+  const minutes = Math.max(1, Math.round(diffMs / 60000));
+  if (minutes < 60) return `через ${minutes} мин`;
+
+  const hours = Math.floor(minutes / 60);
+  const restMinutes = minutes % 60;
+  return restMinutes ? `через ${hours} ч ${restMinutes} мин` : `через ${hours} ч`;
+};
+
 const getYAxisTicks = (data) => {
   const maxValue = Math.max(0, ...data.map((item) => Number(item.value || 0)));
   const maxTick = Math.max(10, Math.ceil(maxValue / 10) * 10);
@@ -29,6 +57,7 @@ export default function OperationalChartsPanel() {
   const hasLoaded = useOperationalDashboardStore((store) => store.hasLoaded);
   const hasStatsLoaded = useOperationalDashboardStore((store) => store.hasStatsLoaded);
   const rowsCurrentYear = useOperationalDashboardStore((store) => store.rowsCurrentYear);
+  const statsMeta = useOperationalDashboardStore((store) => store.statsMeta);
 
   const chartData = useMemo(
     () => buildBranchTechViolationChartData(rowsCurrentYear),
@@ -36,6 +65,8 @@ export default function OperationalChartsPanel() {
   );
   const totals = useMemo(() => getBranchChartTotals(chartData), [chartData]);
   const yAxisTicks = useMemo(() => getYAxisTicks(chartData), [chartData]);
+  const statsDate = formatStatsDate(statsMeta?.calculatedAt);
+  const nextRefresh = getNextRefreshText(statsMeta?.nextCalculatedAt);
 
   const config = {
     data: chartData,
@@ -90,7 +121,16 @@ export default function OperationalChartsPanel() {
     <div className="operational-dashboard__panel operational-dashboard__panel--charts operational-charts-panel">
       <div className="operational-dashboard__panel-body">
         <div className="operational-charts-panel__content">
-          <h3 className="operational-charts-panel__title">{OPERATIONAL_CHART_TITLE}</h3>
+          <div className="operational-charts-panel__header">
+            <h3 className="operational-charts-panel__title">{OPERATIONAL_CHART_TITLE}</h3>
+            {/* Метка свежести данных пока скрыта, но оставлена для быстрого возврата.
+            {statsDate ? (
+              <div className="operational-charts-panel__meta">
+                данные: {statsDate}
+                {nextRefresh ? ` • след.: ${nextRefresh}` : ""}
+              </div>
+            ) : null} */}
+          </div>
           {statsError ? (
             <Alert type="warning" showIcon message={statsError} />
           ) : hasLoaded && (isStatsLoading || !hasStatsLoaded) ? (

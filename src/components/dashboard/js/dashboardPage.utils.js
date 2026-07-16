@@ -221,49 +221,27 @@ export async function fetchOperationalDashboardCurrentYearRows({ axios, jwt }) {
   const startedAt = perfNow();
   const headers = { Authorization: `Bearer ${jwt}` };
 
-  try {
-    const response = await axios.get(
-      `${URL_SERVICES}/services/operational-dashboard/current-year-counts`,
-      { headers }
-    );
-    const rows = Array.isArray(response?.data?.rows) ? response.data.rows : [];
+  const response = await axios.get(
+    `${URL_SERVICES}/services/operational-dashboard/current-year-counts`,
+    { headers }
+  );
+  const rows = Array.isArray(response?.data?.rows) ? response.data.rows : [];
 
-    if (response?.data?.ok && rows.length) {
-      logDashboardPerf("operational/current-year-service: complete", {
-        rows: rows.reduce((sum, row) => sum + Number(row.__count || 0), 0),
-        cached: Boolean(response.data.cached),
-        ms: Math.round(perfNow() - startedAt),
-      });
-      return rows;
-    }
-  } catch (error) {
-    logDashboardPerf("operational/current-year-service: fallback", {
-      status: error?.response?.status,
-      message: error?.response?.data?.message || error?.message,
+  if (response?.data?.ok && rows.length) {
+    logDashboardPerf("operational/current-year-service: complete", {
+      rows: rows.reduce((sum, row) => sum + Number(row.__count || 0), 0),
+      cached: Boolean(response.data.cached),
+      calculatedAt: response.data?.meta?.calculatedAt,
+      nextCalculatedAt: response.data?.meta?.nextCalculatedAt,
       ms: Math.round(perfNow() - startedAt),
     });
+    return {
+      rows,
+      meta: response.data?.meta || null,
+    };
   }
 
-  const rows = await fetchDashboardRowsPageSet({
-    axios,
-    jwt,
-    label: "operational/current-year-fallback",
-    queryParts: [
-      "sort[0]=createDateTime:DESC",
-      `filters[createDateTime][$gte]=${encodeURIComponent(`${OPERATIONAL_CHART_YEAR}-01-01T00:00:00.000+03:00`)}`,
-      `filters[createDateTime][$lt]=${encodeURIComponent(`${OPERATIONAL_CHART_YEAR + 1}-01-01T00:00:00.000+03:00`)}`,
-      "filters[BASE_TYPE][$eq]=0",
-    ],
-    pageSize: 100,
-    concurrency: 4,
-  });
-
-  logDashboardPerf("operational/current-year-fallback: ready", {
-    rows: rows.length,
-    ms: Math.round(perfNow() - startedAt),
-  });
-
-  return rows.filter((row) => isDashboardBaseType(row) && isNotDeletedTN(row));
+  throw new Error(response?.data?.message || "Статистика Дашборда ОО еще не рассчитана");
 }
 
 async function fetchDashboardRowsPageSet({

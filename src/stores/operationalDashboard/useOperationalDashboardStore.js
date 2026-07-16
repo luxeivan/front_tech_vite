@@ -20,6 +20,7 @@ const useOperationalDashboardStore = create((set) => ({
   rows: [],
   rows7d: [],
   rowsCurrentYear: [],
+  statsMeta: null,
 
   setLoading: (isLoading) => set({ isLoading }),
   setError: (error) => set({ error }),
@@ -45,6 +46,7 @@ const useOperationalDashboardStore = create((set) => ({
           rows: [],
           rows7d: [],
           rowsCurrentYear: [],
+          statsMeta: null,
           hasLoaded: true,
           hasStatsLoaded: true,
           error: error?.message || "Ошибка загрузки данных",
@@ -61,15 +63,17 @@ const useOperationalDashboardStore = create((set) => ({
         try {
           set({ isStatsLoading: true, statsError: null, hasStatsLoaded: false });
           const jwt = localStorage.getItem("jwt");
-          const rowsCurrentYear = await fetchOperationalDashboardCurrentYearRows({ axios, jwt });
+          const stats = await fetchOperationalDashboardCurrentYearRows({ axios, jwt });
           set({
-            rowsCurrentYear,
+            rowsCurrentYear: stats.rows,
+            statsMeta: stats.meta,
             hasStatsLoaded: true,
             lastUpdatedAt: new Date().toISOString(),
           });
         } catch (error) {
           set({
             statsError: error?.message || "Ошибка загрузки статистики",
+            statsMeta: null,
             hasStatsLoaded: true,
           });
         } finally {
@@ -91,15 +95,17 @@ const useOperationalDashboardStore = create((set) => ({
       try {
         set({ isStatsLoading: true, statsError: null, hasStatsLoaded: false });
         const jwt = localStorage.getItem("jwt");
-        const rowsCurrentYear = await fetchOperationalDashboardCurrentYearRows({ axios, jwt });
+        const stats = await fetchOperationalDashboardCurrentYearRows({ axios, jwt });
         set({
-          rowsCurrentYear,
+          rowsCurrentYear: stats.rows,
+          statsMeta: stats.meta,
           hasStatsLoaded: true,
           lastUpdatedAt: new Date().toISOString(),
         });
       } catch (error) {
         set({
           statsError: error?.message || "Ошибка загрузки статистики",
+          statsMeta: null,
           hasStatsLoaded: true,
         });
       } finally {
