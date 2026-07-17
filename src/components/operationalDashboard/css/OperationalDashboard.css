@@ -24,7 +24,18 @@
     "districts map"
     "districts charts";
   gap: 18px 24px;
-  min-height: calc(100vh - 122px);
+  min-height: calc(100vh - 184px);
+}
+
+.operational-dashboard__title {
+  margin: 0 0 10px;
+  color: #006eb8;
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: 0;
+  text-align: center;
+  text-transform: uppercase;
 }
 
 .operational-dashboard__panel--donuts {
@@ -97,6 +108,11 @@
 @media (max-width: 768px) {
   .operational-dashboard {
     padding: 10px;
+  }
+
+  .operational-dashboard__title {
+    margin-bottom: 8px;
+    font-size: 24px;
   }
 
   .operational-dashboard__grid {

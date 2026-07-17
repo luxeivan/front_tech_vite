@@ -88,6 +88,7 @@ export default function OperationalDashboardShell() {
   return (
     <section className="operational-dashboard">
       <Spin fullscreen spinning={isLoading && !hasLoaded} />
+      <h1 className="operational-dashboard__title">ОПЕРАТИВНАЯ ОБСТАНОВКА</h1>
       <div className="operational-dashboard__grid">
         <OperationalDonutsPanel />
         <OperationalMapPanel />
