@@ -26,12 +26,18 @@ const useOperationalDashboardStore = create((set) => ({
   setError: (error) => set({ error }),
   touchUpdatedAt: () => set({ lastUpdatedAt: new Date().toISOString() }),
 
-  loadData: async () => {
+  loadData: async (options = {}) => {
     if (loadPromise) return loadPromise;
+
+    const includeStats = options.includeStats !== false;
 
     loadPromise = (async () => {
       try {
-        set({ isLoading: true, error: null, statsError: null });
+        set({
+          isLoading: true,
+          error: null,
+          ...(includeStats ? { statsError: null } : {}),
+        });
         const jwt = localStorage.getItem("jwt");
         const rows = await fetchOperationalDashboardInitialRows({ axios, jwt });
         set({
@@ -45,17 +51,23 @@ const useOperationalDashboardStore = create((set) => ({
         set({
           rows: [],
           rows7d: [],
-          rowsCurrentYear: [],
-          statsMeta: null,
           hasLoaded: true,
-          hasStatsLoaded: true,
           error: error?.message || "Ошибка загрузки данных",
           isLoading: false,
+          ...(includeStats
+            ? {
+                rowsCurrentYear: [],
+                statsMeta: null,
+                hasStatsLoaded: true,
+              }
+            : {}),
         });
         return;
       } finally {
         loadPromise = null;
       }
+
+      if (!includeStats) return null;
 
       if (statsPromise) return statsPromise;
 

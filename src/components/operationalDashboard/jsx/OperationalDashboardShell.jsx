@@ -6,7 +6,24 @@ import OperationalDistrictsPanel from "../sections/districts/jsx/OperationalDist
 import OperationalDonutsPanel from "../sections/donuts/jsx/OperationalDonutsPanel";
 import OperationalMapPanel from "../sections/map/jsx/OperationalMapPanel";
 import useOperationalDashboardStore from "../../../stores/operationalDashboard/useOperationalDashboardStore";
+import { TN_FILIALY_REZIM_UPDATED_EVENT } from "../../../utils/tnFilialyApi";
 import "../css/OperationalDashboard.css";
+
+const SERVICES_URL =
+  import.meta.env.VITE_URL_BACKEND_SERVICES ||
+  import.meta.env.VITE_URL_BACKEND;
+
+const parseSsePayload = (event) => {
+  try {
+    return JSON.parse(event?.data || "{}");
+  } catch {
+    return null;
+  }
+};
+
+const isFilialModeEvent = (payload) =>
+  payload?.type === TN_FILIALY_REZIM_UPDATED_EVENT ||
+  payload?.payload?.type === TN_FILIALY_REZIM_UPDATED_EVENT;
 
 export default function OperationalDashboardShell() {
   const loadData = useOperationalDashboardStore((store) => store.loadData);
@@ -15,6 +32,57 @@ export default function OperationalDashboardShell() {
 
   useEffect(() => {
     loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    if (!SERVICES_URL || typeof window === "undefined" || typeof EventSource === "undefined") {
+      return undefined;
+    }
+
+    const eventUrl = `${String(SERVICES_URL).replace(/\/$/, "")}/services/event`;
+    let eventSource = null;
+    let reconnectTimer = null;
+    let refreshTimer = null;
+    let disposed = false;
+
+    const scheduleRowsRefresh = () => {
+      window.clearTimeout(refreshTimer);
+      refreshTimer = window.setTimeout(() => {
+        loadData({ includeStats: false });
+      }, 350);
+    };
+
+    const connect = () => {
+      if (disposed) return;
+      eventSource = new EventSource(eventUrl);
+
+      eventSource.onmessage = (event) => {
+        const payload = parseSsePayload(event);
+        if (payload?.message === "Подключено к SSE") return;
+
+        if (isFilialModeEvent(payload)) {
+          window.dispatchEvent(new CustomEvent(TN_FILIALY_REZIM_UPDATED_EVENT));
+        }
+
+        scheduleRowsRefresh();
+      };
+
+      eventSource.onerror = () => {
+        if (disposed) return;
+        eventSource?.close();
+        window.clearTimeout(reconnectTimer);
+        reconnectTimer = window.setTimeout(connect, 3000);
+      };
+    };
+
+    connect();
+
+    return () => {
+      disposed = true;
+      eventSource?.close();
+      window.clearTimeout(reconnectTimer);
+      window.clearTimeout(refreshTimer);
+    };
   }, [loadData]);
 
   return (

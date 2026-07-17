@@ -32,6 +32,10 @@ import {
   fetchTnOkrugaRows,
 } from "../../../../../utils/tnOkrugaApi";
 import {
+  TN_FILIALY_REZIM_UPDATED_EVENT,
+  TN_FILIALY_REZIM_UPDATED_STORAGE_KEY,
+} from "../../../../../utils/tnFilialyApi";
+import {
   buildOperationalMapBranchData,
   formatMapNumber,
   getBranchByDistrictName,
@@ -129,8 +133,7 @@ const EMPTY_DISTRICT_STYLE = new Style({
 const MAP_FALLBACK_CENTER = [38.25, 55.58];
 const MAP_FALLBACK_ZOOM = 8;
 const MAP_FIT_PADDING = [10, 6, 8, 6];
-const DISTRICT_REFRESH_INTERVAL_MS = 60 * 1000;
-const TN_OKRUGA_MAP_CACHE_KEY = "operationalDashboard.tnOkrugaRows";
+const TN_OKRUGA_MAP_CACHE_KEY = "operationalDashboard.tnOkrugaRows.filialModes.v1";
 const MAP_ZOOM_DELTA =
   Number.isFinite(Number(OPERATIONAL_MAP_SCALE)) && Number(OPERATIONAL_MAP_SCALE) > 0
     ? Math.log2(Number(OPERATIONAL_MAP_SCALE))
@@ -383,10 +386,14 @@ export default function OperationalMapPanel() {
     }
     loadFallbackFeatures();
     loadDistrictFeatures({ fit: !cachedRows.length });
-    const districtRefreshTimer = window.setInterval(
-      () => loadDistrictFeatures(),
-      DISTRICT_REFRESH_INTERVAL_MS
-    );
+    const handleFilialModeUpdated = () => loadDistrictFeatures();
+    const handleFilialModeStorageUpdated = (event) => {
+      if (event.key === TN_FILIALY_REZIM_UPDATED_STORAGE_KEY) {
+        loadDistrictFeatures();
+      }
+    };
+    window.addEventListener(TN_FILIALY_REZIM_UPDATED_EVENT, handleFilialModeUpdated);
+    window.addEventListener("storage", handleFilialModeStorageUpdated);
 
     const resizeObserver = new ResizeObserver(() => {
       window.requestAnimationFrame(() => {
@@ -401,7 +408,8 @@ export default function OperationalMapPanel() {
 
     return () => {
       cancelled = true;
-      window.clearInterval(districtRefreshTimer);
+      window.removeEventListener(TN_FILIALY_REZIM_UPDATED_EVENT, handleFilialModeUpdated);
+      window.removeEventListener("storage", handleFilialModeStorageUpdated);
       resizeObserver.disconnect();
       map.setTarget(null);
       mapRef.current = null;

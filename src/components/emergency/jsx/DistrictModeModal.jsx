@@ -12,11 +12,13 @@ import {
 } from "antd";
 import React from "react";
 import {
-  buildTnOkrugaSelectOptions,
-  fetchTnOkrugaRows,
-  getTnOkrugWriteId,
-  updateTnOkrugRezim,
-} from "../../../utils/tnOkrugaApi";
+  buildTnFilialySelectOptions,
+  fetchTnFilialyRows,
+  formatTnFilialyName,
+  getTnFilialyWriteId,
+  notifyTnFilialyRezimUpdated,
+  updateTnFilialyRezim,
+} from "../../../utils/tnFilialyApi";
 
 const DISTRICT_MODE_EMPTY = "bez_rezhima";
 const DISTRICT_MODE_OPTIONS = [
@@ -42,9 +44,9 @@ const DISTRICT_MODE_TAG_STYLES = {
   },
 };
 
-const buildDistrictModesFromRows = (rows) =>
+const buildFilialModesFromRows = (rows) =>
   (Array.isArray(rows) ? rows : []).reduce((acc, row) => {
-    const writeId = getTnOkrugWriteId(row);
+    const writeId = getTnFilialyWriteId(row);
     if (!writeId) return acc;
     if (!row?.rezim || row.rezim === DISTRICT_MODE_EMPTY) return acc;
     acc[String(writeId)] = row.rezim;
@@ -53,37 +55,37 @@ const buildDistrictModesFromRows = (rows) =>
 
 export default function DistrictModeModal({ open, onClose }) {
   const [messageApi, contextHolder] = message.useMessage();
-  const [districtModeOptions, setDistrictModeOptions] = React.useState([]);
-  const [districtModeRows, setDistrictModeRows] = React.useState([]);
-  const [districtModeLoading, setDistrictModeLoading] = React.useState(false);
-  const [districtModeSaving, setDistrictModeSaving] = React.useState(false);
-  const [resettingDistrictIds, setResettingDistrictIds] = React.useState(new Set());
-  const [selectedDistrictsForMode, setSelectedDistrictsForMode] = React.useState([]);
-  const [selectedDistrictMode, setSelectedDistrictMode] = React.useState(DISTRICT_MODE_EMPTY);
-  const [districtModes, setDistrictModes] = React.useState({});
+  const [filialModeOptions, setFilialModeOptions] = React.useState([]);
+  const [filialModeRows, setFilialModeRows] = React.useState([]);
+  const [filialModeLoading, setFilialModeLoading] = React.useState(false);
+  const [filialModeSaving, setFilialModeSaving] = React.useState(false);
+  const [resettingFilialIds, setResettingFilialIds] = React.useState(new Set());
+  const [selectedFilialsForMode, setSelectedFilialsForMode] = React.useState([]);
+  const [selectedFilialMode, setSelectedFilialMode] = React.useState(DISTRICT_MODE_EMPTY);
+  const [filialModes, setFilialModes] = React.useState({});
 
   React.useEffect(() => {
     if (!open) return undefined;
 
     let cancelled = false;
-    setDistrictModeLoading(true);
+    setFilialModeLoading(true);
 
-    fetchTnOkrugaRows()
+    fetchTnFilialyRows()
       .then((rows) => {
         if (cancelled) return;
-        setDistrictModeRows(rows);
-        setDistrictModeOptions(buildTnOkrugaSelectOptions(rows));
-        setDistrictModes(buildDistrictModesFromRows(rows));
+        setFilialModeRows(rows);
+        setFilialModeOptions(buildTnFilialySelectOptions(rows));
+        setFilialModes(buildFilialModesFromRows(rows));
       })
       .catch(() => {
         if (cancelled) return;
-        setDistrictModeRows([]);
-        setDistrictModeOptions([]);
-        setDistrictModes({});
-        messageApi.error("Не удалось загрузить округа");
+        setFilialModeRows([]);
+        setFilialModeOptions([]);
+        setFilialModes({});
+        messageApi.error("Не удалось загрузить филиалы");
       })
       .finally(() => {
-        if (!cancelled) setDistrictModeLoading(false);
+        if (!cancelled) setFilialModeLoading(false);
       });
 
     return () => {
@@ -91,82 +93,92 @@ export default function DistrictModeModal({ open, onClose }) {
     };
   }, [messageApi, open]);
 
-  const applyDistrictMode = async () => {
-    if (!selectedDistrictsForMode.length || districtModeSaving) return;
+  const applyFilialMode = async () => {
+    if (!selectedFilialsForMode.length || filialModeSaving) return;
 
-    setDistrictModeSaving(true);
+    setFilialModeSaving(true);
 
     try {
       const updatedRows = await Promise.all(
-        selectedDistrictsForMode.map((districtId) =>
-          updateTnOkrugRezim(districtId, selectedDistrictMode)
+        selectedFilialsForMode.map((filialId) =>
+          updateTnFilialyRezim(filialId, selectedFilialMode)
         )
       );
 
-      setDistrictModeRows((prev) => {
+      setFilialModeRows((prev) => {
         const updatedById = new Map(
           updatedRows
             .filter(Boolean)
-            .map((row) => [String(getTnOkrugWriteId(row)), row])
+            .map((row) => [String(getTnFilialyWriteId(row)), row])
         );
 
         return prev.map((row) => {
-          const writeId = getTnOkrugWriteId(row);
+          const writeId = getTnFilialyWriteId(row);
           return updatedById.get(String(writeId)) || row;
         });
       });
 
-      setDistrictModes((prev) => {
+      setFilialModes((prev) => {
         const next = { ...prev };
-        selectedDistrictsForMode.forEach((districtId) => {
-          const key = String(districtId);
-          if (selectedDistrictMode === DISTRICT_MODE_EMPTY) {
+        selectedFilialsForMode.forEach((filialId) => {
+          const key = String(filialId);
+          if (selectedFilialMode === DISTRICT_MODE_EMPTY) {
             delete next[key];
           } else {
-            next[key] = selectedDistrictMode;
+            next[key] = selectedFilialMode;
           }
         });
         return next;
       });
 
+      notifyTnFilialyRezimUpdated({
+        action: "set",
+        filialIds: selectedFilialsForMode,
+        rezim: selectedFilialMode,
+      });
       messageApi.success("Режимы сохранены");
     } catch (error) {
       messageApi.error("Не удалось сохранить режимы");
     } finally {
-      setDistrictModeSaving(false);
+      setFilialModeSaving(false);
     }
   };
 
-  const resetDistrictMode = async (districtId) => {
-    const key = String(districtId);
-    if (!districtModes[key] || resettingDistrictIds.has(key)) return;
+  const resetFilialMode = async (filialId) => {
+    const key = String(filialId);
+    if (!filialModes[key] || resettingFilialIds.has(key)) return;
 
-    setResettingDistrictIds((prev) => new Set(prev).add(key));
+    setResettingFilialIds((prev) => new Set(prev).add(key));
 
     try {
-      const updatedRow = await updateTnOkrugRezim(districtId, DISTRICT_MODE_EMPTY);
+      const updatedRow = await updateTnFilialyRezim(filialId, DISTRICT_MODE_EMPTY);
 
-      setDistrictModeRows((prev) =>
+      setFilialModeRows((prev) =>
         prev.map((row) => {
-          const writeId = getTnOkrugWriteId(row);
+          const writeId = getTnFilialyWriteId(row);
           return String(writeId) === key && updatedRow ? updatedRow : row;
         })
       );
 
-      setDistrictModes((prev) => {
+      setFilialModes((prev) => {
         const next = { ...prev };
         delete next[key];
         return next;
       });
-      setSelectedDistrictsForMode((prev) =>
+      setSelectedFilialsForMode((prev) =>
         prev.filter((selectedId) => String(selectedId) !== key)
       );
 
+      notifyTnFilialyRezimUpdated({
+        action: "reset",
+        filialIds: [filialId],
+        rezim: DISTRICT_MODE_EMPTY,
+      });
       messageApi.success("Режим отменён");
     } catch (error) {
       messageApi.error("Не удалось сбросить режим");
     } finally {
-      setResettingDistrictIds((prev) => {
+      setResettingFilialIds((prev) => {
         const next = new Set(prev);
         next.delete(key);
         return next;
@@ -174,60 +186,60 @@ export default function DistrictModeModal({ open, onClose }) {
     }
   };
 
-  const assignedDistrictModes = React.useMemo(() => {
+  const assignedFilialModes = React.useMemo(() => {
     const rowsByWriteId = new Map(
-      districtModeRows.map((row) => [String(getTnOkrugWriteId(row)), row])
+      filialModeRows.map((row) => [String(getTnFilialyWriteId(row)), row])
     );
 
-    return Object.entries(districtModes)
-      .map(([districtId, mode]) => ({
-        districtId,
+    return Object.entries(filialModes)
+      .map(([filialId, mode]) => ({
+        filialId,
         mode,
-        name: rowsByWriteId.get(String(districtId))?.name || districtId,
+        name: formatTnFilialyName(rowsByWriteId.get(String(filialId))?.name) || filialId,
       }))
       .sort((a, b) => a.name.localeCompare(b.name, "ru"));
-  }, [districtModeRows, districtModes]);
+  }, [filialModeRows, filialModes]);
 
   return (
     <>
       {contextHolder}
       <Modal
-        title="Режимы округов"
+        title="Режимы филиалов"
         open={open}
         onCancel={onClose}
         footer={[
           <Button
             key="apply"
             type="primary"
-            disabled={!selectedDistrictsForMode.length || districtModeLoading}
-            loading={districtModeSaving}
-            onClick={applyDistrictMode}
+            disabled={!selectedFilialsForMode.length || filialModeLoading}
+            loading={filialModeSaving}
+            onClick={applyFilialMode}
           >
             Применить
           </Button>,
-          <Button key="close" disabled={districtModeSaving} onClick={onClose}>
+          <Button key="close" disabled={filialModeSaving} onClick={onClose}>
             Закрыть
           </Button>,
         ]}
       >
-        <Spin spinning={districtModeLoading}>
+        <Spin spinning={filialModeLoading}>
           <Flex vertical gap={14}>
             <Flex vertical gap={6}>
-              <Typography.Text strong>Городские округа</Typography.Text>
+              <Typography.Text strong>Филиалы</Typography.Text>
               <Select
                 mode="multiple"
                 allowClear
                 showSearch
-                placeholder="Выберите один или несколько округов"
-                loading={districtModeLoading}
-                disabled={districtModeLoading || districtModeSaving}
-                value={selectedDistrictsForMode}
-                options={districtModeOptions}
-                onChange={setSelectedDistrictsForMode}
+                placeholder="Выберите один или несколько филиалов"
+                loading={filialModeLoading}
+                disabled={filialModeLoading || filialModeSaving}
+                value={selectedFilialsForMode}
+                options={filialModeOptions}
+                onChange={setSelectedFilialsForMode}
                 optionFilterProp="label"
                 maxTagCount="responsive"
                 notFoundContent={
-                  districtModeLoading ? <Spin size="small" /> : "Нет данных"
+                  filialModeLoading ? <Spin size="small" /> : "Нет данных"
                 }
               />
             </Flex>
@@ -237,27 +249,27 @@ export default function DistrictModeModal({ open, onClose }) {
               <Segmented
                 block
                 options={DISTRICT_MODE_OPTIONS}
-                value={selectedDistrictMode}
-                disabled={districtModeSaving}
-                onChange={setSelectedDistrictMode}
+                value={selectedFilialMode}
+                disabled={filialModeSaving}
+                onChange={setSelectedFilialMode}
               />
             </Flex>
 
             <Flex vertical gap={6}>
               <Typography.Text strong>Назначенные режимы</Typography.Text>
-              {assignedDistrictModes.length ? (
+              {assignedFilialModes.length ? (
                 <Space wrap>
-                  {assignedDistrictModes.map(({ districtId, name, mode }) => (
+                  {assignedFilialModes.map(({ filialId, name, mode }) => (
                     <Tag
-                      key={districtId}
+                      key={filialId}
                       closable
                       onClose={(event) => {
                         event.preventDefault();
-                        resetDistrictMode(districtId);
+                        resetFilialMode(filialId);
                       }}
                       style={{
                         ...(DISTRICT_MODE_TAG_STYLES[mode] || {}),
-                        opacity: resettingDistrictIds.has(String(districtId)) ? 0.55 : 1,
+                        opacity: resettingFilialIds.has(String(filialId)) ? 0.55 : 1,
                       }}
                     >
                       {name}: {DISTRICT_MODE_LABELS[mode] || mode}
