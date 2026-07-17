@@ -1,5 +1,6 @@
 .operational-districts-panel {
-  --operational-branches-table-font-size: 12px;
+  --operational-branches-table-font-size: 11px;
+  --operational-branches-table-header-font-size: 10px;
   display: flex;
 }
 
@@ -9,6 +10,7 @@
 
 .operational-districts-panel__table {
   height: 100%;
+  width: 100%;
 }
 
 .operational-districts-panel__mobile-list {
@@ -22,6 +24,7 @@
 .operational-districts-panel__table .ant-table-content,
 .operational-districts-panel__table table {
   height: 100%;
+  width: 100% !important;
 }
 
 .operational-districts-panel__table .ant-table {
@@ -32,16 +35,25 @@
   font-size: var(--operational-branches-table-font-size) !important;
 }
 
+.operational-districts-panel__table .ant-table-container {
+  overflow: hidden;
+}
+
 .operational-districts-panel__table .ant-table-thead > tr > th {
   border: 1px solid rgba(255, 255, 255, 0.72);
   background: #285a9c;
   color: #ffffff;
   font-weight: 700;
-  line-height: 1.15;
+  line-height: 1.08;
   text-align: center;
   white-space: normal;
   word-break: break-word;
-  font-size: var(--operational-branches-table-font-size) !important;
+  font-size: var(--operational-branches-table-header-font-size) !important;
+}
+
+.operational-districts-panel__table .operational-districts-panel__header-cell--nowrap {
+  white-space: nowrap;
+  word-break: normal;
 }
 
 .operational-districts-panel__table .ant-table-thead > tr > th:first-child,
@@ -50,37 +62,55 @@
   overflow-wrap: normal;
 }
 
+.operational-districts-panel__table .operational-districts-panel__branch-cell {
+  color: #0968ad;
+  font-weight: 700;
+  text-align: left !important;
+  white-space: nowrap;
+}
+
 .operational-districts-panel__table .ant-table-thead > tr > th::before {
   display: none;
 }
 
 .operational-districts-panel__table .ant-table-tbody > tr > td {
   border: 1px solid rgba(255, 255, 255, 0.72);
-  background: rgba(255, 255, 255, 0.5);
+  background: rgba(231, 242, 251, 0.88);
   color: #0a5f9d;
   font-weight: 500;
-  line-height: 1.08;
+  line-height: 1;
   word-break: break-word;
   font-size: var(--operational-branches-table-font-size) !important;
 }
 
 .operational-districts-panel__table .ant-table-tbody > tr:nth-child(odd) > td {
-  background: rgba(237, 246, 253, 0.72);
+  background: rgba(211, 226, 244, 0.9);
+}
+
+.operational-districts-panel__table .ant-table-tbody > tr:nth-child(even) > td {
+  background: rgba(226, 238, 249, 0.9);
 }
 
 .operational-districts-panel__table .ant-table-tbody > tr:hover > td {
-  background: rgba(255, 255, 255, 0.78);
+  background: rgba(242, 248, 253, 0.92);
 }
 
 .operational-districts-panel__table .operational-districts-panel__row--summary > td,
 .operational-districts-panel__table .operational-districts-panel__row--summary:hover > td {
-  background: rgba(126, 158, 210, 0.48);
-  color: #063f71;
+  background: #94add5 !important;
+  color: #111827 !important;
   font-weight: 700;
 }
 
+.operational-districts-panel__table .ant-table-tbody > tr.operational-districts-panel__row--summary > td,
+.operational-districts-panel__table .ant-table-tbody > tr.operational-districts-panel__row--summary > td.ant-table-cell,
+.operational-districts-panel__table .ant-table-tbody > tr.operational-districts-panel__row--summary .operational-districts-panel__branch-cell {
+  background: #94add5 !important;
+  color: #111827 !important;
+}
+
 .operational-districts-panel__table .ant-table-cell {
-  padding: clamp(4px, 0.45vh, 8px) 3px;
+  padding: clamp(3px, 0.36vh, 6px) 1px;
   font-size: var(--operational-branches-table-font-size) !important;
 }
 

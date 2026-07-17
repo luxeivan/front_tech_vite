@@ -26,7 +26,7 @@ export default function OperationalDistrictsPanel() {
     () =>
       OPERATIONAL_BRANCH_COLUMNS.map((column) => ({
         ...column,
-        align: column.dataIndex === "branch" ? "left" : "center",
+        align: "center",
         render: (value) => formatCellValue(value),
       })),
     []
