@@ -49,8 +49,38 @@ const SERVICES_URL =
 const BACKEND_URL = import.meta.env.VITE_URL_BACKEND;
 const OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast";
 
+const getWeatherHour = (time) => {
+  const match = String(time || "").match(/T(\d{2})/);
+  return match ? Number(match[1]) : NaN;
+};
+
+const formatPressureMmHg = (pressureHpa) => {
+  const pressure = Number(pressureHpa);
+  return Number.isFinite(pressure) ? formatMapNumber(pressure * 0.750061683) : "—";
+};
+
 const normalizeWeatherPayload = (payload) => {
   const current = payload?.current || {};
+  const hourly = payload?.hourly || {};
+  const times = Array.isArray(hourly.time) ? hourly.time : [];
+  const temperatures = Array.isArray(hourly.temperature_2m) ? hourly.temperature_2m : [];
+  const weatherCodes = Array.isArray(hourly.weather_code) ? hourly.weather_code : [];
+  const fallbackParts = [
+    { key: "night", label: "Ночь", hour: 3 },
+    { key: "morning", label: "Утро", hour: 9 },
+    { key: "day", label: "День", hour: 15 },
+    { key: "evening", label: "Вечер", hour: 21 },
+  ].map((part) => {
+    const index = times.findIndex((time) => getWeatherHour(time) === part.hour);
+
+    return {
+      ...part,
+      time: index >= 0 ? times[index] : null,
+      temperature: index >= 0 ? temperatures[index] : null,
+      weatherCode: index >= 0 ? weatherCodes[index] : null,
+    };
+  });
+
   return {
     ok: true,
     source: payload?.source || "open-meteo",
@@ -64,7 +94,9 @@ const normalizeWeatherPayload = (payload) => {
     windSpeed: payload?.windSpeed ?? current.wind_speed_10m,
     cloudCover: payload?.cloudCover ?? current.cloud_cover,
     precipitation: payload?.precipitation ?? current.precipitation,
+    pressure: payload?.pressure ?? current.surface_pressure,
     weatherCode: payload?.weatherCode ?? current.weather_code,
+    parts: Array.isArray(payload?.parts) ? payload.parts : fallbackParts,
   };
 };
 
@@ -85,7 +117,9 @@ const requestWeatherDirectly = async () => {
       latitude: OPERATIONAL_WEATHER_LOCATION.latitude,
       longitude: OPERATIONAL_WEATHER_LOCATION.longitude,
       current:
-        "temperature_2m,relative_humidity_2m,apparent_temperature,wind_speed_10m,cloud_cover,precipitation,weather_code",
+        "temperature_2m,relative_humidity_2m,apparent_temperature,wind_speed_10m,cloud_cover,precipitation,weather_code,surface_pressure",
+      hourly: "temperature_2m,weather_code",
+      forecast_days: 1,
       wind_speed_unit: "ms",
       timezone: "Europe/Moscow",
     },
@@ -264,22 +298,45 @@ function OperationalWeatherCard() {
   const tempText = Number.isFinite(temp)
     ? `${temp > 0 ? "+" : ""}${Math.round(temp)}°`
     : "—";
+  const parts = Array.isArray(weather.parts) ? weather.parts : [];
+  const formattedParts = parts.map((part) => {
+    const partView = getWeatherView(part.weatherCode);
+    const partTemp = Number(part.temperature);
+    return {
+      ...part,
+      icon: partView.icon,
+      temperatureText: Number.isFinite(partTemp)
+        ? `${partTemp > 0 ? "+" : ""}${Math.round(partTemp)}°`
+        : "—",
+    };
+  });
 
   return (
     <div className="operational-map-panel__weather" aria-label="Погода">
-      <div className="operational-map-panel__weather-main">
-        <span className="operational-map-panel__weather-icon" aria-hidden="true">
-          {view.icon}
-        </span>
-        <div>
-          <strong>{tempText}</strong>
-          <span>{view.label}</span>
+      <div className="operational-map-panel__weather-content">
+        <div className="operational-map-panel__weather-main">
+          <span className="operational-map-panel__weather-icon" aria-hidden="true">
+            {view.icon}
+          </span>
+          <div>
+            <strong>{tempText}</strong>
+            <span>{view.label}</span>
+          </div>
+        </div>
+        <div className="operational-map-panel__weather-parts" aria-label="Прогноз на сутки">
+          {formattedParts.map((part) => (
+            <span key={part.key} className="operational-map-panel__weather-part">
+              <b>{part.label}</b>
+              <i aria-hidden="true">{part.icon}</i>
+              <em>{part.temperatureText}</em>
+            </span>
+          ))}
         </div>
       </div>
       <div className="operational-map-panel__weather-details">
         <span>Ветер {formatMapNumber(weather.windSpeed, 1)} м/с</span>
+        <span>Давл. {formatPressureMmHg(weather.pressure)} мм рт. ст.</span>
         <span>Влажн. {formatMapNumber(weather.humidity)}%</span>
-        <span>Осадки {formatMapNumber(weather.precipitation, 1)} мм</span>
       </div>
     </div>
   );

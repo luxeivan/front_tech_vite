@@ -45,21 +45,22 @@
 }
 
 .operational-map-panel__topline {
+  --weather-card-width: min(28vw, 292px);
+
   position: absolute;
-  top: 14px;
+  top: 12px;
   right: 16px;
-  z-index: 2;
-  display: grid;
-  grid-template-columns: auto minmax(190px, 250px);
-  gap: 10px;
-  align-items: start;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
   pointer-events: none;
 }
 
 .operational-map-panel__time {
   display: grid;
-  gap: 2px;
-  padding-top: 2px;
+  gap: 0;
   color: #0061aa;
   font-weight: 800;
   line-height: 1.08;
@@ -69,19 +70,36 @@
 
 .operational-map-panel__time strong,
 .operational-map-panel__time span {
-  font-size: clamp(12px, 0.95vw, 16px);
+  font-size: clamp(13px, 1.05vw, 18px);
 }
 
 .operational-map-panel__weather {
+  position: relative;
   display: grid;
-  gap: 6px;
-  min-height: 54px;
-  padding: 8px 10px;
+  gap: 5px;
+  width: var(--weather-card-width);
+  min-width: 244px;
+  min-height: 76px;
+  padding: 8px 12px 9px;
   border-radius: 6px;
   background: linear-gradient(135deg, rgba(40, 90, 156, 0.95), rgba(85, 132, 195, 0.92));
   box-shadow: 0 12px 24px rgba(42, 83, 133, 0.18);
   color: #ffffff;
   pointer-events: auto;
+}
+
+.operational-map-panel__weather::after {
+  content: "";
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 100%;
+  height: 18px;
+  border-radius: 0 0 50% 50%;
+  background: linear-gradient(180deg, rgba(69, 116, 177, 0.24), rgba(69, 116, 177, 0));
+  filter: blur(4px);
+  transform: scaleY(0.75);
+  pointer-events: none;
 }
 
 .operational-map-panel__weather--loading,
@@ -97,6 +115,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 
 .operational-map-panel__weather-icon {
@@ -116,7 +135,7 @@
 }
 
 .operational-map-panel__weather-main strong {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 500;
   line-height: 1;
 }
@@ -127,9 +146,50 @@
   opacity: 0.9;
 }
 
+.operational-map-panel__weather-content {
+  display: grid;
+  grid-template-columns: minmax(84px, auto) 1fr;
+  gap: 8px;
+  align-items: center;
+}
+
+.operational-map-panel__weather-parts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  min-width: 0;
+}
+
+.operational-map-panel__weather-part {
+  display: grid;
+  gap: 1px;
+  justify-items: center;
+  min-width: 0;
+  color: rgba(255, 255, 255, 0.78);
+  line-height: 1;
+  text-align: center;
+}
+
+.operational-map-panel__weather-part b {
+  font-size: 8px;
+  font-weight: 600;
+}
+
+.operational-map-panel__weather-part i {
+  font-style: normal;
+  font-size: 13px;
+}
+
+.operational-map-panel__weather-part em {
+  font-style: normal;
+  font-size: 9px;
+  font-weight: 700;
+}
+
 .operational-map-panel__weather-details {
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 3px 8px;
   font-size: 9px;
   line-height: 1.1;
@@ -236,9 +296,11 @@
   }
 
   .operational-map-panel__topline {
+    --weather-card-width: min(100%, 300px);
+
     left: 10px;
     right: 10px;
-    grid-template-columns: 1fr;
+    align-items: flex-end;
   }
 
   .operational-map-panel__time {
@@ -247,7 +309,7 @@
 
   .operational-map-panel__weather {
     justify-self: end;
-    width: min(100%, 300px);
+    min-width: 0;
   }
 
   .operational-map-panel__legend {
