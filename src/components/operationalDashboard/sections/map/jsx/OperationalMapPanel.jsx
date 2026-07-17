@@ -533,15 +533,15 @@ export default function OperationalMapPanel() {
               <h4>Обесточено населения:</h4>
               <span>
                 <i style={{ background: OPERATIONAL_MAP_COLORS.low }} />
-                до 5000 чел.
+                - до 5000 чел.
               </span>
               <span>
                 <i style={{ background: OPERATIONAL_MAP_COLORS.medium }} />
-                от 5000 до 20000 чел.
+                - от 5000 до 20000 чел.
               </span>
               <span>
                 <i style={{ background: OPERATIONAL_MAP_COLORS.high }} />
-                более 20000 чел.
+                - более 20000 чел.
               </span>
             </div>
           </div>
