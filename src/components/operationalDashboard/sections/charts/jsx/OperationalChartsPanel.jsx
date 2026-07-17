@@ -15,7 +15,7 @@ import {
 import "../css/OperationalChartsPanel.css";
 
 const formatNumber = (value) => Number(value || 0).toLocaleString("ru-RU");
-const CHART_PADDING = [30, 18, 48, 54];
+const CHART_PADDING = [30, 18, 48, 18];
 
 const formatStatsDate = (value) => {
   if (!value) return null;
@@ -45,12 +45,6 @@ const getNextRefreshText = (value) => {
   return restMinutes ? `через ${hours} ч ${restMinutes} мин` : `через ${hours} ч`;
 };
 
-const getYAxisTicks = (data) => {
-  const maxValue = Math.max(0, ...data.map((item) => Number(item.value || 0)));
-  const maxTick = Math.max(10, Math.ceil(maxValue / 10) * 10);
-  return Array.from({ length: maxTick / 10 + 1 }, (_, index) => index * 10);
-};
-
 export default function OperationalChartsPanel() {
   const isStatsLoading = useOperationalDashboardStore((store) => store.isStatsLoading);
   const statsError = useOperationalDashboardStore((store) => store.statsError);
@@ -64,7 +58,6 @@ export default function OperationalChartsPanel() {
     [rowsCurrentYear]
   );
   const totals = useMemo(() => getBranchChartTotals(chartData), [chartData]);
-  const yAxisTicks = useMemo(() => getYAxisTicks(chartData), [chartData]);
   const statsDate = formatStatsDate(statsMeta?.calculatedAt);
   const nextRefresh = getNextRefreshText(statsMeta?.nextCalculatedAt);
 
@@ -90,29 +83,33 @@ export default function OperationalChartsPanel() {
       text: "value",
       position: "top",
       style: {
-        fill: "#1f4f84",
+        fill: "#0072c6",
+        fillOpacity: 1,
         textAlign: "center",
         textBaseline: "bottom",
         dx: 0,
         dy: -6,
         fontSize: 11,
-        fontWeight: 500,
+        fontWeight: 700,
       },
     },
     axis: {
       x: {
         title: false,
         labelFontSize: 10,
-        labelFill: "#1575bc",
-        labelFontWeight: 600,
+        labelFill: "#0072c6",
+        labelFillOpacity: 1,
+        labelOpacity: 1,
+        labelFontWeight: 700,
         labelTransform: "rotate(0)",
       },
       y: {
         title: false,
         label: false,
         tickLength: 0,
-        gridStroke: "#dfe9f4",
-        gridStrokeOpacity: 0.9,
+        gridStroke: "#c6d6e5",
+        gridStrokeOpacity: 0.85,
+        gridLineWidth: 1,
       },
     },
   };
@@ -140,11 +137,6 @@ export default function OperationalChartsPanel() {
           ) : hasLoaded && hasStatsLoaded ? (
             <>
               <div className="operational-charts-panel__chart">
-                <div className="operational-charts-panel__y-axis" aria-hidden="true">
-                  {yAxisTicks.map((tick) => (
-                    <span key={tick}>{formatNumber(tick)}</span>
-                  ))}
-                </div>
                 <Column {...config} />
               </div>
               <div className="operational-charts-panel__summary">
