@@ -54,8 +54,8 @@ export default function OperationalChartsPanel() {
   const statsMeta = useOperationalDashboardStore((store) => store.statsMeta);
 
   const chartData = useMemo(
-    () => buildBranchTechViolationChartData(rowsCurrentYear),
-    [rowsCurrentYear]
+    () => buildBranchTechViolationChartData(rowsCurrentYear, statsMeta),
+    [rowsCurrentYear, statsMeta]
   );
   const totals = useMemo(() => getBranchChartTotals(chartData), [chartData]);
   const statsDate = formatStatsDate(statsMeta?.calculatedAt);

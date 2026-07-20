@@ -9,11 +9,11 @@ import {
   OPERATIONAL_CHART_CURRENT_YEAR,
   OPERATIONAL_CHART_PREVIOUS_YEAR,
 } from "./operationalChartsPanel.config";
-import { OPERATIONAL_CHART_2025_VALUES } from "./operationalChartsPanel2025.data";
+import { getOperationalChart2025Values } from "./operationalChartsPanel2025.data";
 
 const branchLabel = (branch) => OPERATIONAL_CHART_BRANCH_LABELS[branch] || branch;
 
-export const buildBranchTechViolationChartData = (rowsCurrentYear) => {
+export const buildBranchTechViolationChartData = (rowsCurrentYear, statsMeta) => {
   const counts = new Map(OPERATIONAL_BRANCHES.map((branch) => [branch, 0]));
 
   (Array.isArray(rowsCurrentYear) ? rowsCurrentYear : []).forEach((row) => {
@@ -33,11 +33,13 @@ export const buildBranchTechViolationChartData = (rowsCurrentYear) => {
     );
   });
 
+  const previousYearValues = getOperationalChart2025Values(statsMeta);
+
   return OPERATIONAL_BRANCHES.flatMap((branch) => [
     {
       branch: branchLabel(branch),
       year: String(OPERATIONAL_CHART_PREVIOUS_YEAR),
-      value: OPERATIONAL_CHART_2025_VALUES[branch] || 0,
+      value: previousYearValues[branch] || 0,
     },
     {
       branch: branchLabel(branch),
