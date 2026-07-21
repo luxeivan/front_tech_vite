@@ -1,7 +1,8 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Table } from "antd";
 
 import useOperationalDashboardStore from "../../../../../stores/operationalDashboard/useOperationalDashboardStore";
+import { fetchTnFilialyRows } from "../../../../../utils/tnFilialyApi";
 import { OPERATIONAL_BRANCH_COLUMNS } from "../js/operationalDistrictsPanel.config";
 import {
   buildOperationalBranchRows,
@@ -21,11 +22,33 @@ export default function OperationalDistrictsPanel() {
   const rows = useOperationalDashboardStore((store) => store.rows);
   const isLoading = useOperationalDashboardStore((store) => store.isLoading);
   const hasLoaded = useOperationalDashboardStore((store) => store.hasLoaded);
+  const [filialRows, setFilialRows] = useState([]);
+  const [isFilialRowsLoading, setIsFilialRowsLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setIsFilialRowsLoading(true);
+
+    fetchTnFilialyRows()
+      .then((nextRows) => {
+        if (!cancelled) setFilialRows(nextRows);
+      })
+      .catch(() => {
+        if (!cancelled) setFilialRows([]);
+      })
+      .finally(() => {
+        if (!cancelled) setIsFilialRowsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const dataSource = useMemo(() => {
-    const branchRows = buildOperationalBranchRows(rows);
+    const branchRows = buildOperationalBranchRows(rows, filialRows);
     return [...branchRows, buildOperationalBranchSummary(branchRows)];
-  }, [rows]);
+  }, [filialRows, rows]);
 
   const columns = useMemo(
     () =>
@@ -71,7 +94,7 @@ export default function OperationalDistrictsPanel() {
           className="operational-districts-panel__table"
           columns={columns}
           dataSource={dataSource}
-          loading={isLoading && hasLoaded}
+          loading={(isLoading && hasLoaded) || isFilialRowsLoading}
           pagination={false}
           rowClassName={(record) =>
             record.key === "summary" ? "operational-districts-panel__row--summary" : ""

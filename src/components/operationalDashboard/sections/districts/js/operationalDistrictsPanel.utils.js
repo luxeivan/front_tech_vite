@@ -36,6 +36,7 @@ export const normalizeBranchName = (value) => {
 
   if (!normalized) return null;
 
+  if (normalized === "Коломенское") return "Коломенский";
   if (normalized === "Щёлковский") return "Щелковский";
   return normalized;
 };
@@ -82,16 +83,43 @@ const addRowToTotals = (totals, row) => {
   totals.pes += toNumber(pick(row, "PES_COUNT"));
 };
 
-const createBranchRow = (branch) => ({
+const getFilialMainResource = (row) =>
+  row?.osn_resours ?? row?.osn_resours_count ?? row?.osn_resource ?? row?.mainResource;
+
+const getFilialOvb = (row) => row?.ovb;
+
+const hasValue = (value) => value !== null && value !== undefined && value !== "";
+
+const buildBranchResourceMap = (filialRows) =>
+  (Array.isArray(filialRows) ? filialRows : []).reduce((acc, row) => {
+    const branch = normalizeBranchName(row?.name);
+    if (!branch) return acc;
+
+    const mainResource = getFilialMainResource(row);
+    const ovb = getFilialOvb(row);
+
+    acc.set(branch, {
+      mainResource: hasValue(mainResource) ? mainResource : OPERATIONAL_BRANCH_UNKNOWN_VALUE,
+      ovb: hasValue(ovb) ? ovb : OPERATIONAL_BRANCH_UNKNOWN_VALUE,
+    });
+
+    return acc;
+  }, new Map());
+
+const createBranchRow = (branch, branchResources) => ({
   key: branch,
   branch,
   ...EMPTY_NUMERIC_VALUES,
-  mainResource: OPERATIONAL_BRANCH_UNKNOWN_VALUE,
-  ovb: OPERATIONAL_BRANCH_UNKNOWN_VALUE,
+  mainResource:
+    branchResources?.get(branch)?.mainResource ?? OPERATIONAL_BRANCH_UNKNOWN_VALUE,
+  ovb: branchResources?.get(branch)?.ovb ?? OPERATIONAL_BRANCH_UNKNOWN_VALUE,
 });
 
-export const buildOperationalBranchRows = (rows) => {
-  const branchMap = new Map(OPERATIONAL_BRANCHES.map((branch) => [branch, createBranchRow(branch)]));
+export const buildOperationalBranchRows = (rows, filialRows = []) => {
+  const branchResources = buildBranchResourceMap(filialRows);
+  const branchMap = new Map(
+    OPERATIONAL_BRANCHES.map((branch) => [branch, createBranchRow(branch, branchResources)])
+  );
 
   (Array.isArray(rows) ? rows : [])
     .filter((row) => isOperationalDashboardRow(row) && isOpenTN(row))
@@ -111,15 +139,29 @@ export const buildOperationalBranchSummary = (rows) => {
     key: "summary",
     branch: "ВСЕГО",
     ...EMPTY_NUMERIC_VALUES,
-    mainResource: OPERATIONAL_BRANCH_UNKNOWN_VALUE,
-    ovb: OPERATIONAL_BRANCH_UNKNOWN_VALUE,
+    mainResource: 0,
+    ovb: 0,
   };
+  let hasMainResource = false;
+  let hasOvb = false;
 
   rows.forEach((row) => {
     Object.keys(EMPTY_NUMERIC_VALUES).forEach((field) => {
       summary[field] += toNumber(row[field]);
     });
+
+    if (row.mainResource !== OPERATIONAL_BRANCH_UNKNOWN_VALUE) {
+      summary.mainResource += toNumber(row.mainResource);
+      hasMainResource = true;
+    }
+    if (row.ovb !== OPERATIONAL_BRANCH_UNKNOWN_VALUE) {
+      summary.ovb += toNumber(row.ovb);
+      hasOvb = true;
+    }
   });
+
+  if (!hasMainResource) summary.mainResource = OPERATIONAL_BRANCH_UNKNOWN_VALUE;
+  if (!hasOvb) summary.ovb = OPERATIONAL_BRANCH_UNKNOWN_VALUE;
 
   return summary;
 };
