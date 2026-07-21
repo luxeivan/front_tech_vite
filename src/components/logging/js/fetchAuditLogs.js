@@ -14,9 +14,13 @@ export async function fetchAuditEvents(params = {}, jwt = "") {
   const query = {};
   const limit = Number(params.limit);
   if (Number.isFinite(limit) && limit > 0) query.limit = Math.min(1000, Math.trunc(limit));
+  const page = Number(params.page);
+  if (Number.isFinite(page) && page > 0) query.page = Math.trunc(page);
+  const pageSize = Number(params.pageSize);
+  if (Number.isFinite(pageSize) && pageSize > 0) query.pageSize = Math.min(100, Math.trunc(pageSize));
   if (params.action) query.action = String(params.action).trim();
   if (params.username) query.username = String(params.username).trim();
-  if (params.page) query.page = String(params.page).trim();
+  if (params.pagePath) query.pagePath = String(params.pagePath).trim();
   if (params.search) query.search = String(params.search).trim();
   if (params.from) query.from = String(params.from).trim();
   if (params.to) query.to = String(params.to).trim();

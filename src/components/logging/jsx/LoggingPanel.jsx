@@ -12,6 +12,7 @@ import {
   Table,
   Tag,
   Typography,
+  Pagination,
 } from "antd";
 import ruRU from "antd/locale/ru_RU";
 import dayjs from "dayjs";
@@ -23,7 +24,8 @@ import styles from "../css/LoggingPanel.module.css";
 const { RangePicker } = DatePicker;
 dayjs.locale("ru");
 
-const DEFAULT_LIMIT = 1000;
+const DEFAULT_PAGE_SIZE = 10;
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 
 const STATUS_OPTIONS = [
   { label: "Все статусы", value: "" },
@@ -102,7 +104,7 @@ function toReadableTime(v) {
 
 function formatPeriodText(period) {
   const [from, to] = Array.isArray(period) ? period : [];
-  if (!from && !to) return "Показаны записи за последние 24 часа.";
+  if (!from && !to) return "Показаны все записи журнала.";
   if (from && to) {
     return `Период: ${dayjs(from).format("DD.MM.YYYY HH:mm")} - ${dayjs(to).format("DD.MM.YYYY HH:mm")} (МСК).`;
   }
@@ -136,19 +138,20 @@ function createDefaultFilters() {
   return {
     username: "",
     page: "",
-    period: [dayjs().subtract(24, "hour"), dayjs()],
+    period: [],
     statusEvent: "",
     tnType: "guid",
     tnValue: "",
   };
 }
 
-function buildRequestFilters(filters) {
+function buildRequestFilters(filters, pagination) {
   const [from, to] = Array.isArray(filters.period) ? filters.period : [];
   return {
-    limit: DEFAULT_LIMIT,
+    page: pagination.page,
+    pageSize: pagination.pageSize,
     username: String(filters.username || "").trim(),
-    page: String(filters.page || "").trim(),
+    pagePath: String(filters.page || "").trim(),
     from: from && dayjs.isDayjs(from) ? from.toISOString() : "",
     to: to && dayjs.isDayjs(to) ? to.toISOString() : "",
     statusEvent: String(filters.statusEvent || "").trim(),
@@ -195,6 +198,11 @@ export default function LoggingPanel() {
   const [rows, setRows] = useState([]);
   const [errorText, setErrorText] = useState("");
   const [filters, setFilters] = useState(createDefaultFilters);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    pageSize: DEFAULT_PAGE_SIZE,
+    total: 0,
+  });
   const [userOptions, setUserOptions] = useState([]);
   const [userLoading, setUserLoading] = useState(false);
   const [tableScrollY, setTableScrollY] = useState(() => {
@@ -229,9 +237,9 @@ export default function LoggingPanel() {
   );
 
   const load = useCallback(
-    async (nextFilters, { silent = false } = {}) => {
+    async (nextFilters, nextPagination, { silent = false } = {}) => {
       const jwt = localStorage.getItem("jwt") || "";
-      const requestFilters = buildRequestFilters(nextFilters);
+      const requestFilters = buildRequestFilters(nextFilters, nextPagination);
       if (!silent) setLoading(true);
       setErrorText("");
 
@@ -239,7 +247,14 @@ export default function LoggingPanel() {
         const eventsResp = await fetchAuditEvents(requestFilters, jwt);
 
         const data = Array.isArray(eventsResp?.data) ? eventsResp.data : [];
+        const meta = eventsResp?.meta || {};
         setRows(data);
+        setPagination((prev) => ({
+          ...prev,
+          page: Number(meta.page) || nextPagination.page,
+          pageSize: Number(meta.pageSize) || nextPagination.pageSize,
+          total: Number(meta.total) || 0,
+        }));
         if (eventsResp?.ok === false) {
           setErrorText(String(eventsResp?.message || "Не удалось получить данные журнала"));
         }
@@ -264,7 +279,7 @@ export default function LoggingPanel() {
   );
 
   useEffect(() => {
-    load(filters);
+    load(filters, pagination);
     loadUsers("");
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -321,13 +336,19 @@ export default function LoggingPanel() {
       return;
     }
     const timer = setTimeout(() => {
-      load(filters);
+      load(filters, pagination);
     }, 300);
     return () => clearTimeout(timer);
-  }, [filters, load]);
+  }, [filters, pagination.page, pagination.pageSize, load]);
+
+  const updateFilters = (updater) => {
+    setPagination((prev) => ({ ...prev, page: 1 }));
+    setFilters(updater);
+  };
 
   const resetFilters = async () => {
     const next = createDefaultFilters();
+    setPagination((prev) => ({ ...prev, page: 1, pageSize: DEFAULT_PAGE_SIZE }));
     setFilters(next);
     await loadUsers("");
   };
@@ -350,18 +371,18 @@ export default function LoggingPanel() {
           const isAutoSend = isAutoSendRow(row);
 
           return (
-          <div
-            className={
-              isAutoSend
-                ? `${styles.userOption} ${styles.autoSendUser}`
-                : styles.userOption
-            }
-          >
-            <div>{isAutoSend ? "Автоотправка" : row?.username || "—"}</div>
-            {row?.email && !isAutoSend ? (
-              <div className={styles.userEmail}>{row.email}</div>
-            ) : null}
-          </div>
+            <div
+              className={
+                isAutoSend
+                  ? `${styles.userOption} ${styles.autoSendUser}`
+                  : styles.userOption
+              }
+            >
+              <div>{isAutoSend ? "Автоотправка" : row?.username || "—"}</div>
+              {row?.email && !isAutoSend ? (
+                <div className={styles.userEmail}>{row.email}</div>
+              ) : null}
+            </div>
           );
         },
       },
@@ -425,7 +446,7 @@ export default function LoggingPanel() {
               showTime
               allowEmpty={[true, true]}
               format="DD.MM.YYYY HH:mm"
-              onChange={(value) => setFilters((s) => ({ ...s, period: value || [] }))}
+              onChange={(value) => updateFilters((s) => ({ ...s, period: value || [] }))}
             />
           </Col>
 
@@ -435,7 +456,7 @@ export default function LoggingPanel() {
               className={styles.fullWidth}
               value={filters.statusEvent}
               options={STATUS_OPTIONS}
-              onChange={(v) => setFilters((s) => ({ ...s, statusEvent: v }))}
+              onChange={(v) => updateFilters((s) => ({ ...s, statusEvent: v }))}
             />
           </Col>
 
@@ -452,7 +473,7 @@ export default function LoggingPanel() {
               filterOption={false}
               onFocus={() => loadUsers(filters.username)}
               onSearch={(v) => loadUsers(v)}
-              onChange={(v) => setFilters((s) => ({ ...s, username: v || "" }))}
+              onChange={(v) => updateFilters((s) => ({ ...s, username: v || "" }))}
             />
           </Col>
 
@@ -462,13 +483,13 @@ export default function LoggingPanel() {
               <Segmented
                 value={filters.tnType}
                 options={TN_TYPE_OPTIONS}
-                onChange={(v) => setFilters((s) => ({ ...s, tnType: String(v) }))}
+                onChange={(v) => updateFilters((s) => ({ ...s, tnType: String(v) }))}
               />
               <Input
                 className={styles.fullWidth}
                 placeholder={filters.tnType === "number" ? "Введите номер ТН" : "Введите GUID ТН"}
                 value={filters.tnValue}
-                onChange={(e) => setFilters((s) => ({ ...s, tnValue: e.target.value }))}
+                onChange={(e) => updateFilters((s) => ({ ...s, tnValue: e.target.value }))}
               />
             </div>
           </Col>
@@ -479,7 +500,7 @@ export default function LoggingPanel() {
               className={styles.fullWidth}
               value={filters.page}
               options={PAGE_OPTIONS}
-              onChange={(v) => setFilters((s) => ({ ...s, page: v }))}
+              onChange={(v) => updateFilters((s) => ({ ...s, page: v }))}
             />
           </Col>
 
@@ -505,35 +526,27 @@ export default function LoggingPanel() {
             loading={loading}
             columns={columns}
             dataSource={rows}
-            pagination={{
-              size: "small",
-              pageSize: 10,
-              showSizeChanger: false,
-              showQuickJumper: { goButton: "Перейти" },
-              showTotal: (total) => `Всего: ${total}`,
-              locale: {
-                items_per_page: "/ стр.",
-                jump_to: "К странице",
-                page: "",
-                prev_page: "Предыдущая страница",
-                next_page: "Следующая страница",
-                prev_5: "Предыдущие 5 страниц",
-                next_5: "Следующие 5 страниц",
-                prev_3: "Предыдущие 3 страницы",
-                next_3: "Следующие 3 страницы",
-              },
-              itemRender: (page, type, element) => {
-                if (type === "prev") return <a>Назад</a>;
-                if (type === "next") return <a>Вперед</a>;
-                return element;
-              },
-            }}
+            pagination={false}
             scroll={isLaptop15 ? { x: 1150, y: tableScrollY } : { y: tableScrollY }}
             tableLayout="fixed"
             style={{ width: "100%" }}
             size="small"
             locale={{ emptyText: "Нет данных по выбранным фильтрам" }}
           />
+          <div className={styles.paginationWrap}>
+            <Pagination
+              align="center"
+              total={pagination.total}
+              current={pagination.page}
+              pageSize={pagination.pageSize}
+              pageSizeOptions={PAGE_SIZE_OPTIONS}
+              showSizeChanger
+              onChange={(page, pageSize) =>
+                setPagination((prev) => ({ ...prev, page, pageSize }))
+              }
+              showTotal={(total, range) => `${range[0]}-${range[1]} из ${total} записей`}
+            />
+          </div>
         </div>
       </div>
     </ConfigProvider>

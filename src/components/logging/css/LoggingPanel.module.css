@@ -74,6 +74,10 @@
   min-height: 0;
 }
 
+.paginationWrap {
+  margin-top: 10px;
+}
+
 .tableWrap :global(.ant-table-wrapper) {
   width: 100%;
 }
