@@ -5,12 +5,15 @@
 }
 
 .operational-dashboard__panel--districts .operational-dashboard__panel-body {
+  min-width: 0;
+  overflow: hidden;
   padding: 8px;
 }
 
 .operational-districts-panel__table {
   height: 100%;
   width: 100%;
+  min-width: 0;
 }
 
 .operational-districts-panel__mobile-list {
@@ -21,10 +24,13 @@
 .operational-districts-panel__table .ant-spin-container,
 .operational-districts-panel__table .ant-table,
 .operational-districts-panel__table .ant-table-container,
-.operational-districts-panel__table .ant-table-content,
-.operational-districts-panel__table table {
+.operational-districts-panel__table .ant-table-content {
   height: 100%;
   width: 100% !important;
+}
+
+.operational-districts-panel__table table {
+  height: 100%;
 }
 
 .operational-districts-panel__table .ant-table {
@@ -37,6 +43,16 @@
 
 .operational-districts-panel__table .ant-table-container {
   overflow: hidden;
+}
+
+.operational-districts-panel__table .ant-table-content {
+  overflow-x: auto !important;
+  overflow-y: hidden;
+}
+
+.operational-districts-panel__table .ant-table-content > table {
+  min-width: 912px;
+  width: max-content !important;
 }
 
 .operational-districts-panel__table .ant-table-thead > tr > th {

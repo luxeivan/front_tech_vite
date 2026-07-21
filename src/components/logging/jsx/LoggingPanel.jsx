@@ -119,6 +119,19 @@ function statusTag(value) {
   return <Tag>—</Tag>;
 }
 
+function isAutoSendRow(row) {
+  const username = String(row?.username || "").trim().toLowerCase();
+  const role = String(row?.role || row?.view_role || "").trim().toLowerCase();
+  const page = String(row?.page || "").trim().toLowerCase();
+  const action = String(row?.action || "").trim().toLowerCase();
+
+  return (
+    username === "unknown" &&
+    role === "system" &&
+    (page === "/services/edds" || action === "edds_send")
+  );
+}
+
 function createDefaultFilters() {
   return {
     username: "",
@@ -333,19 +346,32 @@ export default function LoggingPanel() {
         dataIndex: "username",
         key: "username",
         width: columnSizes.user,
-        render: (_, row) => (
-          <div className={styles.userOption}>
-            <div>{row?.username || "—"}</div>
-            {row?.email ? <div className={styles.userEmail}>{row.email}</div> : null}
+        render: (_, row) => {
+          const isAutoSend = isAutoSendRow(row);
+
+          return (
+          <div
+            className={
+              isAutoSend
+                ? `${styles.userOption} ${styles.autoSendUser}`
+                : styles.userOption
+            }
+          >
+            <div>{isAutoSend ? "Автоотправка" : row?.username || "—"}</div>
+            {row?.email && !isAutoSend ? (
+              <div className={styles.userEmail}>{row.email}</div>
+            ) : null}
           </div>
-        ),
+          );
+        },
       },
       {
         title: "Роль",
         dataIndex: "role",
         key: "role",
         width: columnSizes.role,
-        render: (v) => <Tag>{v || "—"}</Tag>,
+        render: (v, row) =>
+          isAutoSendRow(row) ? <Tag color="cyan">system</Tag> : <Tag>{v || "—"}</Tag>,
       },
       {
         title: "Статус",

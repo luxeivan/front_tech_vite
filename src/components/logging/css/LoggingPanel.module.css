@@ -57,6 +57,18 @@
   font-size: 12px;
 }
 
+.autoSendUser {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  padding: 4px 8px;
+  border: 1px solid #67e8f9;
+  border-radius: 6px;
+  background: #ecfeff;
+  color: #0e7490;
+  font-weight: 700;
+}
+
 .tableWrap {
   flex: 1;
   min-height: 0;

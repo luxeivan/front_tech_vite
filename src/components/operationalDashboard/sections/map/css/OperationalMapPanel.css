@@ -284,6 +284,49 @@
   border-radius: 1px;
 }
 
+@media (min-width: 1281px) and (max-width: 1540px) {
+  .operational-map-panel__topline {
+    --weather-card-width: 236px;
+
+    top: 8px;
+    right: 10px;
+  }
+
+  .operational-map-panel__weather {
+    min-width: 0;
+    min-height: 64px;
+    padding: 7px 9px 8px;
+  }
+
+  .operational-map-panel__weather-content {
+    grid-template-columns: minmax(72px, auto) 1fr;
+    gap: 6px;
+  }
+
+  .operational-map-panel__weather-main {
+    gap: 6px;
+  }
+
+  .operational-map-panel__weather-icon {
+    width: 28px;
+    height: 28px;
+    font-size: 22px;
+  }
+
+  .operational-map-panel__weather-main strong {
+    font-size: 21px;
+  }
+
+  .operational-map-panel__weather-parts {
+    gap: 3px;
+  }
+
+  .operational-map-panel__weather-details {
+    gap: 2px 6px;
+    font-size: 8px;
+  }
+}
+
 @media (max-width: 1280px) {
   .operational-map-panel {
     height: auto;

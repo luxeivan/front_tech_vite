@@ -46,6 +46,8 @@ function humanAction(action) {
     tn_field_edit: "Изменил поле ТН",
     tn_description_edit: "Изменил описание ТН",
     tn_resource_edit: "Изменил ресурсные поля ТН",
+    filial_mode_set: "Ввел режим филиала",
+    filial_mode_reset: "Отменил режим филиала",
     send_edds_ok: "Отправил ТН в ЕДДС",
     send_edds_error: "Ошибка отправки ТН в ЕДДС",
     send_mes_ok: "Отправил ТН в МосЭнергоСбыт",

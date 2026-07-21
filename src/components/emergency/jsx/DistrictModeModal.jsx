@@ -11,6 +11,8 @@ import {
   message,
 } from "antd";
 import React from "react";
+import useAuth from "../../../stores/useAuth";
+import { logAuditEvent } from "../../../utils/auditLogger";
 import {
   buildTnFilialySelectOptions,
   fetchTnFilialyRows,
@@ -53,7 +55,26 @@ const buildFilialModesFromRows = (rows) =>
     return acc;
   }, {});
 
+const getModeLabel = (mode) => DISTRICT_MODE_LABELS[mode] || mode || "Без режима";
+
+const buildAuditFilials = (rows, filialIds) => {
+  const rowsByWriteId = new Map(
+    (Array.isArray(rows) ? rows : [])
+      .map((row) => [String(getTnFilialyWriteId(row)), row])
+      .filter(([writeId]) => writeId)
+  );
+
+  return (Array.isArray(filialIds) ? filialIds : []).map((filialId) => {
+    const row = rowsByWriteId.get(String(filialId));
+    return {
+      id: String(filialId),
+      name: formatTnFilialyName(row?.name) || String(filialId),
+    };
+  });
+};
+
 export default function DistrictModeModal({ open, onClose }) {
+  const user = useAuth((store) => store.user);
   const [messageApi, contextHolder] = message.useMessage();
   const [filialModeOptions, setFilialModeOptions] = React.useState([]);
   const [filialModeRows, setFilialModeRows] = React.useState([]);
@@ -99,17 +120,29 @@ export default function DistrictModeModal({ open, onClose }) {
     setFilialModeSaving(true);
 
     try {
-      const updatedRows = await Promise.all(
+      const results = await Promise.allSettled(
         selectedFilialsForMode.map((filialId) =>
-          updateTnFilialyRezim(filialId, selectedFilialMode)
+          updateTnFilialyRezim(filialId, selectedFilialMode).then((row) => ({
+            filialId,
+            row,
+          }))
         )
       );
+      const appliedUpdates = results
+        .filter((result) => result.status === "fulfilled")
+        .map((result) => result.value)
+        .filter(({ row }) => row);
+      const failedCount = results.length - appliedUpdates.length;
+      const appliedFilialIds = appliedUpdates.map(({ filialId }) => filialId);
+
+      if (!appliedUpdates.length) {
+        messageApi.error("Не удалось сохранить режимы");
+        return;
+      }
 
       setFilialModeRows((prev) => {
         const updatedById = new Map(
-          updatedRows
-            .filter(Boolean)
-            .map((row) => [String(getTnFilialyWriteId(row)), row])
+          appliedUpdates.map(({ row }) => [String(getTnFilialyWriteId(row)), row])
         );
 
         return prev.map((row) => {
@@ -120,7 +153,7 @@ export default function DistrictModeModal({ open, onClose }) {
 
       setFilialModes((prev) => {
         const next = { ...prev };
-        selectedFilialsForMode.forEach((filialId) => {
+        appliedFilialIds.forEach((filialId) => {
           const key = String(filialId);
           if (selectedFilialMode === DISTRICT_MODE_EMPTY) {
             delete next[key];
@@ -132,12 +165,40 @@ export default function DistrictModeModal({ open, onClose }) {
       });
 
       notifyTnFilialyRezimUpdated({
-        action: "set",
-        filialIds: selectedFilialsForMode,
+        action: selectedFilialMode === DISTRICT_MODE_EMPTY ? "reset" : "set",
+        filialIds: appliedFilialIds,
         rezim: selectedFilialMode,
       });
-      messageApi.success("Режимы сохранены");
-    } catch (error) {
+      await logAuditEvent(
+        {
+          action:
+            selectedFilialMode === DISTRICT_MODE_EMPTY
+              ? "filial_mode_reset"
+              : "filial_mode_set",
+          entity: "tn_filialy_rezim",
+          entity_id: appliedFilialIds.map(String).join(","),
+          details: {
+            filial_ids: appliedFilialIds.map(String),
+            filials: buildAuditFilials(
+              [...filialModeRows, ...appliedUpdates.map(({ row }) => row)],
+              appliedFilialIds
+            ),
+            mode: selectedFilialMode,
+            mode_label: getModeLabel(selectedFilialMode),
+            applied_count: appliedFilialIds.length,
+            failed_count: failedCount,
+          },
+        },
+        user
+      );
+      if (failedCount > 0) {
+        messageApi.warning(
+          `Режим сохранён для ${appliedFilialIds.length}, не сохранён для ${failedCount}`
+        );
+      } else {
+        messageApi.success("Режимы сохранены");
+      }
+    } catch {
       messageApi.error("Не удалось сохранить режимы");
     } finally {
       setFilialModeSaving(false);
@@ -174,6 +235,27 @@ export default function DistrictModeModal({ open, onClose }) {
         filialIds: [filialId],
         rezim: DISTRICT_MODE_EMPTY,
       });
+      await logAuditEvent(
+        {
+          action: "filial_mode_reset",
+          entity: "tn_filialy_rezim",
+          entity_id: key,
+          details: {
+            filial_ids: [key],
+            filials: buildAuditFilials(
+              [...filialModeRows, updatedRow].filter(Boolean),
+              [filialId]
+            ),
+            mode: DISTRICT_MODE_EMPTY,
+            mode_label: getModeLabel(DISTRICT_MODE_EMPTY),
+            previous_mode: filialModes[key],
+            previous_mode_label: getModeLabel(filialModes[key]),
+            applied_count: 1,
+            failed_count: 0,
+          },
+        },
+        user
+      );
       messageApi.success("Режим отменён");
     } catch (error) {
       messageApi.error("Не удалось сбросить режим");

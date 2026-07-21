@@ -12,6 +12,11 @@ import "../css/OperationalDistrictsPanel.css";
 const formatCellValue = (value) =>
   typeof value === "number" ? new Intl.NumberFormat("ru-RU").format(value) : value;
 
+const OPERATIONAL_BRANCH_TABLE_SCROLL_X = OPERATIONAL_BRANCH_COLUMNS.reduce(
+  (sum, column) => sum + Number(column.width || 0),
+  0
+);
+
 export default function OperationalDistrictsPanel() {
   const rows = useOperationalDashboardStore((store) => store.rows);
   const isLoading = useOperationalDashboardStore((store) => store.isLoading);
@@ -72,6 +77,7 @@ export default function OperationalDistrictsPanel() {
             record.key === "summary" ? "operational-districts-panel__row--summary" : ""
           }
           size="small"
+          scroll={{ x: OPERATIONAL_BRANCH_TABLE_SCROLL_X }}
           tableLayout="fixed"
         />
       </div>
