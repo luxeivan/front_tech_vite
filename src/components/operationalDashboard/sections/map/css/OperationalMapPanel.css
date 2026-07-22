@@ -76,6 +76,10 @@
   pointer-events: none;
 }
 
+.operational-map-panel__topline--mobile {
+  display: none;
+}
+
 .operational-map-panel__time {
   display: grid;
   gap: 0;
@@ -494,5 +498,81 @@
   .operational-map-panel__legend span {
     gap: 5px;
     font-size: 9px;
+  }
+}
+
+.operational-map-panel--filial .operational-map-panel__surface {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 8px 18px;
+  height: 100%;
+  padding: 10px 16px 12px;
+  overflow: hidden;
+}
+
+.operational-map-panel--filial .operational-map-panel__map-frame {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  height: auto;
+  min-height: 0;
+}
+
+.operational-map-panel--filial .operational-map-panel__mode-legend,
+.operational-map-panel--filial .operational-map-panel__legend {
+  position: relative;
+  inset: auto;
+  z-index: 10;
+  align-self: end;
+  pointer-events: none;
+}
+
+.operational-map-panel--filial .operational-map-panel__mode-legend {
+  grid-column: 1;
+  grid-row: 2;
+  justify-self: start;
+}
+
+.operational-map-panel--filial .operational-map-panel__legend {
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: end;
+}
+
+@media (max-width: 768px) {
+  .operational-map-panel--filial .operational-map-panel__surface {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(320px, 46vh) auto auto;
+    gap: 8px;
+    height: auto;
+    overflow: visible;
+    padding: 10px 10px 12px;
+  }
+
+  .operational-map-panel--filial .operational-map-panel__topline--mobile {
+    --weather-card-width: min(100%, 320px);
+
+    display: flex;
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: end;
+    width: min(100%, var(--weather-card-width));
+  }
+
+  .operational-map-panel--filial .operational-map-panel__map-frame {
+    grid-column: 1;
+    grid-row: 2;
+    min-height: 320px;
+  }
+
+  .operational-map-panel--filial .operational-map-panel__mode-legend {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  .operational-map-panel--filial .operational-map-panel__legend {
+    grid-column: 1;
+    grid-row: 4;
+    justify-self: start;
   }
 }

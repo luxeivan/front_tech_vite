@@ -4,10 +4,19 @@
 
 .operational-filial-page__header {
   display: grid;
-  grid-template-columns: minmax(72px, 1fr) auto minmax(72px, 1fr);
+  grid-template-columns: minmax(180px, 1fr) minmax(0, auto) minmax(360px, 1fr);
+  grid-template-areas: "nav title topline";
   align-items: start;
   gap: 16px;
   margin-bottom: 10px;
+}
+
+.operational-filial-page__nav {
+  grid-area: nav;
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  min-width: 0;
 }
 
 .operational-filial-page__back {
@@ -20,6 +29,7 @@
 }
 
 .operational-filial-page__heading {
+  grid-area: title;
   display: grid;
   justify-items: center;
   gap: 4px;
@@ -33,11 +43,43 @@
 .operational-filial-page__filial-name {
   margin: 0;
   color: #006eb8;
-  font-size: clamp(18px, 1.75vw, 28px);
+  font-size: clamp(14px, 1.15vw, 20px);
   font-weight: 800;
-  line-height: 1.05;
-  text-align: center;
+  line-height: 1.12;
+  text-align: left;
   text-transform: uppercase;
+}
+
+.operational-filial-page__topline.operational-map-panel__topline {
+  --weather-card-width: min(30vw, 320px);
+
+  grid-area: topline;
+  position: relative;
+  top: auto;
+  right: auto;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: auto minmax(0, var(--weather-card-width));
+  align-items: center;
+  gap: 12px;
+  justify-self: end;
+  width: min(100%, 520px);
+  pointer-events: auto;
+}
+
+.operational-filial-page__topline .operational-map-panel__time {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-self: start;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.operational-filial-page__topline .operational-map-panel__weather {
+  width: 100%;
+  min-width: 0;
+  justify-self: end;
 }
 
 .operational-filial-page__grid {
@@ -51,11 +93,24 @@
 @media (max-width: 768px) {
   .operational-filial-page__header {
     grid-template-columns: 1fr;
-    justify-items: center;
+    grid-template-areas:
+      "nav"
+      "title";
+    align-items: center;
+    justify-items: stretch;
     gap: 8px;
   }
 
-  .operational-filial-page__back {
-    justify-self: start;
+  .operational-filial-page__heading {
+    justify-items: center;
+  }
+
+  .operational-filial-page__filial-name {
+    max-width: 120px;
+    font-size: 12px;
+  }
+
+  .operational-filial-page__topline.operational-map-panel__topline {
+    display: none;
   }
 }

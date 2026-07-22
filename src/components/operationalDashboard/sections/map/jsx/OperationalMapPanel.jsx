@@ -212,6 +212,50 @@ const getModeStrokeColor = (mode) => {
 const getFeatureFilialName = (feature) =>
   String(feature?.get?.("filial_name") || "").trim();
 
+const getFeaturePoName = (feature) =>
+  String(feature?.get?.("po_name") || "").trim();
+
+const getFeatureHoverName = (feature, hoverGroup) => {
+  if (hoverGroup === "po") return getFeaturePoName(feature);
+  if (hoverGroup === "none") return "";
+  return getFeatureFilialName(feature);
+};
+
+const isFeatureInHoverGroup = (feature, hoverGroup, hoverName) => {
+  if (!hoverName) return false;
+  return getFeatureHoverName(feature, hoverGroup) === hoverName;
+};
+
+const getFeatureDistrictLabel = (feature) =>
+  String(feature?.get?.("name") || feature?.get?.("district") || "")
+    .replace(/\s+городской\s+округ$/i, "")
+    .replace(/\s+муниципальный\s+округ$/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const wrapMapLabel = (value, compact = false) => {
+  const label = String(value || "").trim();
+  if (!label) return "";
+
+  const maxLineLength = compact ? 10 : 14;
+  if (label.includes("-")) return label.replace(/-/g, "-\n");
+  if (label.length <= maxLineLength) return label;
+
+  const lines = [];
+  let currentLine = "";
+  label.split(" ").forEach((word) => {
+    const nextLine = currentLine ? `${currentLine} ${word}` : word;
+    if (nextLine.length > maxLineLength && currentLine) {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = nextLine;
+    }
+  });
+  if (currentLine) lines.push(currentLine);
+  return lines.join("\n");
+};
+
 const getRowsByFilialName = (rows, filialName) => {
   const normalizedFilialName = normalizeOperationalFilialName(filialName);
   if (!normalizedFilialName) return rows;
@@ -242,7 +286,11 @@ const writeCachedTnOkrugaRows = (rows) => {
   }
 };
 
-const getDistrictStyle = (feature, branchDataByBranch) => {
+const getDistrictStyle = (
+  feature,
+  branchDataByBranch,
+  { showDistrictLabels = false, compactLabels = false } = {}
+) => {
   const districtName = feature.get("district");
   const modeStrokeColor = getModeStrokeColor(feature.get("rezim"));
   const branch = getBranchByDistrictName(districtName);
@@ -250,7 +298,11 @@ const getDistrictStyle = (feature, branchDataByBranch) => {
   const people = branchData?.people || 0;
   const fillColor = people > 0 ? branchData.color : "rgba(255, 255, 255, 0.96)";
   const strokeColor = modeStrokeColor || (people > 0 ? "#ffffff" : "#cfd6de");
-  const label = people > 0 ? `${branch}\n${formatMapNumber(people)}` : "";
+  const label = showDistrictLabels
+    ? ""
+    : people > 0
+      ? `${branch}\n${formatMapNumber(people)}`
+      : "";
 
   return new Style({
     zIndex: modeStrokeColor ? 10 : 1,
@@ -265,13 +317,35 @@ const getDistrictStyle = (feature, branchDataByBranch) => {
     }),
     text: new Text({
       text: label,
-      overflow: false,
+      overflow: showDistrictLabels,
       fill: new Fill({ color: "#1575bc" }),
       stroke: new Stroke({ color: "#ffffff", width: 3 }),
-      font: "600 10px Arial, sans-serif",
+      font: showDistrictLabels
+        ? `700 ${compactLabels ? 10 : 12}px Arial, sans-serif`
+        : "600 10px Arial, sans-serif",
     }),
   });
 };
+
+const getDistrictLabelStyle = (feature, compactLabels = false) => {
+  const label = wrapMapLabel(getFeatureDistrictLabel(feature), compactLabels);
+  if (!label) return null;
+
+  return new Style({
+    zIndex: 50,
+    text: new Text({
+      text: label,
+      overflow: true,
+      fill: new Fill({ color: "#1575bc" }),
+      stroke: new Stroke({ color: "#ffffff", width: 4 }),
+      font: `700 ${compactLabels ? 10 : 12}px Arial, sans-serif`,
+    }),
+  });
+};
+
+const getIsCompactMapViewport = () =>
+  typeof window !== "undefined" &&
+  window.matchMedia("(max-width: 768px)").matches;
 
 function OperationalWeatherCard() {
   const [weather, setWeather] = useState(null);
@@ -367,9 +441,38 @@ function OperationalWeatherCard() {
   );
 }
 
+export function OperationalMapTopline({ className = "" }) {
+  const [now, setNow] = useState(() => dayjs());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(dayjs()), 60 * 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const classNames = [
+    "operational-map-panel__topline",
+    className,
+  ].filter(Boolean).join(" ");
+
+  return (
+    <div className={classNames}>
+      <div className="operational-map-panel__time">
+        <strong>{now.format("DD.MM.YYYY")}</strong>
+        <span>{now.format("HH:mm")}</span>
+      </div>
+      <OperationalWeatherCard />
+    </div>
+  );
+}
+
 export default function OperationalMapPanel({
   filialName = "",
   enableFilialNavigation = true,
+  hoverGroup = "filial",
+  showDistrictLabels = false,
+  showTopline = true,
+  showMobileTopline = false,
+  variant = "",
 }) {
   const navigate = useNavigate();
   const rows = useOperationalDashboardStore((store) => store.rows);
@@ -377,8 +480,15 @@ export default function OperationalMapPanel({
   const mapRef = useRef(null);
   const districtSourceRef = useRef(null);
   const districtLayerRef = useRef(null);
-  const [now, setNow] = useState(() => dayjs());
-  const [hoveredFilial, setHoveredFilial] = useState(null);
+  const districtLabelLayerRef = useRef(null);
+  const [hoveredArea, setHoveredArea] = useState(null);
+  const [isCompactViewport, setIsCompactViewport] = useState(getIsCompactMapViewport);
+  const panelClassName = [
+    "operational-dashboard__panel",
+    "operational-dashboard__panel--map",
+    "operational-map-panel",
+    variant ? `operational-map-panel--${variant}` : "",
+  ].filter(Boolean).join(" ");
 
   const branchData = useMemo(() => buildOperationalMapBranchData(rows), [rows]);
   const branchDataByBranch = useMemo(
@@ -387,8 +497,15 @@ export default function OperationalMapPanel({
   );
 
   useEffect(() => {
-    const timer = window.setInterval(() => setNow(dayjs()), 60 * 1000);
-    return () => window.clearInterval(timer);
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return undefined;
+    }
+
+    const mediaQuery = window.matchMedia("(max-width: 768px)");
+    const handleChange = () => setIsCompactViewport(mediaQuery.matches);
+    handleChange();
+    mediaQuery.addEventListener?.("change", handleChange);
+    return () => mediaQuery.removeEventListener?.("change", handleChange);
   }, []);
 
   useEffect(() => {
@@ -406,13 +523,18 @@ export default function OperationalMapPanel({
       style: FILIAL_HOVER_STYLE,
       zIndex: 30,
     });
+    const districtLabelLayer = new VectorLayer({
+      source: districtSource,
+      style: null,
+      zIndex: 50,
+    });
     const view = new View({
       center: fromLonLat(MAP_FALLBACK_CENTER),
       zoom: MAP_FALLBACK_ZOOM,
     });
     const map = new OlMap({
       target: mapElRef.current,
-      layers: [districtLayer, filialHoverLayer],
+      layers: [districtLayer, filialHoverLayer, districtLabelLayer],
       view,
       controls: [],
       interactions: defaultInteractions({
@@ -429,6 +551,7 @@ export default function OperationalMapPanel({
     mapRef.current = map;
     districtSourceRef.current = districtSource;
     districtLayerRef.current = districtLayer;
+    districtLabelLayerRef.current = districtLabelLayer;
 
     let cancelled = false;
     const format = new GeoJSON();
@@ -443,6 +566,7 @@ export default function OperationalMapPanel({
       districtSourceRef.current.addFeatures(features);
       filialHoverSource.clear();
       districtLayerRef.current?.changed();
+      districtLabelLayerRef.current?.changed();
       if (fit) fitMapToSource(view, districtSourceRef.current);
     };
 
@@ -451,13 +575,13 @@ export default function OperationalMapPanel({
         layerFilter: (layer) => layer === districtLayer,
       });
 
-    const highlightFilial = (filialName) => {
+    const highlightHoverGroup = (hoverName) => {
       filialHoverSource.clear();
-      if (!filialName) return;
+      if (!hoverName) return;
 
       const nextFeatures = districtSource
         .getFeatures()
-        .filter((feature) => getFeatureFilialName(feature) === filialName)
+        .filter((feature) => isFeatureInHoverGroup(feature, hoverGroup, hoverName))
         .map((feature) => feature.clone());
       filialHoverSource.addFeatures(nextFeatures);
     };
@@ -509,20 +633,20 @@ export default function OperationalMapPanel({
 
     const handlePointerMove = (event) => {
       const feature = getDistrictFeatureAtPixel(event.pixel);
-      const filialName = getFeatureFilialName(feature);
+      const hoverName = getFeatureHoverName(feature, hoverGroup);
 
-      if (!feature || !filialName) {
+      if (!feature || !hoverName) {
         map.getTargetElement().style.cursor = "";
-        highlightFilial("");
-        setHoveredFilial(null);
+        highlightHoverGroup("");
+        setHoveredArea(null);
         return;
       }
 
       map.getTargetElement().style.cursor = enableFilialNavigation ? "pointer" : "";
-      highlightFilial(filialName);
+      highlightHoverGroup(hoverName);
       const rect = map.getTargetElement().getBoundingClientRect();
-      setHoveredFilial({
-        name: filialName,
+      setHoveredArea({
+        name: hoverName,
         x: event.originalEvent.clientX - rect.left,
         y: event.originalEvent.clientY - rect.top,
       });
@@ -530,8 +654,8 @@ export default function OperationalMapPanel({
 
     const handlePointerLeave = () => {
       map.getTargetElement().style.cursor = "";
-      highlightFilial("");
-      setHoveredFilial(null);
+      highlightHoverGroup("");
+      setHoveredArea(null);
     };
 
     const handleSingleClick = (event) => {
@@ -569,16 +693,32 @@ export default function OperationalMapPanel({
       mapRef.current = null;
       districtSourceRef.current = null;
       districtLayerRef.current = null;
+      districtLabelLayerRef.current = null;
     };
-  }, [enableFilialNavigation, filialName, navigate]);
+  }, [enableFilialNavigation, filialName, hoverGroup, navigate]);
 
   useEffect(() => {
     const layer = districtLayerRef.current;
+    const labelLayer = districtLabelLayerRef.current;
     if (!layer) return;
 
-    layer.setStyle((feature) => getDistrictStyle(feature, branchDataByBranch));
+    layer.setStyle((feature) =>
+      getDistrictStyle(feature, branchDataByBranch, {
+        showDistrictLabels,
+        compactLabels: isCompactViewport,
+      })
+    );
     layer.changed();
-  }, [branchDataByBranch]);
+
+    if (labelLayer) {
+      labelLayer.setStyle(
+        showDistrictLabels
+          ? (feature) => getDistrictLabelStyle(feature, isCompactViewport)
+          : null
+      );
+      labelLayer.changed();
+    }
+  }, [branchDataByBranch, isCompactViewport, showDistrictLabels]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -593,16 +733,13 @@ export default function OperationalMapPanel({
   }, [OPERATIONAL_MAP_SCALE]);
 
   return (
-    <div className="operational-dashboard__panel operational-dashboard__panel--map operational-map-panel">
+    <div className={panelClassName}>
       <div className="operational-dashboard__panel-body">
         <div className="operational-map-panel__surface">
-          <div className="operational-map-panel__topline">
-            <div className="operational-map-panel__time">
-              <strong>{now.format("DD.MM.YYYY")}</strong>
-              <span>{now.format("HH:mm")}</span>
-            </div>
-            <OperationalWeatherCard />
-          </div>
+          {showTopline ? <OperationalMapTopline /> : null}
+          {showMobileTopline ? (
+            <OperationalMapTopline className="operational-map-panel__topline--mobile" />
+          ) : null}
           <div className="operational-map-panel__map-frame">
             <div
               ref={mapElRef}
@@ -613,15 +750,15 @@ export default function OperationalMapPanel({
               }}
               aria-label="Карта оперативной обстановки"
             />
-            {hoveredFilial ? (
+            {hoveredArea ? (
               <div
                 className="operational-map-panel__filial-tooltip"
                 style={{
-                  left: hoveredFilial.x,
-                  top: hoveredFilial.y,
+                  left: hoveredArea.x,
+                  top: hoveredArea.y,
                 }}
               >
-                {hoveredFilial.name}
+                {hoveredArea.name}
               </div>
             ) : null}
           </div>
