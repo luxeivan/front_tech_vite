@@ -164,6 +164,11 @@ const EMPTY_DISTRICT_STYLE = new Style({
   fill: new Fill({ color: "rgba(255, 255, 255, 0.96)" }),
   stroke: new Stroke({ color: "#b8c4d0", width: OPERATIONAL_MAP_DISTRICT_STROKE_WIDTH }),
 });
+const FILIAL_HOVER_STYLE = new Style({
+  zIndex: 30,
+  fill: new Fill({ color: "rgba(0, 97, 170, 0.08)" }),
+  stroke: new Stroke({ color: "#0061aa", width: 3 }),
+});
 const MAP_FALLBACK_CENTER = [38.25, 55.58];
 const MAP_FALLBACK_ZOOM = 8;
 const MAP_FIT_PADDING = [10, 6, 8, 6];
@@ -198,6 +203,9 @@ const getModeStrokeColor = (mode) => {
   if (normalizedMode === "орр") return OPERATIONAL_MAP_MODE_STROKE_COLORS.orr;
   return OPERATIONAL_MAP_MODE_STROKE_COLORS[normalizedMode] || null;
 };
+
+const getFeatureFilialName = (feature) =>
+  String(feature?.get?.("filial_name") || "").trim();
 
 const readCachedTnOkrugaRows = () => {
   try {
@@ -349,6 +357,7 @@ export default function OperationalMapPanel() {
   const districtSourceRef = useRef(null);
   const districtLayerRef = useRef(null);
   const [now, setNow] = useState(() => dayjs());
+  const [hoveredFilial, setHoveredFilial] = useState(null);
 
   const branchData = useMemo(() => buildOperationalMapBranchData(rows), [rows]);
   const branchDataByBranch = useMemo(
@@ -370,13 +379,19 @@ export default function OperationalMapPanel() {
       style: EMPTY_DISTRICT_STYLE,
       zIndex: 1,
     });
+    const filialHoverSource = new VectorSource();
+    const filialHoverLayer = new VectorLayer({
+      source: filialHoverSource,
+      style: FILIAL_HOVER_STYLE,
+      zIndex: 30,
+    });
     const view = new View({
       center: fromLonLat(MAP_FALLBACK_CENTER),
       zoom: MAP_FALLBACK_ZOOM,
     });
     const map = new OlMap({
       target: mapElRef.current,
-      layers: [districtLayer],
+      layers: [districtLayer, filialHoverLayer],
       view,
       controls: [],
       interactions: defaultInteractions({
@@ -405,8 +420,25 @@ export default function OperationalMapPanel() {
       });
       districtSourceRef.current.clear();
       districtSourceRef.current.addFeatures(features);
+      filialHoverSource.clear();
       districtLayerRef.current?.changed();
       if (fit) fitMapToSource(view, districtSourceRef.current);
+    };
+
+    const getDistrictFeatureAtPixel = (pixel) =>
+      map.forEachFeatureAtPixel(pixel, (item) => item, {
+        layerFilter: (layer) => layer === districtLayer,
+      });
+
+    const highlightFilial = (filialName) => {
+      filialHoverSource.clear();
+      if (!filialName) return;
+
+      const nextFeatures = districtSource
+        .getFeatures()
+        .filter((feature) => getFeatureFilialName(feature) === filialName)
+        .map((feature) => feature.clone());
+      filialHoverSource.addFeatures(nextFeatures);
     };
 
     const applyDistrictRows = (rows, options) => {
@@ -452,6 +484,33 @@ export default function OperationalMapPanel() {
     window.addEventListener(TN_FILIALY_REZIM_UPDATED_EVENT, handleFilialModeUpdated);
     window.addEventListener("storage", handleFilialModeStorageUpdated);
 
+    const handlePointerMove = (event) => {
+      const feature = getDistrictFeatureAtPixel(event.pixel);
+      const filialName = getFeatureFilialName(feature);
+
+      if (!feature || !filialName) {
+        highlightFilial("");
+        setHoveredFilial(null);
+        return;
+      }
+
+      highlightFilial(filialName);
+      const rect = map.getTargetElement().getBoundingClientRect();
+      setHoveredFilial({
+        name: filialName,
+        x: event.originalEvent.clientX - rect.left,
+        y: event.originalEvent.clientY - rect.top,
+      });
+    };
+
+    const handlePointerLeave = () => {
+      highlightFilial("");
+      setHoveredFilial(null);
+    };
+
+    map.on("pointermove", handlePointerMove);
+    map.getTargetElement().addEventListener("pointerleave", handlePointerLeave);
+
     const resizeObserver = new ResizeObserver(() => {
       window.requestAnimationFrame(() => {
         map.updateSize();
@@ -467,6 +526,8 @@ export default function OperationalMapPanel() {
       cancelled = true;
       window.removeEventListener(TN_FILIALY_REZIM_UPDATED_EVENT, handleFilialModeUpdated);
       window.removeEventListener("storage", handleFilialModeStorageUpdated);
+      map.un("pointermove", handlePointerMove);
+      map.getTargetElement().removeEventListener("pointerleave", handlePointerLeave);
       resizeObserver.disconnect();
       map.setTarget(null);
       mapRef.current = null;
@@ -516,6 +577,17 @@ export default function OperationalMapPanel() {
               }}
               aria-label="Карта оперативной обстановки"
             />
+            {hoveredFilial ? (
+              <div
+                className="operational-map-panel__filial-tooltip"
+                style={{
+                  left: hoveredFilial.x,
+                  top: hoveredFilial.y,
+                }}
+              >
+                {hoveredFilial.name}
+              </div>
+            ) : null}
           </div>
           <div className="operational-map-panel__mode-legend">
             <h4>Действующие режимы:</h4>

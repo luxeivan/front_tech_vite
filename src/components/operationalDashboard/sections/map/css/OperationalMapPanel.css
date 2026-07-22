@@ -44,6 +44,24 @@
   outline: none;
 }
 
+.operational-map-panel__filial-tooltip {
+  position: absolute;
+  z-index: 40;
+  max-width: 260px;
+  padding: 5px 8px;
+  border: 1px solid rgba(0, 97, 170, 0.26);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 8px 20px rgba(42, 83, 133, 0.18);
+  color: #0061aa;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.15;
+  pointer-events: none;
+  transform: translate(12px, 12px);
+  white-space: nowrap;
+}
+
 .operational-map-panel__topline {
   --weather-card-width: min(28vw, 292px);
 
