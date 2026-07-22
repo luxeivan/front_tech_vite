@@ -36,6 +36,7 @@ export default function OperationalFilialPage() {
         <OperationalMapPanel
           filialName={filialName}
           enableFilialNavigation={false}
+          fillGroup="po"
           hoverGroup="po"
           showDistrictLabels
           showTopline={false}

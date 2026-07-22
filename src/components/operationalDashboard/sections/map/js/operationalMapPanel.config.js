@@ -8,7 +8,7 @@ export const OPERATIONAL_MAP_OFFSET_Y = 8;
 export const OPERATIONAL_MAP_FALLBACK_GEOJSON_URL =
   "/data/moscow-region-municipalities.geojson";
 // Толщина границ округов, px: обычные / подсвеченные.
-export const OPERATIONAL_MAP_DISTRICT_STROKE_WIDTH = 1.7;
+export const OPERATIONAL_MAP_DISTRICT_STROKE_WIDTH = 0.85;
 export const OPERATIONAL_MAP_ACTIVE_DISTRICT_STROKE_WIDTH = 2;
 // Цвет границы округа по введенному режиму.
 export const OPERATIONAL_MAP_MODE_STROKE_COLORS = {

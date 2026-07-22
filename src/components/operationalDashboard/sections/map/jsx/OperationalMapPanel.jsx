@@ -2,10 +2,12 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import dayjs from "dayjs";
 import { useNavigate } from "react-router-dom";
+import Feature from "ol/Feature";
 import OlMap from "ol/Map";
 import View from "ol/View";
 import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
+import MultiLineString from "ol/geom/MultiLineString";
 import { fromLonLat } from "ol/proj";
 import { defaults as defaultInteractions } from "ol/interaction/defaults";
 import Style from "ol/style/Style";
@@ -17,7 +19,6 @@ import "ol/ol.css";
 
 import useOperationalDashboardStore from "../../../../../stores/operationalDashboard/useOperationalDashboardStore";
 import {
-  OPERATIONAL_MAP_ACTIVE_DISTRICT_STROKE_WIDTH,
   OPERATIONAL_MAP_COLORS,
   OPERATIONAL_MAP_DISTRICT_STROKE_WIDTH,
   OPERATIONAL_MAP_FALLBACK_GEOJSON_URL,
@@ -41,10 +42,12 @@ import {
   TN_FILIALY_REZIM_UPDATED_STORAGE_KEY,
 } from "../../../../../utils/tnFilialyApi";
 import {
-  buildOperationalMapBranchData,
+  buildOperationalMapFilialData,
+  buildOperationalMapPoData,
+  findOperationalMapAreaData,
   formatMapNumber,
-  getBranchByDistrictName,
   getWeatherView,
+  normalizeOperationalMapAreaName,
 } from "../js/operationalMapPanel.utils";
 import "../css/OperationalMapPanel.css";
 
@@ -171,9 +174,17 @@ const EMPTY_DISTRICT_STYLE = new Style({
 });
 const FILIAL_HOVER_STYLE = new Style({
   zIndex: 30,
-  fill: new Fill({ color: "rgba(0, 97, 170, 0.08)" }),
+  fill: new Fill({ color: "rgba(0, 97, 170, 0)" }),
   stroke: new Stroke({ color: "#0061aa", width: 3 }),
 });
+const MODE_BOUNDARY_STYLE = (feature) =>
+  new Style({
+    zIndex: 40,
+    stroke: new Stroke({
+      color: feature.get("strokeColor") || "#0061aa",
+      width: OPERATIONAL_MAP_MODE_STROKE_WIDTH,
+    }),
+  });
 const MAP_FALLBACK_CENTER = [38.25, 55.58];
 const MAP_FALLBACK_ZOOM = 8;
 const MAP_FIT_PADDING = [10, 6, 8, 6];
@@ -214,6 +225,11 @@ const getFeatureFilialName = (feature) =>
 
 const getFeaturePoName = (feature) =>
   String(feature?.get?.("po_name") || "").trim();
+
+const getFeatureAreaName = (feature, areaGroup) => {
+  if (areaGroup === "po") return getFeaturePoName(feature);
+  return getFeatureFilialName(feature);
+};
 
 const getFeatureHoverName = (feature, hoverGroup) => {
   if (hoverGroup === "po") return getFeaturePoName(feature);
@@ -286,43 +302,106 @@ const writeCachedTnOkrugaRows = (rows) => {
   }
 };
 
+const normalizeBoundaryPoint = ([x, y]) =>
+  `${Math.round(x * 100) / 100},${Math.round(y * 100) / 100}`;
+
+const getBoundarySegmentKey = (start, end) => {
+  const normalizedStart = normalizeBoundaryPoint(start);
+  const normalizedEnd = normalizeBoundaryPoint(end);
+  return normalizedStart < normalizedEnd
+    ? `${normalizedStart}|${normalizedEnd}`
+    : `${normalizedEnd}|${normalizedStart}`;
+};
+
+const collectGeometryRings = (geometry) => {
+  if (!geometry) return [];
+
+  if (geometry.getType() === "Polygon") return geometry.getCoordinates();
+  if (geometry.getType() === "MultiPolygon") return geometry.getCoordinates().flat();
+  return [];
+};
+
+const buildBoundaryFeature = (features, properties = {}) => {
+  const segmentMap = new Map();
+
+  features.forEach((feature) => {
+    collectGeometryRings(feature.getGeometry()).forEach((ring) => {
+      for (let index = 1; index < ring.length; index += 1) {
+        const start = ring[index - 1];
+        const end = ring[index];
+        const key = getBoundarySegmentKey(start, end);
+        const current = segmentMap.get(key);
+        if (current) {
+          current.count += 1;
+        } else {
+          segmentMap.set(key, {
+            count: 1,
+            coordinates: [start, end],
+          });
+        }
+      }
+    });
+  });
+
+  const externalSegments = Array.from(segmentMap.values())
+    .filter((item) => item.count === 1)
+    .map((item) => item.coordinates);
+
+  if (!externalSegments.length) return null;
+
+  const feature = new Feature({
+    geometry: new MultiLineString(externalSegments),
+  });
+  Object.entries(properties).forEach(([key, value]) => feature.set(key, value));
+  return feature;
+};
+
+const getBoundaryGroupName = (feature, group) => {
+  if (group === "po") return getFeaturePoName(feature);
+  return getFeatureFilialName(feature);
+};
+
+const buildGroupBoundaryFeatures = (features, group, getProperties) => {
+  const groups = new Map();
+
+  features.forEach((feature) => {
+    const groupName = getBoundaryGroupName(feature, group);
+    if (!groupName) return;
+
+    const key = normalizeOperationalMapAreaName(groupName);
+    if (!groups.has(key)) {
+      groups.set(key, {
+        name: groupName,
+        features: [],
+      });
+    }
+    groups.get(key).features.push(feature);
+  });
+
+  return Array.from(groups.values())
+    .map((item) => buildBoundaryFeature(item.features, getProperties(item.name, item.features)))
+    .filter(Boolean);
+};
+
 const getDistrictStyle = (
   feature,
-  branchDataByBranch,
-  { showDistrictLabels = false, compactLabels = false } = {}
+  areaDataByKey,
+  {
+    fillGroup = "filial",
+  } = {}
 ) => {
-  const districtName = feature.get("district");
-  const modeStrokeColor = getModeStrokeColor(feature.get("rezim"));
-  const branch = getBranchByDistrictName(districtName);
-  const branchData = branch ? branchDataByBranch.get(branch) : null;
-  const people = branchData?.people || 0;
-  const fillColor = people > 0 ? branchData.color : "rgba(255, 255, 255, 0.96)";
-  const strokeColor = modeStrokeColor || (people > 0 ? "#ffffff" : "#cfd6de");
-  const label = showDistrictLabels
-    ? ""
-    : people > 0
-      ? `${branch}\n${formatMapNumber(people)}`
-      : "";
+  const areaName = getFeatureAreaName(feature, fillGroup);
+  const areaData = findOperationalMapAreaData(areaDataByKey, areaName);
+  const people = areaData?.people || 0;
+  const fillColor = people > 0 ? areaData.color : "rgba(255, 255, 255, 0.96)";
+  const strokeColor = "#cfd6de";
 
   return new Style({
-    zIndex: modeStrokeColor ? 10 : 1,
+    zIndex: 1,
     fill: new Fill({ color: fillColor }),
     stroke: new Stroke({
       color: strokeColor,
-      width: modeStrokeColor
-        ? OPERATIONAL_MAP_MODE_STROKE_WIDTH
-        : people > 0
-          ? OPERATIONAL_MAP_ACTIVE_DISTRICT_STROKE_WIDTH
-          : OPERATIONAL_MAP_DISTRICT_STROKE_WIDTH,
-    }),
-    text: new Text({
-      text: label,
-      overflow: showDistrictLabels,
-      fill: new Fill({ color: "#1575bc" }),
-      stroke: new Stroke({ color: "#ffffff", width: 3 }),
-      font: showDistrictLabels
-        ? `700 ${compactLabels ? 10 : 12}px Arial, sans-serif`
-        : "600 10px Arial, sans-serif",
+      width: OPERATIONAL_MAP_DISTRICT_STROKE_WIDTH,
     }),
   });
 };
@@ -468,6 +547,7 @@ export function OperationalMapTopline({ className = "" }) {
 export default function OperationalMapPanel({
   filialName = "",
   enableFilialNavigation = true,
+  fillGroup = "filial",
   hoverGroup = "filial",
   showDistrictLabels = false,
   showTopline = true,
@@ -481,6 +561,7 @@ export default function OperationalMapPanel({
   const districtSourceRef = useRef(null);
   const districtLayerRef = useRef(null);
   const districtLabelLayerRef = useRef(null);
+  const modeBoundarySourceRef = useRef(null);
   const [hoveredArea, setHoveredArea] = useState(null);
   const [isCompactViewport, setIsCompactViewport] = useState(getIsCompactMapViewport);
   const panelClassName = [
@@ -490,10 +571,16 @@ export default function OperationalMapPanel({
     variant ? `operational-map-panel--${variant}` : "",
   ].filter(Boolean).join(" ");
 
-  const branchData = useMemo(() => buildOperationalMapBranchData(rows), [rows]);
-  const branchDataByBranch = useMemo(
-    () => new Map(branchData.map((item) => [item.branch, item])),
-    [branchData]
+  const areaData = useMemo(
+    () =>
+      fillGroup === "po"
+        ? buildOperationalMapPoData(rows)
+        : buildOperationalMapFilialData(rows),
+    [fillGroup, rows]
+  );
+  const areaDataByKey = useMemo(
+    () => new Map(areaData.map((item) => [item.key, item])),
+    [areaData]
   );
 
   useEffect(() => {
@@ -523,6 +610,12 @@ export default function OperationalMapPanel({
       style: FILIAL_HOVER_STYLE,
       zIndex: 30,
     });
+    const modeBoundarySource = new VectorSource();
+    const modeBoundaryLayer = new VectorLayer({
+      source: modeBoundarySource,
+      style: MODE_BOUNDARY_STYLE,
+      zIndex: 40,
+    });
     const districtLabelLayer = new VectorLayer({
       source: districtSource,
       style: null,
@@ -534,7 +627,7 @@ export default function OperationalMapPanel({
     });
     const map = new OlMap({
       target: mapElRef.current,
-      layers: [districtLayer, filialHoverLayer, districtLabelLayer],
+      layers: [districtLayer, filialHoverLayer, modeBoundaryLayer, districtLabelLayer],
       view,
       controls: [],
       interactions: defaultInteractions({
@@ -552,6 +645,7 @@ export default function OperationalMapPanel({
     districtSourceRef.current = districtSource;
     districtLayerRef.current = districtLayer;
     districtLabelLayerRef.current = districtLabelLayer;
+    modeBoundarySourceRef.current = modeBoundarySource;
 
     let cancelled = false;
     const format = new GeoJSON();
@@ -565,6 +659,22 @@ export default function OperationalMapPanel({
       districtSourceRef.current.clear();
       districtSourceRef.current.addFeatures(features);
       filialHoverSource.clear();
+      modeBoundarySource.clear();
+      const modeBoundaryFeatures = buildGroupBoundaryFeatures(
+        districtSourceRef.current.getFeatures(),
+        "filial",
+        (groupName, groupFeatures) => {
+          const modeStrokeColor = groupFeatures
+            .map((feature) => getModeStrokeColor(feature.get("rezim")))
+            .find(Boolean);
+
+          return {
+            groupName,
+            strokeColor: modeStrokeColor,
+          };
+        }
+      ).filter((feature) => feature.get("strokeColor"));
+      modeBoundarySource.addFeatures(modeBoundaryFeatures);
       districtLayerRef.current?.changed();
       districtLabelLayerRef.current?.changed();
       if (fit) fitMapToSource(view, districtSourceRef.current);
@@ -581,9 +691,9 @@ export default function OperationalMapPanel({
 
       const nextFeatures = districtSource
         .getFeatures()
-        .filter((feature) => isFeatureInHoverGroup(feature, hoverGroup, hoverName))
-        .map((feature) => feature.clone());
-      filialHoverSource.addFeatures(nextFeatures);
+        .filter((feature) => isFeatureInHoverGroup(feature, hoverGroup, hoverName));
+      const boundaryFeature = buildBoundaryFeature(nextFeatures, { groupName: hoverName });
+      if (boundaryFeature) filialHoverSource.addFeature(boundaryFeature);
     };
 
     const applyDistrictRows = (rows, options) => {
@@ -694,6 +804,7 @@ export default function OperationalMapPanel({
       districtSourceRef.current = null;
       districtLayerRef.current = null;
       districtLabelLayerRef.current = null;
+      modeBoundarySourceRef.current = null;
     };
   }, [enableFilialNavigation, filialName, hoverGroup, navigate]);
 
@@ -703,9 +814,9 @@ export default function OperationalMapPanel({
     if (!layer) return;
 
     layer.setStyle((feature) =>
-      getDistrictStyle(feature, branchDataByBranch, {
+      getDistrictStyle(feature, areaDataByKey, {
+        fillGroup,
         showDistrictLabels,
-        compactLabels: isCompactViewport,
       })
     );
     layer.changed();
@@ -718,7 +829,7 @@ export default function OperationalMapPanel({
       );
       labelLayer.changed();
     }
-  }, [branchDataByBranch, isCompactViewport, showDistrictLabels]);
+  }, [areaDataByKey, fillGroup, isCompactViewport, showDistrictLabels]);
 
   useEffect(() => {
     const map = mapRef.current;

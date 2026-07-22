@@ -32,6 +32,53 @@ export const getPopulationSeverity = (people) => {
 export const getPopulationColor = (people) =>
   OPERATIONAL_MAP_COLORS[getPopulationSeverity(people)] || OPERATIONAL_MAP_COLORS.empty;
 
+export const normalizeOperationalMapAreaName = (value) =>
+  String(value || "")
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .replace(/\s*(?:филиал|фил\.?|производственное\s+отделение|по)\s*$/giu, "")
+    .replace(/\b(?:город|район|городской|муниципальный|округ|г\.?о\.?)\b/giu, " ")
+    .replace(/[^а-яa-z0-9]+/giu, " ")
+    .trim();
+
+const getAreaStem = (value) => {
+  const normalized = normalizeOperationalMapAreaName(value)
+    .replace(/(ское|ская|ский|ской|ого|ому|ым|ой|ая|ое|ые|ий|ый|ое)$/u, "")
+    .trim();
+
+  return normalized
+    .split(" ")
+    .filter(Boolean)
+    .map((word) => (word.length > 4 ? word.slice(0, 4) : word))
+    .join(" ");
+};
+
+export const findOperationalMapAreaData = (areaDataByKey, areaName) => {
+  const normalizedAreaName = normalizeOperationalMapAreaName(areaName);
+  if (!normalizedAreaName) return null;
+
+  const directMatch = areaDataByKey.get(normalizedAreaName);
+  if (directMatch) return directMatch;
+
+  const areaStem = getAreaStem(normalizedAreaName);
+  if (!areaStem) return null;
+
+  for (const [candidateKey, item] of areaDataByKey.entries()) {
+    const candidateStem = getAreaStem(candidateKey);
+    if (
+      candidateKey.includes(normalizedAreaName) ||
+      normalizedAreaName.includes(candidateKey) ||
+      (candidateStem && areaStem && candidateStem === areaStem) ||
+      (candidateStem && areaStem && candidateStem.includes(areaStem)) ||
+      (candidateStem && areaStem && areaStem.includes(candidateStem))
+    ) {
+      return item;
+    }
+  }
+
+  return null;
+};
+
 const normalizeMapName = (value) =>
   String(value || "")
     .toLowerCase()
@@ -89,6 +136,51 @@ export const buildOperationalMapBranchData = (rows) => {
     }))
     .filter((item) => item.point);
 };
+
+const createAreaData = (areaName) => ({
+  areaName,
+  people: 0,
+  outages: 0,
+  lines: 0,
+});
+
+const addRowToAreaData = (item, row) => {
+  item.people += toNumber(pick(row, "POPULATION_COUNT"));
+  item.outages += 1;
+  item.lines +=
+    toNumber(pick(row, "LINE110_ALL")) +
+    toNumber(pick(row, "LINE35_ALL")) +
+    toNumber(pick(row, "LINESN_ALL")) +
+    toNumber(pick(row, "LINENN_ALL"));
+};
+
+export const buildOperationalMapAreaData = (rows, getAreaName) => {
+  const areaMap = new Map();
+
+  (Array.isArray(rows) ? rows : [])
+    .filter((row) => isDashboardBaseType(row) && isNotDeletedTN(row) && isOpenTN(row))
+    .forEach((row) => {
+      const areaName = String(getAreaName(row) || "").trim();
+      const key = normalizeOperationalMapAreaName(areaName);
+      if (!key) return;
+
+      if (!areaMap.has(key)) areaMap.set(key, createAreaData(areaName));
+      addRowToAreaData(areaMap.get(key), row);
+    });
+
+  return Array.from(areaMap.entries()).map(([key, item]) => ({
+    ...item,
+    key,
+    severity: getPopulationSeverity(item.people),
+    color: getPopulationColor(item.people),
+  }));
+};
+
+export const buildOperationalMapFilialData = (rows) =>
+  buildOperationalMapAreaData(rows, getOperationalBranchByRow);
+
+export const buildOperationalMapPoData = (rows) =>
+  buildOperationalMapAreaData(rows, (row) => pick(row, "DISPCENTER_NAME_"));
 
 export const getWeatherView = (code) => {
   const value = Number(code);
