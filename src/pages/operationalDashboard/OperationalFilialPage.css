@@ -1,0 +1,26 @@
+.operational-filial-page {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  gap: 18px;
+  padding: 20px 24px;
+  background: #dbeaf6;
+}
+
+.operational-filial-page__header {
+  display: grid;
+  gap: 8px;
+}
+
+.operational-filial-page__header h1 {
+  margin: 0;
+  color: #006eb8;
+  font-size: 30px;
+  line-height: 1.1;
+}
+
+.operational-filial-page__body {
+  flex: 1;
+  min-height: 420px;
+}

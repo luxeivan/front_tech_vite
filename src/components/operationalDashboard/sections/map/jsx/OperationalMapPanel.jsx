@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import dayjs from "dayjs";
+import { useNavigate } from "react-router-dom";
 import OlMap from "ol/Map";
 import View from "ol/View";
 import VectorLayer from "ol/layer/Vector";
@@ -31,6 +32,7 @@ import {
   buildTnOkrugaFeatureCollection,
   fetchTnOkrugaRows,
 } from "../../../../../utils/tnOkrugaApi";
+import { getOperationalFilialPath } from "../../../../../utils/operationalFilialRoutes";
 import {
   TN_FILIALY_REZIM_UPDATED_EVENT,
   TN_FILIALY_REZIM_UPDATED_STORAGE_KEY,
@@ -351,6 +353,7 @@ function OperationalWeatherCard() {
 }
 
 export default function OperationalMapPanel() {
+  const navigate = useNavigate();
   const rows = useOperationalDashboardStore((store) => store.rows);
   const mapElRef = useRef(null);
   const mapRef = useRef(null);
@@ -489,11 +492,13 @@ export default function OperationalMapPanel() {
       const filialName = getFeatureFilialName(feature);
 
       if (!feature || !filialName) {
+        map.getTargetElement().style.cursor = "";
         highlightFilial("");
         setHoveredFilial(null);
         return;
       }
 
+      map.getTargetElement().style.cursor = "pointer";
       highlightFilial(filialName);
       const rect = map.getTargetElement().getBoundingClientRect();
       setHoveredFilial({
@@ -504,11 +509,19 @@ export default function OperationalMapPanel() {
     };
 
     const handlePointerLeave = () => {
+      map.getTargetElement().style.cursor = "";
       highlightFilial("");
       setHoveredFilial(null);
     };
 
+    const handleSingleClick = (event) => {
+      const feature = getDistrictFeatureAtPixel(event.pixel);
+      const filialPath = getOperationalFilialPath(getFeatureFilialName(feature));
+      if (filialPath) navigate(filialPath);
+    };
+
     map.on("pointermove", handlePointerMove);
+    map.on("singleclick", handleSingleClick);
     map.getTargetElement().addEventListener("pointerleave", handlePointerLeave);
 
     const resizeObserver = new ResizeObserver(() => {
@@ -527,6 +540,7 @@ export default function OperationalMapPanel() {
       window.removeEventListener(TN_FILIALY_REZIM_UPDATED_EVENT, handleFilialModeUpdated);
       window.removeEventListener("storage", handleFilialModeStorageUpdated);
       map.un("pointermove", handlePointerMove);
+      map.un("singleclick", handleSingleClick);
       map.getTargetElement().removeEventListener("pointerleave", handlePointerLeave);
       resizeObserver.disconnect();
       map.setTarget(null);
@@ -534,7 +548,7 @@ export default function OperationalMapPanel() {
       districtSourceRef.current = null;
       districtLayerRef.current = null;
     };
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     const layer = districtLayerRef.current;

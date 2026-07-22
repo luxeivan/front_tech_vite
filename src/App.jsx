@@ -12,6 +12,7 @@ import Footer from "./components/Footer";
 import AuthForm from "./components/AuthForm";
 import DashboardPage from "./pages/dashboard/DashboardPage";
 import OperationalDashboardPage from "./pages/operationalDashboard/OperationalDashboardPage";
+import OperationalFilialPage from "./pages/operationalDashboard/OperationalFilialPage";
 import Portal404 from "./components/Portal404/Portal404";
 import PesPage from "./pages/pes/PesPage";
 import PlannedPage from "./pages/planned/PlannedPage";
@@ -110,6 +111,16 @@ function App() {
               <Protected>
                 <FeatureOnly featureKey="operationalDashboard">
                   <OperationalDashboardPage />
+                </FeatureOnly>
+              </Protected>
+            }
+          />
+          <Route
+            path="/dashboard-oo/:filialSlug"
+            element={
+              <Protected>
+                <FeatureOnly featureKey="operationalDashboard">
+                  <OperationalFilialPage />
                 </FeatureOnly>
               </Protected>
             }
