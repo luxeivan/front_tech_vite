@@ -11,7 +11,7 @@ export const OPERATIONAL_FILIAL_ROUTES = [
   { name: "Орехово-Зуевский филиал", slug: "orekhovo-zuevski-filial" },
 ];
 
-const normalizeFilialName = (value) =>
+export const normalizeOperationalFilialName = (value) =>
   String(value || "")
     .replace(/\s+/g, " ")
     .trim()
@@ -19,9 +19,9 @@ const normalizeFilialName = (value) =>
     .replace(/ё/g, "е");
 
 export const getOperationalFilialRouteByName = (filialName) => {
-  const normalizedName = normalizeFilialName(filialName);
+  const normalizedName = normalizeOperationalFilialName(filialName);
   return OPERATIONAL_FILIAL_ROUTES.find(
-    (item) => normalizeFilialName(item.name) === normalizedName
+    (item) => normalizeOperationalFilialName(item.name) === normalizedName
   );
 };
 

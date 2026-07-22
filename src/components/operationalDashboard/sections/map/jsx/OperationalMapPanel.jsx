@@ -32,7 +32,10 @@ import {
   buildTnOkrugaFeatureCollection,
   fetchTnOkrugaRows,
 } from "../../../../../utils/tnOkrugaApi";
-import { getOperationalFilialPath } from "../../../../../utils/operationalFilialRoutes";
+import {
+  getOperationalFilialPath,
+  normalizeOperationalFilialName,
+} from "../../../../../utils/operationalFilialRoutes";
 import {
   TN_FILIALY_REZIM_UPDATED_EVENT,
   TN_FILIALY_REZIM_UPDATED_STORAGE_KEY,
@@ -209,6 +212,18 @@ const getModeStrokeColor = (mode) => {
 const getFeatureFilialName = (feature) =>
   String(feature?.get?.("filial_name") || "").trim();
 
+const getRowsByFilialName = (rows, filialName) => {
+  const normalizedFilialName = normalizeOperationalFilialName(filialName);
+  if (!normalizedFilialName) return rows;
+
+  return (Array.isArray(rows) ? rows : []).filter(
+    (row) =>
+      normalizeOperationalFilialName(
+        row?.tn_filialy?.name || row?.tn_filialy?.data?.attributes?.name
+      ) === normalizedFilialName
+  );
+};
+
 const readCachedTnOkrugaRows = () => {
   try {
     const rawRows = window.localStorage.getItem(TN_OKRUGA_MAP_CACHE_KEY);
@@ -352,7 +367,10 @@ function OperationalWeatherCard() {
   );
 }
 
-export default function OperationalMapPanel() {
+export default function OperationalMapPanel({
+  filialName = "",
+  enableFilialNavigation = true,
+}) {
   const navigate = useNavigate();
   const rows = useOperationalDashboardStore((store) => store.rows);
   const mapElRef = useRef(null);
@@ -445,11 +463,13 @@ export default function OperationalMapPanel() {
     };
 
     const applyDistrictRows = (rows, options) => {
-      applyFeatureCollection(buildTnOkrugaFeatureCollection(rows), options);
+      const filteredRows = getRowsByFilialName(rows, filialName);
+      applyFeatureCollection(buildTnOkrugaFeatureCollection(filteredRows), options);
     };
 
     const loadFallbackFeatures = async () => {
       try {
+        if (filialName) return;
         if (districtSourceRef.current?.getFeatures().length) return;
         const response = await fetch(OPERATIONAL_MAP_FALLBACK_GEOJSON_URL);
         if (!response.ok) return;
@@ -498,7 +518,7 @@ export default function OperationalMapPanel() {
         return;
       }
 
-      map.getTargetElement().style.cursor = "pointer";
+      map.getTargetElement().style.cursor = enableFilialNavigation ? "pointer" : "";
       highlightFilial(filialName);
       const rect = map.getTargetElement().getBoundingClientRect();
       setHoveredFilial({
@@ -515,6 +535,8 @@ export default function OperationalMapPanel() {
     };
 
     const handleSingleClick = (event) => {
+      if (!enableFilialNavigation) return;
+
       const feature = getDistrictFeatureAtPixel(event.pixel);
       const filialPath = getOperationalFilialPath(getFeatureFilialName(feature));
       if (filialPath) navigate(filialPath);
@@ -548,7 +570,7 @@ export default function OperationalMapPanel() {
       districtSourceRef.current = null;
       districtLayerRef.current = null;
     };
-  }, [navigate]);
+  }, [enableFilialNavigation, filialName, navigate]);
 
   useEffect(() => {
     const layer = districtLayerRef.current;

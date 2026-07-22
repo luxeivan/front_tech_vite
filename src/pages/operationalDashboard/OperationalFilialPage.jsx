@@ -1,6 +1,7 @@
 import React from "react";
 import { Link, useParams } from "react-router-dom";
 
+import OperationalMapPanel from "../../components/operationalDashboard/sections/map/jsx/OperationalMapPanel";
 import { getOperationalFilialRouteBySlug } from "../../utils/operationalFilialRoutes";
 import "../../components/operationalDashboard/css/OperationalDashboard.css";
 import "./OperationalFilialPage.css";
@@ -27,9 +28,10 @@ export default function OperationalFilialPage() {
         <div className="operational-dashboard__panel operational-dashboard__panel--donuts operational-filial-page__panel">
           <div className="operational-dashboard__panel-body" />
         </div>
-        <div className="operational-dashboard__panel operational-dashboard__panel--map operational-filial-page__panel">
-          <div className="operational-dashboard__panel-body" />
-        </div>
+        <OperationalMapPanel
+          filialName={filialName}
+          enableFilialNavigation={false}
+        />
         <div className="operational-dashboard__panel operational-dashboard__panel--districts operational-filial-page__panel">
           <div className="operational-dashboard__panel-body" />
         </div>
