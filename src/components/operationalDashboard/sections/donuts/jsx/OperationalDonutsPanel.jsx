@@ -141,7 +141,7 @@ function DurationDonut({ data }) {
 
   return (
     <div className="operational-donuts-panel__item">
-      <h3 className="operational-donuts-panel__title">Количество аварийных отключений ЛЭП 3–20кВ</h3>
+      <h3 className="operational-donuts-panel__title">Количество аварийных отключений ЛЭП</h3>
       <div className="operational-donuts-panel__chart">
         <Pie {...config} />
         <div className="operational-donuts-panel__center-number">
