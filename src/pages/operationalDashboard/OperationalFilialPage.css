@@ -1,26 +1,61 @@
 .operational-filial-page {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-  flex-direction: column;
-  gap: 18px;
-  padding: 20px 24px;
-  background: #dbeaf6;
+  gap: 0;
 }
 
 .operational-filial-page__header {
   display: grid;
-  gap: 8px;
+  grid-template-columns: minmax(72px, 1fr) auto minmax(72px, 1fr);
+  align-items: start;
+  gap: 16px;
+  margin-bottom: 10px;
 }
 
-.operational-filial-page__header h1 {
+.operational-filial-page__back {
+  justify-self: start;
+  color: #5b21b6;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-transform: lowercase;
+}
+
+.operational-filial-page__heading {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.operational-filial-page__title {
+  margin-bottom: 0;
+}
+
+.operational-filial-page__filial-name {
   margin: 0;
   color: #006eb8;
-  font-size: 30px;
-  line-height: 1.1;
+  font-size: clamp(18px, 1.75vw, 28px);
+  font-weight: 800;
+  line-height: 1.05;
+  text-align: center;
+  text-transform: uppercase;
 }
 
-.operational-filial-page__body {
-  flex: 1;
-  min-height: 420px;
+.operational-filial-page__grid {
+  min-height: calc(100vh - 206px);
+}
+
+.operational-filial-page__panel {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+@media (max-width: 768px) {
+  .operational-filial-page__header {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: 8px;
+  }
+
+  .operational-filial-page__back {
+    justify-self: start;
+  }
 }
