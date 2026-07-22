@@ -4,6 +4,11 @@ const BACKEND_URL = import.meta.env.VITE_URL_BACKEND;
 const TN_OKRUGA_ENDPOINT = `${BACKEND_URL}/api/tn-okruga`;
 const PAGE_SIZE = 100;
 
+const getAuthHeaders = () => {
+  const jwt = localStorage.getItem("jwt");
+  return jwt ? { Authorization: `Bearer ${jwt}` } : undefined;
+};
+
 const mapStrapiItem = (item) =>
   item?.attributes
     ? { id: item.id, documentId: item.documentId, ...item.attributes }
@@ -11,8 +16,19 @@ const mapStrapiItem = (item) =>
 
 const unwrapRelation = (relation) => {
   if (!relation) return null;
+  if (Array.isArray(relation)) return relation.map(mapStrapiItem).filter(Boolean);
+  if (Array.isArray(relation.data)) return relation.data.map(mapStrapiItem).filter(Boolean);
   if (relation.data) return mapStrapiItem(relation.data);
   return mapStrapiItem(relation);
+};
+
+const unwrapFirstRelation = (...relations) => {
+  for (const relation of relations) {
+    const value = unwrapRelation(relation);
+    if (Array.isArray(value) && value.length) return value[0];
+    if (value) return value;
+  }
+  return null;
 };
 
 export async function fetchTnOkrugaRows() {
@@ -29,6 +45,7 @@ export async function fetchTnOkrugaRows() {
         populate: "*",
         "sort[0]": "sort_order:asc",
       },
+      headers: getAuthHeaders(),
     });
 
     rows.push(...(Array.isArray(data?.data) ? data.data.map(mapStrapiItem) : []));
@@ -44,8 +61,8 @@ export const buildTnOkrugaFeatureCollection = (rows) => ({
   features: (Array.isArray(rows) ? rows : [])
     .filter((row) => row?.geometry)
     .map((row) => {
-      const filial = unwrapRelation(row.tn_filialy);
-      const po = unwrapRelation(row.tn_po);
+      const filial = unwrapFirstRelation(row.tn_filialy, row.tn_filialies);
+      const po = unwrapFirstRelation(row.tn_po, row.tn_pos);
 
       return {
         type: "Feature",

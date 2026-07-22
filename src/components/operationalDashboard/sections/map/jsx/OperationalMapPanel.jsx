@@ -277,10 +277,21 @@ const getRowsByFilialName = (rows, filialName) => {
   if (!normalizedFilialName) return rows;
 
   return (Array.isArray(rows) ? rows : []).filter(
-    (row) =>
-      normalizeOperationalFilialName(
-        row?.tn_filialy?.name || row?.tn_filialy?.data?.attributes?.name
-      ) === normalizedFilialName
+    (row) => {
+      const filialRelations = [
+        row?.tn_filialy,
+        row?.tn_filialy?.data,
+        ...(Array.isArray(row?.tn_filialies) ? row.tn_filialies : []),
+        ...(Array.isArray(row?.tn_filialies?.data) ? row.tn_filialies.data : []),
+      ].filter(Boolean);
+
+      return filialRelations.some(
+        (relation) =>
+          normalizeOperationalFilialName(
+            relation?.name || relation?.attributes?.name || relation?.data?.attributes?.name
+          ) === normalizedFilialName
+      );
+    }
   );
 };
 

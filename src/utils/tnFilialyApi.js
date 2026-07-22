@@ -10,6 +10,11 @@ const EVENTS_ENDPOINT = SERVICES_URL
   : "";
 const PAGE_SIZE = 100;
 
+const getAuthHeaders = () => {
+  const jwt = localStorage.getItem("jwt");
+  return jwt ? { Authorization: `Bearer ${jwt}` } : undefined;
+};
+
 export const TN_FILIALY_REZIM_UPDATED_EVENT = "tn-filialy-rezim-updated";
 export const TN_FILIALY_REZIM_UPDATED_STORAGE_KEY = "tnFilialyRezimUpdatedAt";
 
@@ -67,6 +72,7 @@ export async function fetchTnFilialyRows() {
         "pagination[pageSize]": PAGE_SIZE,
         "sort[0]": "sort_order:asc",
       },
+      headers: getAuthHeaders(),
     });
 
     rows.push(...(Array.isArray(data?.data) ? data.data.map(mapStrapiItem) : []));
@@ -78,9 +84,15 @@ export async function fetchTnFilialyRows() {
 }
 
 export async function updateTnFilialyRezim(writeId, rezim) {
-  const { data } = await axios.put(`${TN_FILIALIES_ENDPOINT}/${writeId}`, {
-    data: { rezim },
-  });
+  const { data } = await axios.put(
+    `${TN_FILIALIES_ENDPOINT}/${writeId}`,
+    {
+      data: { rezim },
+    },
+    {
+      headers: getAuthHeaders(),
+    }
+  );
 
   return mapStrapiItem(data?.data);
 }
