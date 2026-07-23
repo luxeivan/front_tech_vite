@@ -21,6 +21,25 @@ const OPERATIONAL_BRANCH_TABLE_SCROLL_X = OPERATIONAL_BRANCH_COLUMNS.reduce(
   0
 );
 
+const OPERATIONAL_FILIAL_COLUMN_WIDTHS = {
+  branch: 100,
+  lep: 30,
+  tpRp: 34,
+  population: 44,
+  mkd: 30,
+  boilerCtp: 40,
+  vzuVns: 38,
+  kns: 30,
+  medical: 50,
+  schools: 46,
+  brigades: 38,
+  staff: 40,
+  vehicles: 38,
+  pes: 30,
+  mainResource: 42,
+  ovb: 30,
+};
+
 const OPERATIONAL_PO_COLUMN_WIDTHS = {
   branch: 112,
   lep: 32,
@@ -103,7 +122,7 @@ export default function OperationalDistrictsPanel({
         width:
           groupBy === "po"
             ? OPERATIONAL_PO_COLUMN_WIDTHS[column.dataIndex] || column.width
-            : column.width,
+            : OPERATIONAL_FILIAL_COLUMN_WIDTHS[column.dataIndex] || column.width,
         title:
           groupBy === "po" && column.dataIndex === "branch"
             ? "Производственное отделение/ сетевой участок"
@@ -118,6 +137,7 @@ export default function OperationalDistrictsPanel({
     "operational-dashboard__panel",
     "operational-dashboard__panel--districts",
     "operational-districts-panel",
+    groupBy === "filial" ? "operational-districts-panel--filial" : "",
     groupBy === "po" ? "operational-districts-panel--po" : "",
     className,
   ]
@@ -164,7 +184,7 @@ export default function OperationalDistrictsPanel({
             record.key === "summary" ? "operational-districts-panel__row--summary" : ""
           }
           size="small"
-          scroll={groupBy === "po" ? undefined : { x: OPERATIONAL_BRANCH_TABLE_SCROLL_X }}
+          scroll={groupBy === "po" || groupBy === "filial" ? undefined : { x: OPERATIONAL_BRANCH_TABLE_SCROLL_X }}
           tableLayout="fixed"
         />
       </div>

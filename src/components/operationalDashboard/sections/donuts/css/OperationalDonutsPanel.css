@@ -48,6 +48,24 @@
   display: block;
 }
 
+.operational-donuts-panel--filial .operational-donuts-panel__item {
+  grid-template-rows: 44px 1fr;
+}
+
+.operational-donuts-panel--filial .operational-donuts-panel__title {
+  min-height: 44px;
+  font-size: clamp(13px, 0.88vw, 18px);
+}
+
+.operational-donuts-panel--filial .operational-donuts-panel__chart {
+  height: 238px;
+  min-height: 238px;
+}
+
+.operational-donuts-panel--filial .operational-donuts-panel__center-number {
+  font-size: 40px;
+}
+
 .operational-donuts-panel__center-number {
   position: absolute;
   top: 50%;

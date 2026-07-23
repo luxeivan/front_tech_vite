@@ -27,6 +27,22 @@
   min-height: calc(100vh - 184px);
 }
 
+.operational-dashboard:not(.operational-filial-page) {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.operational-dashboard:not(.operational-filial-page) .operational-dashboard__grid {
+  grid-template-rows: minmax(285px, 0.86fr) minmax(150px, 0.46fr) minmax(275px, 0.82fr);
+  gap: 14px 24px;
+  min-height: calc(100vh - 226px);
+}
+
+.operational-dashboard:not(.operational-filial-page) .operational-dashboard__title {
+  margin-bottom: 6px;
+  font-size: 32px;
+}
+
 .operational-dashboard__title {
   margin: 0 0 10px;
   color: #006eb8;

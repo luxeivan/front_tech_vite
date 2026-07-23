@@ -51,7 +51,7 @@
 }
 
 .operational-districts-panel__table .ant-table-content > table {
-  min-width: 912px;
+  min-width: var(--operational-branches-table-min-width, 912px);
   width: max-content !important;
 }
 
@@ -132,6 +132,33 @@
 
 .operational-districts-panel__table .ant-table-cell-fix-left {
   background-clip: padding-box;
+}
+
+.operational-districts-panel--filial {
+  --operational-branches-table-font-size: 8px;
+  --operational-branches-table-header-font-size: 7px;
+  --operational-branches-table-min-width: 0;
+}
+
+.operational-districts-panel--filial .operational-districts-panel__table .ant-table-content {
+  overflow-x: hidden !important;
+}
+
+.operational-districts-panel--filial .operational-districts-panel__table .ant-table-content > table {
+  width: 100% !important;
+}
+
+.operational-districts-panel--filial .operational-districts-panel__table .ant-table-cell {
+  padding: 2px 1px;
+}
+
+.operational-districts-panel--filial .operational-districts-panel__table .ant-table-thead > tr > th {
+  line-height: 1.05;
+}
+
+.operational-districts-panel--filial .operational-districts-panel__table .operational-districts-panel__branch-cell {
+  line-height: 1.05;
+  white-space: normal;
 }
 
 .operational-districts-panel--po {

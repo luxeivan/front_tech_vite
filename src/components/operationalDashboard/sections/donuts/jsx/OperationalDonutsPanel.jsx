@@ -120,16 +120,17 @@ const getPieConfig = ({
   },
 });
 
-function DurationDonut({ data }) {
+function DurationDonut({ data, groupBy = "filial" }) {
   const chartData = getDurationChartData(data);
   const total = Number(data?.total || 0);
   const hasValues = total > 0;
+  const isFilialView = groupBy === "filial";
   const config = getPieConfig({
     data: chartData,
     total,
-    height: 270,
-    radius: 0.72,
-    labelPadding: [20, 118, 20, 118],
+    height: isFilialView ? 238 : 270,
+    radius: isFilialView ? 0.68 : 0.72,
+    labelPadding: isFilialView ? [14, 108, 14, 108] : [20, 118, 20, 118],
     labelPosition: "spider",
     labelText: hasValues
       ? (datum) =>
@@ -156,12 +157,13 @@ function PopulationDonut({ data, groupBy = "filial" }) {
   const chartData = getPopulationChartData(data);
   const total = Number(data?.total || 0);
   const hasValues = total > 0;
+  const isFilialView = groupBy === "filial";
   const config = getPieConfig({
     data: chartData,
     total,
-    height: 270,
-    radius: 0.72,
-    labelPadding: [20, 128, 20, 128],
+    height: isFilialView ? 238 : 270,
+    radius: isFilialView ? 0.68 : 0.72,
+    labelPadding: isFilialView ? [14, 116, 14, 116] : [20, 128, 20, 128],
     labelPosition: "spider",
     labelText: hasValues
       ? (datum) =>
@@ -213,6 +215,8 @@ export default function OperationalDonutsPanel({
     "operational-dashboard__panel",
     "operational-dashboard__panel--donuts",
     "operational-donuts-panel",
+    groupBy === "filial" ? "operational-donuts-panel--filial" : "",
+    groupBy === "po" ? "operational-donuts-panel--po" : "",
     className,
   ]
     .filter(Boolean)
@@ -226,7 +230,7 @@ export default function OperationalDonutsPanel({
         ) : (
           <Spin spinning={isLoading && hasLoaded}>
             <div className="operational-donuts-panel__grid">
-              <DurationDonut data={durationData} />
+              <DurationDonut data={durationData} groupBy={groupBy} />
               <PopulationDonut data={populationData} groupBy={groupBy} />
             </div>
           </Spin>

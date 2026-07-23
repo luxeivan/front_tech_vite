@@ -15,7 +15,7 @@ import {
 import "../css/OperationalChartsPanel.css";
 
 const formatNumber = (value) => Number(value || 0).toLocaleString("ru-RU");
-const CHART_PADDING = [30, 18, 48, 18];
+const CHART_PADDING = [24, 16, 38, 16];
 
 const formatStatsDate = (value) => {
   if (!value) return null;
@@ -67,7 +67,7 @@ export default function OperationalChartsPanel() {
     yField: "value",
     colorField: "year",
     group: true,
-    height: 245,
+    height: 210,
     padding: CHART_PADDING,
     legend: false,
     tooltip: false,
