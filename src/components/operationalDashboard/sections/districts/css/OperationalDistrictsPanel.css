@@ -85,6 +85,23 @@
   white-space: nowrap;
 }
 
+.operational-districts-panel__branch-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.operational-districts-panel__branch-link:hover,
+.operational-districts-panel__branch-link:focus-visible {
+  color: #005a9e;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.operational-districts-panel__branch-link:focus-visible {
+  outline: 2px solid rgba(0, 110, 184, 0.42);
+  outline-offset: 2px;
+}
+
 .operational-districts-panel__table .ant-table-thead > tr > th::before {
   display: none;
 }
@@ -159,6 +176,10 @@
 .operational-districts-panel--filial .operational-districts-panel__table .operational-districts-panel__branch-cell {
   line-height: 1.05;
   white-space: normal;
+}
+
+.operational-districts-panel--filial .operational-districts-panel__table .operational-districts-panel__branch-cell {
+  cursor: pointer;
 }
 
 .operational-districts-panel--po {

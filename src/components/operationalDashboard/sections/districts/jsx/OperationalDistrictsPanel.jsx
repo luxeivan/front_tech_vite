@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Table } from "antd";
+import { Link } from "react-router-dom";
 
 import useOperationalDashboardStore from "../../../../../stores/operationalDashboard/useOperationalDashboardStore";
 import { fetchTnFilialyRows } from "../../../../../utils/tnFilialyApi";
 import { fetchTnOkrugaRelationRows } from "../../../../../utils/tnOkrugaApi";
 import { fetchTnPoRows } from "../../../../../utils/tnPosApi";
+import { getOperationalFilialPath } from "../../../../../utils/operationalFilialRoutes";
 import { OPERATIONAL_BRANCH_COLUMNS } from "../js/operationalDistrictsPanel.config";
 import {
   buildOperationalBranchRows,
@@ -15,6 +17,17 @@ import "../css/OperationalDistrictsPanel.css";
 
 const formatCellValue = (value) =>
   typeof value === "number" ? new Intl.NumberFormat("ru-RU").format(value) : value;
+
+const renderBranchLink = (branch, children) => {
+  const path = getOperationalFilialPath(`${branch} филиал`);
+  return path ? (
+    <Link className="operational-districts-panel__branch-link" to={path}>
+      {children}
+    </Link>
+  ) : (
+    children
+  );
+};
 
 const OPERATIONAL_BRANCH_TABLE_SCROLL_X = OPERATIONAL_BRANCH_COLUMNS.reduce(
   (sum, column) => sum + Number(column.width || 0),
@@ -128,7 +141,14 @@ export default function OperationalDistrictsPanel({
             ? "Производственное отделение/ сетевой участок"
             : column.title,
         align: "center",
-        render: (value) => formatCellValue(value),
+        render: (value, record) => {
+          const formattedValue = formatCellValue(value);
+          if (groupBy === "filial" && column.dataIndex === "branch" && record.key !== "summary") {
+            return renderBranchLink(record.branch, formattedValue);
+          }
+
+          return formattedValue;
+        },
       })),
     [groupBy]
   );
@@ -157,7 +177,11 @@ export default function OperationalDistrictsPanel({
                   : "operational-districts-panel__mobile-card"
               }
             >
-              <h3>{record.branch}</h3>
+              <h3>
+                {groupBy === "filial" && record.key !== "summary"
+                  ? renderBranchLink(record.branch, record.branch)
+                  : record.branch}
+              </h3>
               <div className="operational-districts-panel__mobile-metrics">
                 {OPERATIONAL_BRANCH_COLUMNS.filter((column) => column.dataIndex !== "branch").map(
                   (column) => (
