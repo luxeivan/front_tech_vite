@@ -6,6 +6,7 @@ import OperationalMapPanel, {
   OperationalMapTopline,
 } from "../../components/operationalDashboard/sections/map/jsx/OperationalMapPanel";
 import OperationalDonutsPanel from "../../components/operationalDashboard/sections/donuts/jsx/OperationalDonutsPanel";
+import OperationalDistrictsPanel from "../../components/operationalDashboard/sections/districts/jsx/OperationalDistrictsPanel";
 import useOperationalDashboardStore from "../../stores/operationalDashboard/useOperationalDashboardStore";
 import { getOperationalFilialRouteBySlug } from "../../utils/operationalFilialRoutes";
 import "../../components/operationalDashboard/css/OperationalDashboard.css";
@@ -58,9 +59,11 @@ export default function OperationalFilialPage() {
           showMobileTopline
           variant="filial"
         />
-        <div className="operational-dashboard__panel operational-dashboard__panel--districts operational-filial-page__panel">
-          <div className="operational-dashboard__panel-body" />
-        </div>
+        <OperationalDistrictsPanel
+          className="operational-filial-page__panel"
+          filialName={filialName}
+          groupBy="po"
+        />
         <div className="operational-dashboard__panel operational-dashboard__panel--charts operational-filial-page__panel">
           <div className="operational-dashboard__panel-body" />
         </div>

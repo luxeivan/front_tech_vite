@@ -3,10 +3,13 @@ import { Table } from "antd";
 
 import useOperationalDashboardStore from "../../../../../stores/operationalDashboard/useOperationalDashboardStore";
 import { fetchTnFilialyRows } from "../../../../../utils/tnFilialyApi";
+import { fetchTnOkrugaRelationRows } from "../../../../../utils/tnOkrugaApi";
+import { fetchTnPoRows } from "../../../../../utils/tnPosApi";
 import { OPERATIONAL_BRANCH_COLUMNS } from "../js/operationalDistrictsPanel.config";
 import {
   buildOperationalBranchRows,
   buildOperationalBranchSummary,
+  buildOperationalPoRows,
 } from "../js/operationalDistrictsPanel.utils";
 import "../css/OperationalDistrictsPanel.css";
 
@@ -18,16 +21,41 @@ const OPERATIONAL_BRANCH_TABLE_SCROLL_X = OPERATIONAL_BRANCH_COLUMNS.reduce(
   0
 );
 
-export default function OperationalDistrictsPanel() {
+const OPERATIONAL_PO_COLUMN_WIDTHS = {
+  branch: 112,
+  lep: 32,
+  tpRp: 36,
+  population: 48,
+  mkd: 32,
+  boilerCtp: 44,
+  vzuVns: 42,
+  kns: 32,
+  medical: 56,
+  schools: 52,
+  brigades: 42,
+  staff: 42,
+  vehicles: 42,
+  pes: 32,
+  mainResource: 46,
+  ovb: 32,
+};
+
+export default function OperationalDistrictsPanel({
+  className = "",
+  filialName = "",
+  groupBy = "filial",
+}) {
   const rows = useOperationalDashboardStore((store) => store.rows);
   const isLoading = useOperationalDashboardStore((store) => store.isLoading);
   const hasLoaded = useOperationalDashboardStore((store) => store.hasLoaded);
   const [filialRows, setFilialRows] = useState([]);
-  const [isFilialRowsLoading, setIsFilialRowsLoading] = useState(false);
+  const [poRows, setPoRows] = useState([]);
+  const [okrugaRows, setOkrugaRows] = useState([]);
 
   useEffect(() => {
+    if (groupBy !== "filial") return undefined;
+
     let cancelled = false;
-    setIsFilialRowsLoading(true);
 
     fetchTnFilialyRows()
       .then((nextRows) => {
@@ -35,33 +63,69 @@ export default function OperationalDistrictsPanel() {
       })
       .catch(() => {
         if (!cancelled) setFilialRows([]);
-      })
-      .finally(() => {
-        if (!cancelled) setIsFilialRowsLoading(false);
       });
 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [groupBy]);
+
+  useEffect(() => {
+    if (groupBy !== "po") return undefined;
+
+    let cancelled = false;
+
+    Promise.allSettled([fetchTnPoRows(), fetchTnOkrugaRelationRows()]).then((results) => {
+      if (cancelled) return;
+
+      const [poResult, okrugaResult] = results;
+      setPoRows(poResult.status === "fulfilled" ? poResult.value : []);
+      setOkrugaRows(okrugaResult.status === "fulfilled" ? okrugaResult.value : []);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [groupBy]);
 
   const dataSource = useMemo(() => {
-    const branchRows = buildOperationalBranchRows(rows, filialRows);
+    const branchRows =
+      groupBy === "po"
+        ? buildOperationalPoRows(rows, poRows, filialName, okrugaRows)
+        : buildOperationalBranchRows(rows, filialRows);
     return [...branchRows, buildOperationalBranchSummary(branchRows)];
-  }, [filialRows, rows]);
+  }, [filialName, filialRows, groupBy, okrugaRows, poRows, rows]);
 
   const columns = useMemo(
     () =>
       OPERATIONAL_BRANCH_COLUMNS.map((column) => ({
         ...column,
+        width:
+          groupBy === "po"
+            ? OPERATIONAL_PO_COLUMN_WIDTHS[column.dataIndex] || column.width
+            : column.width,
+        title:
+          groupBy === "po" && column.dataIndex === "branch"
+            ? "Производственное отделение/ сетевой участок"
+            : column.title,
         align: "center",
         render: (value) => formatCellValue(value),
       })),
-    []
+    [groupBy]
   );
 
+  const panelClassName = [
+    "operational-dashboard__panel",
+    "operational-dashboard__panel--districts",
+    "operational-districts-panel",
+    groupBy === "po" ? "operational-districts-panel--po" : "",
+    className,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <div className="operational-dashboard__panel operational-dashboard__panel--districts operational-districts-panel">
+    <div className={panelClassName}>
       <div className="operational-dashboard__panel-body">
         <div className="operational-districts-panel__mobile-list">
           {dataSource.map((record) => (
@@ -94,13 +158,13 @@ export default function OperationalDistrictsPanel() {
           className="operational-districts-panel__table"
           columns={columns}
           dataSource={dataSource}
-          loading={(isLoading && hasLoaded) || isFilialRowsLoading}
+          loading={isLoading && hasLoaded}
           pagination={false}
           rowClassName={(record) =>
             record.key === "summary" ? "operational-districts-panel__row--summary" : ""
           }
           size="small"
-          scroll={{ x: OPERATIONAL_BRANCH_TABLE_SCROLL_X }}
+          scroll={groupBy === "po" ? undefined : { x: OPERATIONAL_BRANCH_TABLE_SCROLL_X }}
           tableLayout="fixed"
         />
       </div>

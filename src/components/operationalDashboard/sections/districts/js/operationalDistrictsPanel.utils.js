@@ -11,6 +11,11 @@ import {
   OPERATIONAL_BRANCH_UNKNOWN_VALUE,
   OPERATIONAL_BRANCHES,
 } from "./operationalDistrictsPanel.config";
+import { unwrapFirstTnPoRelation } from "../../../../../utils/tnPosApi";
+import {
+  unwrapFirstTnOkrugaRelation,
+  unwrapTnOkrugaRelation,
+} from "../../../../../utils/tnOkrugaApi";
 
 const EMPTY_NUMERIC_VALUES = {
   lep: 0,
@@ -88,7 +93,42 @@ const getFilialMainResource = (row) =>
 
 const getFilialOvb = (row) => row?.ovb;
 
+const getPoMainResource = (row) =>
+  row?.osn_resours ?? row?.osn_resours_count ?? row?.osn_resource ?? row?.mainResource;
+
+const getPoOvb = (row) => row?.ovb;
+
 const hasValue = (value) => value !== null && value !== undefined && value !== "";
+
+const getOperationalPoByRow = (row) => {
+  const poName = pick(row, "SCNAME");
+  return typeof poName === "string" ? poName.trim() : poName;
+};
+
+const isSameNormalizedName = (left, right) =>
+  normalizeLookupName(left) === normalizeLookupName(right);
+
+const isRowInBranch = (row, branchName) => {
+  const branch = normalizeBranchName(branchName);
+  if (!branch) return true;
+  return isSameNormalizedName(getOperationalBranchByRow(row), branch);
+};
+
+const getPoFilialName = (poRow) => {
+  const filial = unwrapFirstTnPoRelation(poRow?.tn_filialy, poRow?.tn_filialies);
+  return filial?.name || null;
+};
+
+const getOkrugFilialName = (okrugRow) => {
+  const filial = unwrapFirstTnOkrugaRelation(okrugRow?.tn_filialy, okrugRow?.tn_filialies);
+  return filial?.name || null;
+};
+
+const getOkrugPoRows = (okrugRow) => {
+  const po = unwrapTnOkrugaRelation(okrugRow?.tn_po || okrugRow?.tn_pos);
+  if (Array.isArray(po)) return po;
+  return po ? [po] : [];
+};
 
 const buildBranchResourceMap = (filialRows) =>
   (Array.isArray(filialRows) ? filialRows : []).reduce((acc, row) => {
@@ -106,6 +146,22 @@ const buildBranchResourceMap = (filialRows) =>
     return acc;
   }, new Map());
 
+const buildPoResourceMap = (poRows) =>
+  (Array.isArray(poRows) ? poRows : []).reduce((acc, row) => {
+    const poName = row?.name;
+    if (!poName) return acc;
+
+    const mainResource = getPoMainResource(row);
+    const ovb = getPoOvb(row);
+
+    acc.set(normalizeLookupName(poName), {
+      mainResource: hasValue(mainResource) ? mainResource : OPERATIONAL_BRANCH_UNKNOWN_VALUE,
+      ovb: hasValue(ovb) ? ovb : OPERATIONAL_BRANCH_UNKNOWN_VALUE,
+    });
+
+    return acc;
+  }, new Map());
+
 const createBranchRow = (branch, branchResources) => ({
   key: branch,
   branch,
@@ -114,6 +170,19 @@ const createBranchRow = (branch, branchResources) => ({
     branchResources?.get(branch)?.mainResource ?? OPERATIONAL_BRANCH_UNKNOWN_VALUE,
   ovb: branchResources?.get(branch)?.ovb ?? OPERATIONAL_BRANCH_UNKNOWN_VALUE,
 });
+
+const createPoRow = (poRow, poResources) => {
+  const poName = poRow?.name || OPERATIONAL_BRANCH_UNKNOWN_VALUE;
+  const resources = poResources?.get(normalizeLookupName(poName));
+
+  return {
+    key: poRow?.documentId || poRow?.id || poName,
+    branch: poName,
+    ...EMPTY_NUMERIC_VALUES,
+    mainResource: resources?.mainResource ?? OPERATIONAL_BRANCH_UNKNOWN_VALUE,
+    ovb: resources?.ovb ?? OPERATIONAL_BRANCH_UNKNOWN_VALUE,
+  };
+};
 
 export const buildOperationalBranchRows = (rows, filialRows = []) => {
   const branchResources = buildBranchResourceMap(filialRows);
@@ -132,6 +201,55 @@ export const buildOperationalBranchRows = (rows, filialRows = []) => {
 
   const ordered = OPERATIONAL_BRANCHES.map((branch) => branchMap.get(branch)).filter(Boolean);
   return ordered;
+};
+
+export const buildOperationalPoRows = (rows, poRows = [], filialName = "", okrugaRows = []) => {
+  const normalizedBranchName = normalizeBranchName(filialName);
+  const poResources = buildPoResourceMap(poRows);
+  const filteredPoRows = (Array.isArray(poRows) ? poRows : []).filter((poRow) =>
+    isSameNormalizedName(normalizeBranchName(getPoFilialName(poRow)), normalizedBranchName)
+  );
+  const poMap = new Map();
+
+  const addPoReferenceRow = (poRow) => {
+    if (poRow?.is_active === false) return;
+
+    const poName = poRow?.name;
+    const poKey = normalizeLookupName(poName);
+    if (!poKey || poMap.has(poKey)) return;
+    poMap.set(poKey, createPoRow(poRow, poResources));
+  };
+
+  filteredPoRows.forEach(addPoReferenceRow);
+
+  (Array.isArray(okrugaRows) ? okrugaRows : [])
+    .filter((okrugRow) =>
+      isSameNormalizedName(normalizeBranchName(getOkrugFilialName(okrugRow)), normalizedBranchName)
+    )
+    .flatMap(getOkrugPoRows)
+    .forEach(addPoReferenceRow);
+
+  (Array.isArray(rows) ? rows : [])
+    .filter((row) => isOperationalDashboardRow(row) && isOpenTN(row) && isRowInBranch(row, filialName))
+    .forEach((row) => {
+      const poName = getOperationalPoByRow(row);
+      const poKey = normalizeLookupName(poName);
+      if (!poKey) return;
+
+      if (!poMap.has(poKey)) {
+        poMap.set(poKey, {
+          key: poName,
+          branch: poName,
+          ...EMPTY_NUMERIC_VALUES,
+          mainResource: OPERATIONAL_BRANCH_UNKNOWN_VALUE,
+          ovb: OPERATIONAL_BRANCH_UNKNOWN_VALUE,
+        });
+      }
+
+      addRowToTotals(poMap.get(poKey), row);
+    });
+
+  return Array.from(poMap.values());
 };
 
 export const buildOperationalBranchSummary = (rows) => {

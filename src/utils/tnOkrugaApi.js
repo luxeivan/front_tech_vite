@@ -31,6 +31,9 @@ const unwrapFirstRelation = (...relations) => {
   return null;
 };
 
+export const unwrapTnOkrugaRelation = unwrapRelation;
+export const unwrapFirstTnOkrugaRelation = unwrapFirstRelation;
+
 export async function fetchTnOkrugaRows() {
   const rows = [];
   let page = 1;
@@ -43,6 +46,38 @@ export async function fetchTnOkrugaRows() {
         "pagination[page]": page,
         "pagination[pageSize]": PAGE_SIZE,
         populate: "*",
+        "sort[0]": "sort_order:asc",
+      },
+      headers: getAuthHeaders(),
+    });
+
+    rows.push(...(Array.isArray(data?.data) ? data.data.map(mapStrapiItem) : []));
+    pageCount = Number(data?.meta?.pagination?.pageCount || 1);
+    page += 1;
+  } while (page <= pageCount);
+
+  return rows;
+}
+
+export async function fetchTnOkrugaRelationRows() {
+  const rows = [];
+  let page = 1;
+  let pageCount = 1;
+
+  do {
+    const { data } = await axios.get(TN_OKRUGA_ENDPOINT, {
+      params: {
+        "filters[is_active][$eq]": true,
+        "fields[0]": "name",
+        "fields[1]": "source_name",
+        "fields[2]": "sort_order",
+        "fields[3]": "is_active",
+        "pagination[page]": page,
+        "pagination[pageSize]": PAGE_SIZE,
+        "populate[tn_pos][fields][0]": "name",
+        "populate[tn_pos][fields][1]": "sort_order",
+        "populate[tn_pos][fields][2]": "is_active",
+        "populate[tn_filialies][fields][0]": "name",
         "sort[0]": "sort_order:asc",
       },
       headers: getAuthHeaders(),

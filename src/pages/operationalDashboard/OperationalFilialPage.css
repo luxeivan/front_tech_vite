@@ -83,11 +83,18 @@
 }
 
 .operational-filial-page__grid {
+  grid-template-rows: minmax(300px, 0.72fr) minmax(170px, 0.46fr) minmax(300px, 1fr);
   min-height: calc(100vh - 206px);
 }
 
 .operational-filial-page__panel {
   background: rgba(255, 255, 255, 0.16);
+}
+
+@media (min-width: 769px) {
+  .operational-filial-page__grid > .operational-districts-panel--po {
+    margin-top: 34px;
+  }
 }
 
 @media (max-width: 768px) {

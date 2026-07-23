@@ -134,6 +134,50 @@
   background-clip: padding-box;
 }
 
+.operational-districts-panel--po {
+  --operational-branches-table-font-size: 9px;
+  --operational-branches-table-header-font-size: 8px;
+}
+
+.operational-districts-panel--po .operational-dashboard__panel-body {
+  display: flex;
+  align-items: flex-start;
+  padding: 10px 6px 6px;
+}
+
+.operational-districts-panel--po .operational-districts-panel__table,
+.operational-districts-panel--po .operational-districts-panel__table .ant-spin-nested-loading,
+.operational-districts-panel--po .operational-districts-panel__table .ant-spin-container,
+.operational-districts-panel--po .operational-districts-panel__table .ant-table,
+.operational-districts-panel--po .operational-districts-panel__table .ant-table-container,
+.operational-districts-panel--po .operational-districts-panel__table .ant-table-content,
+.operational-districts-panel--po .operational-districts-panel__table table {
+  height: auto;
+}
+
+.operational-districts-panel--po .operational-districts-panel__table .ant-table-content {
+  overflow-x: hidden !important;
+}
+
+.operational-districts-panel--po .operational-districts-panel__table .ant-table-content > table {
+  min-width: 0;
+  width: 100% !important;
+}
+
+.operational-districts-panel--po .operational-districts-panel__table .ant-table-cell {
+  padding: 3px 1px;
+}
+
+.operational-districts-panel--po .operational-districts-panel__table .ant-table-thead > tr > th {
+  height: 52px;
+  line-height: 1.04;
+}
+
+.operational-districts-panel--po .operational-districts-panel__table .ant-table-tbody > tr > td {
+  height: 40px;
+  line-height: 1.05;
+}
+
 @media (max-width: 768px) {
   .operational-dashboard__panel--districts .operational-dashboard__panel-body {
     padding: 8px;
