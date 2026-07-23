@@ -72,13 +72,15 @@ const getPieConfig = ({
   total,
   labelPadding,
   labelPosition = "outside",
+  innerRadius = 0.62,
   radius = 0.72,
   height = 270,
+  statisticFontSize = "46px",
 }) => ({
   data,
   angleField: "value",
   colorField: "colorKey",
-  innerRadius: 0.62,
+  innerRadius,
   radius,
   height,
   padding: labelPadding || [20, 100, 20, 100],
@@ -112,7 +114,7 @@ const getPieConfig = ({
     content: {
       style: {
         color: "#1575bc",
-        fontSize: "46px",
+        fontSize: statisticFontSize,
         fontWeight: 400,
         lineHeight: "1",
       },
@@ -163,10 +165,12 @@ function PopulationDonut({ data, groupBy = "filial" }) {
     data: chartData,
     total,
     height: isFilialView ? 238 : 270,
+    innerRadius: isFilialView ? 0.62 : 0.56,
     radius: isFilialView ? 0.68 : 0.66,
     labelPadding: isFilialView ? [14, 116, 14, 116] : [18, 160, 54, 160],
     labelPosition: "spider",
     labelHeight: isFilialView ? undefined : 36,
+    statisticFontSize: isFilialView ? "46px" : "40px",
     labelText: hasValues
       ? (datum) =>
           !datum.isEmpty && datum.value > 0

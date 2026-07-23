@@ -66,6 +66,10 @@
   font-size: 40px;
 }
 
+.operational-donuts-panel--po .operational-donuts-panel__chart--population .operational-donuts-panel__center-number {
+  font-size: 40px;
+}
+
 .operational-donuts-panel__center-number {
   position: absolute;
   top: 50%;
