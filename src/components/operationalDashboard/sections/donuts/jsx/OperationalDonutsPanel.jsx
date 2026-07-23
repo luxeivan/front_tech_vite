@@ -68,6 +68,7 @@ const getPopulationChartData = (data) => {
 const getPieConfig = ({
   data,
   labelText,
+  labelHeight,
   total,
   labelPadding,
   labelPosition = "outside",
@@ -87,12 +88,12 @@ const getPieConfig = ({
     ? {
         position: labelPosition,
         offset: 14,
+        labelHeight,
         text: labelText,
         style: {
           fill: "#1575bc",
           fontSize: 11,
           fontWeight: 600,
-          textAlign: "center",
           lineHeight: 16,
         },
       }
@@ -162,9 +163,10 @@ function PopulationDonut({ data, groupBy = "filial" }) {
     data: chartData,
     total,
     height: isFilialView ? 238 : 270,
-    radius: isFilialView ? 0.68 : 0.72,
-    labelPadding: isFilialView ? [14, 116, 14, 116] : [20, 128, 20, 128],
+    radius: isFilialView ? 0.68 : 0.66,
+    labelPadding: isFilialView ? [14, 116, 14, 116] : [18, 160, 54, 160],
     labelPosition: "spider",
+    labelHeight: isFilialView ? undefined : 36,
     labelText: hasValues
       ? (datum) =>
           !datum.isEmpty && datum.value > 0
