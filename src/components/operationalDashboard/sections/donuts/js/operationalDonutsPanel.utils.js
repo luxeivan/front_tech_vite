@@ -9,7 +9,10 @@ import {
   startDate,
   toNumber,
 } from "../../../../dashboard/js/dashboardCommon";
-import { getOperationalBranchByRow } from "../../districts/js/operationalDistrictsPanel.utils";
+import {
+  getOperationalBranchByRow,
+  normalizeBranchName,
+} from "../../districts/js/operationalDistrictsPanel.utils";
 
 const isMediumVoltageLineOutage = (row) => {
   const raw = row?.data?.data ?? row?.data ?? row ?? {};
@@ -27,7 +30,30 @@ const durationHours = (row, now) => {
   return Number.isFinite(hours) && hours >= 0 ? hours : null;
 };
 
-export const buildDurationDonutData = (rows, now = dayjs()) => {
+const normalizeLookupName = (value) =>
+  String(value || "")
+    .replace(/ё/g, "е")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+
+const getOperationalPoByRow = (row) => {
+  const poName = pick(row, "SCNAME");
+  return typeof poName === "string" ? poName.trim() : poName;
+};
+
+const isRowInFilial = (row, filialName) => {
+  const targetFilial = normalizeLookupName(normalizeBranchName(filialName));
+  if (!targetFilial) return true;
+
+  return normalizeLookupName(getOperationalBranchByRow(row)) === targetFilial;
+};
+
+const getPopulationGroupByRow = (row, groupBy) =>
+  groupBy === "po" ? getOperationalPoByRow(row) : getOperationalBranchByRow(row);
+
+export const buildDurationDonutData = (rows, now = dayjs(), options = {}) => {
+  const { filialName = "" } = options;
   const source = Array.isArray(rows) ? rows : [];
   const buckets = {
     under2h: [],
@@ -41,6 +67,7 @@ export const buildDurationDonutData = (rows, now = dayjs()) => {
         isDashboardBaseType(row) &&
         isNotDeletedTN(row) &&
         isOpenTN(row) &&
+        isRowInFilial(row, filialName) &&
         Boolean(getOperationalBranchByRow(row)) &&
         isMediumVoltageLineOutage(row)
     )
@@ -62,14 +89,21 @@ export const buildDurationDonutData = (rows, now = dayjs()) => {
   };
 };
 
-export const buildPopulationDonutData = (rows) => {
+export const buildPopulationDonutData = (rows, options = {}) => {
+  const { filialName = "", groupBy = "filial" } = options;
   const source = Array.isArray(rows) ? rows : [];
   const districtTotals = new Map();
 
   source
-    .filter((row) => isDashboardBaseType(row) && isNotDeletedTN(row) && isOpenTN(row))
+    .filter(
+      (row) =>
+        isDashboardBaseType(row) &&
+        isNotDeletedTN(row) &&
+        isOpenTN(row) &&
+        isRowInFilial(row, filialName)
+    )
     .forEach((row) => {
-      const district = getOperationalBranchByRow(row);
+      const district = getPopulationGroupByRow(row, groupBy);
       if (!district) return;
       const people = getRowPeopleCount(row);
       if (people > 0) {

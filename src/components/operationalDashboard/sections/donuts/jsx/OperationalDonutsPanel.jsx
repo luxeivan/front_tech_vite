@@ -152,7 +152,7 @@ function DurationDonut({ data }) {
   );
 }
 
-function PopulationDonut({ data }) {
+function PopulationDonut({ data, groupBy = "filial" }) {
   const chartData = getPopulationChartData(data);
   const total = Number(data?.total || 0);
   const hasValues = total > 0;
@@ -184,7 +184,11 @@ function PopulationDonut({ data }) {
   );
 }
 
-export default function OperationalDonutsPanel() {
+export default function OperationalDonutsPanel({
+  filialName = "",
+  groupBy = "filial",
+  className = "",
+}) {
   const rows = useOperationalDashboardStore((store) => store.rows);
   const isLoading = useOperationalDashboardStore((store) => store.isLoading);
   const hasLoaded = useOperationalDashboardStore((store) => store.hasLoaded);
@@ -196,11 +200,26 @@ export default function OperationalDonutsPanel() {
     return () => window.clearInterval(timer);
   }, []);
 
-  const durationData = useMemo(() => buildDurationDonutData(rows, now), [rows, now]);
-  const populationData = useMemo(() => buildPopulationDonutData(rows), [rows]);
+  const durationData = useMemo(
+    () => buildDurationDonutData(rows, now, { filialName }),
+    [rows, now, filialName]
+  );
+  const populationData = useMemo(
+    () => buildPopulationDonutData(rows, { filialName, groupBy }),
+    [rows, filialName, groupBy]
+  );
+
+  const panelClassName = [
+    "operational-dashboard__panel",
+    "operational-dashboard__panel--donuts",
+    "operational-donuts-panel",
+    className,
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
-    <div className="operational-dashboard__panel operational-dashboard__panel--donuts operational-donuts-panel">
+    <div className={panelClassName}>
       <div className="operational-dashboard__panel-body">
         {error ? (
           <Alert type="error" showIcon message={error} />
@@ -208,7 +227,7 @@ export default function OperationalDonutsPanel() {
           <Spin spinning={isLoading && hasLoaded}>
             <div className="operational-donuts-panel__grid">
               <DurationDonut data={durationData} />
-              <PopulationDonut data={populationData} />
+              <PopulationDonut data={populationData} groupBy={groupBy} />
             </div>
           </Spin>
         )}
