@@ -180,7 +180,7 @@ export const buildOperationalMapFilialData = (rows) =>
   buildOperationalMapAreaData(rows, getOperationalBranchByRow);
 
 export const buildOperationalMapPoData = (rows) =>
-  buildOperationalMapAreaData(rows, (row) => pick(row, "DISPCENTER_NAME_"));
+  buildOperationalMapAreaData(rows, (row) => pick(row, "SCNAME"));
 
 export const getWeatherView = (code) => {
   const value = Number(code);
