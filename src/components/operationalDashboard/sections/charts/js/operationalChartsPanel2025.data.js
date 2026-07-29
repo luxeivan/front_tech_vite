@@ -1,5 +1,7 @@
-// Источник: /Users/yanutstas/Downloads/branches.json, помесячные данные 2025.
-// Контрольная сумма по полю total: 6336.
+import branchesWithPo2025 from "./branches_with_po_2025.json";
+
+// Источник: /Users/yanutstas/Downloads/branches_with_po_2025.json, помесячные данные 2025.
+// Контрольная сумма по полю data.total: 6336.
 const SOURCE_YEAR = 2025;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const MONTH_KEYS = [
@@ -16,159 +18,28 @@ const MONTH_KEYS = [
   "november",
   "december",
 ];
+const MONTH_LABELS = [
+  "январь",
+  "февраль",
+  "март",
+  "апрель",
+  "май",
+  "июнь",
+  "июль",
+  "август",
+  "сентябрь",
+  "октябрь",
+  "ноябрь",
+  "декабрь",
+];
+const DEBUG_KOLOMNA_2025 = true;
+const loggedKolomnaWindows = new Set();
 
-export const OPERATIONAL_CHART_2025_MONTHLY_VALUES = {
-  Домодедовский: {
-    january: 59,
-    february: 58,
-    march: 88,
-    april: 102,
-    may: 82,
-    june: 95,
-    july: 123,
-    august: 114,
-    september: 70,
-    october: 79,
-    november: 90,
-    december: 76,
-    total: 1036,
-  },
-  Коломенский: {
-    january: 35,
-    february: 32,
-    march: 42,
-    april: 71,
-    may: 65,
-    june: 87,
-    july: 112,
-    august: 67,
-    september: 68,
-    october: 41,
-    november: 61,
-    december: 65,
-    total: 746,
-  },
-  Красногорский: {
-    january: 85,
-    february: 55,
-    march: 82,
-    april: 82,
-    may: 126,
-    june: 62,
-    july: 125,
-    august: 79,
-    september: 70,
-    october: 57,
-    november: 75,
-    december: 82,
-    total: 980,
-  },
-  Мытищинский: {
-    january: 31,
-    february: 38,
-    march: 49,
-    april: 44,
-    may: 74,
-    june: 49,
-    july: 69,
-    august: 48,
-    september: 70,
-    october: 37,
-    november: 48,
-    december: 59,
-    total: 616,
-  },
-  Одинцовский: {
-    january: 73,
-    february: 89,
-    march: 84,
-    april: 107,
-    may: 103,
-    june: 102,
-    july: 105,
-    august: 102,
-    september: 66,
-    october: 57,
-    november: 88,
-    december: 69,
-    total: 1058,
-  },
-  "Орехово-Зуевский": {
-    january: 4,
-    february: 3,
-    march: 5,
-    april: 7,
-    may: 8,
-    june: 4,
-    july: 6,
-    august: 8,
-    september: 6,
-    october: 1,
-    november: 7,
-    december: 5,
-    total: 64,
-  },
-  "Павлово-Посадский": {
-    january: 42,
-    february: 29,
-    march: 32,
-    april: 40,
-    may: 44,
-    june: 43,
-    july: 46,
-    august: 20,
-    september: 32,
-    october: 32,
-    november: 45,
-    december: 28,
-    total: 433,
-  },
-  Раменский: {
-    january: 30,
-    february: 49,
-    march: 46,
-    april: 70,
-    may: 74,
-    june: 69,
-    july: 74,
-    august: 46,
-    september: 54,
-    october: 37,
-    november: 47,
-    december: 48,
-    total: 644,
-  },
-  "Сергиево-Посадский": {
-    january: 10,
-    february: 5,
-    march: 10,
-    april: 8,
-    may: 26,
-    june: 5,
-    july: 17,
-    august: 8,
-    september: 9,
-    october: 8,
-    november: 5,
-    december: 6,
-    total: 117,
-  },
-  Щелковский: {
-    january: 43,
-    february: 38,
-    march: 36,
-    april: 52,
-    may: 61,
-    june: 52,
-    july: 77,
-    august: 67,
-    september: 70,
-    october: 44,
-    november: 41,
-    december: 61,
-    total: 642,
-  },
-};
+export const OPERATIONAL_CHART_2025_SOURCE = branchesWithPo2025;
+
+export const OPERATIONAL_CHART_2025_MONTHLY_VALUES = Object.fromEntries(
+  OPERATIONAL_CHART_2025_SOURCE.map((item) => [item.branch, item.data])
+);
 
 export const OPERATIONAL_CHART_2025_VALUES = Object.fromEntries(
   Object.entries(OPERATIONAL_CHART_2025_MONTHLY_VALUES).map(([branch, data]) => [
@@ -257,6 +128,42 @@ const calculateMonthShare = (monthlyValue, year, monthIndex, windowStart, window
   return Number(monthlyValue || 0) * (overlapDays / monthDays);
 };
 
+const formatDebugDate = (time) => new Date(time).toISOString().slice(0, 10);
+
+const logKolomna2025Calculation = (data, windowStart, windowEnd, value) => {
+  const windowKey = `${windowStart}-${windowEnd}`;
+  if (!DEBUG_KOLOMNA_2025 || loggedKolomnaWindows.has(windowKey)) return;
+
+  loggedKolomnaWindows.add(windowKey);
+
+  const rows = MONTH_KEYS.map((key, monthIndex) => {
+    const monthStart = Date.UTC(SOURCE_YEAR, monthIndex, 1);
+    const monthEnd = Date.UTC(SOURCE_YEAR, monthIndex + 1, 1);
+    const overlapStart = Math.max(windowStart, monthStart);
+    const overlapEnd = Math.min(windowEnd, monthEnd);
+    const monthDays = getDaysInMonth(SOURCE_YEAR, monthIndex);
+    const overlapDays =
+      overlapEnd > overlapStart ? (overlapEnd - overlapStart) / MS_PER_DAY : 0;
+    const monthValue = Number(data[key] || 0);
+    const share = overlapDays > 0 ? monthValue * (overlapDays / monthDays) : 0;
+
+    return {
+      month: MONTH_LABELS[monthIndex],
+      monthValue,
+      monthDays,
+      overlapDays,
+      share: Number(share.toFixed(2)),
+    };
+  }).filter((row) => row.overlapDays > 0);
+
+  console.groupCollapsed("[dashboard-oo] Расчет 2025 для Коломны");
+  console.log("Окно 2025:", formatDebugDate(windowStart), "-", formatDebugDate(windowEnd));
+  console.table(rows);
+  console.log("Сумма до округления:", Number(value.toFixed(2)));
+  console.log("Итог после округления:", Math.round(value));
+  console.groupEnd();
+};
+
 export const getOperationalChart2025Values = (statsMeta) => {
   const { start, end } = getSourceYearWindow(statsMeta);
 
@@ -267,6 +174,10 @@ export const getOperationalChart2025Values = (statsMeta) => {
           sum + calculateMonthShare(data[key], SOURCE_YEAR, monthIndex, start, end),
         0
       );
+
+      if (branch === "Коломенский") {
+        logKolomna2025Calculation(data, start, end, value);
+      }
 
       return [branch, Math.round(value)];
     })

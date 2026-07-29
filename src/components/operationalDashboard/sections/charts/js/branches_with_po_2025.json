@@ -1,0 +1,921 @@
+[
+  {
+    "branch": "Домодедовский",
+    "data": {
+      "january": 59,
+      "february": 58,
+      "march": 88,
+      "april": 102,
+      "may": 82,
+      "june": 95,
+      "july": 123,
+      "august": 114,
+      "september": 70,
+      "october": 79,
+      "november": 90,
+      "december": 76,
+      "total": 1036
+    },
+    "productionOffices": [
+      {
+        "name": "Дзержинское ПО",
+        "data": {
+          "january": 15,
+          "february": 15,
+          "march": 17,
+          "april": 24,
+          "may": 23,
+          "june": 22,
+          "july": 32,
+          "august": 38,
+          "september": 24,
+          "october": 20,
+          "november": 10,
+          "december": 13,
+          "total": 253
+        }
+      },
+      {
+        "name": "Домодедовское ПО",
+        "data": {
+          "january": 14,
+          "february": 11,
+          "march": 14,
+          "april": 27,
+          "may": 12,
+          "june": 23,
+          "july": 21,
+          "august": 25,
+          "september": 12,
+          "october": 24,
+          "november": 30,
+          "december": 17,
+          "total": 230
+        }
+      },
+      {
+        "name": "Подольское ПО",
+        "data": {
+          "january": 22,
+          "february": 27,
+          "march": 44,
+          "april": 42,
+          "may": 39,
+          "june": 37,
+          "july": 53,
+          "august": 41,
+          "september": 26,
+          "october": 19,
+          "november": 35,
+          "december": 35,
+          "total": 420
+        }
+      },
+      {
+        "name": "Чеховское ПО",
+        "data": {
+          "january": 8,
+          "february": 5,
+          "march": 13,
+          "april": 9,
+          "may": 8,
+          "june": 13,
+          "july": 17,
+          "august": 10,
+          "september": 8,
+          "october": 16,
+          "november": 15,
+          "december": 11,
+          "total": 133
+        }
+      }
+    ]
+  },
+  {
+    "branch": "Коломенский",
+    "data": {
+      "january": 35,
+      "february": 32,
+      "march": 42,
+      "april": 71,
+      "may": 65,
+      "june": 87,
+      "july": 112,
+      "august": 67,
+      "september": 68,
+      "october": 41,
+      "november": 61,
+      "december": 65,
+      "total": 746
+    },
+    "productionOffices": [
+      {
+        "name": "Воскресенское ПО",
+        "data": {
+          "january": 5,
+          "february": 8,
+          "march": 8,
+          "april": 15,
+          "may": 11,
+          "june": 17,
+          "july": 25,
+          "august": 11,
+          "september": 17,
+          "october": 7,
+          "november": 18,
+          "december": 13,
+          "total": 155
+        }
+      },
+      {
+        "name": "Каширское ПО",
+        "data": {
+          "january": 7,
+          "february": 3,
+          "march": 4,
+          "april": 6,
+          "may": 9,
+          "june": 9,
+          "july": 16,
+          "august": 7,
+          "september": 8,
+          "october": 4,
+          "november": 8,
+          "december": 8,
+          "total": 89
+        }
+      },
+      {
+        "name": "Коломенское ПО",
+        "data": {
+          "january": 4,
+          "february": 7,
+          "march": 5,
+          "april": 5,
+          "may": 5,
+          "june": 12,
+          "july": 11,
+          "august": 12,
+          "september": 6,
+          "october": 4,
+          "november": 4,
+          "december": 5,
+          "total": 80
+        }
+      },
+      {
+        "name": "Луховицкое ПО",
+        "data": {
+          "january": 0,
+          "february": 2,
+          "march": 5,
+          "april": 7,
+          "may": 3,
+          "june": 9,
+          "july": 8,
+          "august": 5,
+          "september": 3,
+          "october": 1,
+          "november": 2,
+          "december": 3,
+          "total": 48
+        }
+      },
+      {
+        "name": "Серпуховское ПО",
+        "data": {
+          "january": 14,
+          "february": 10,
+          "march": 15,
+          "april": 18,
+          "may": 28,
+          "june": 20,
+          "july": 23,
+          "august": 15,
+          "september": 15,
+          "october": 18,
+          "november": 10,
+          "december": 17,
+          "total": 203
+        }
+      },
+      {
+        "name": "Ступинское ПО",
+        "data": {
+          "january": 5,
+          "february": 2,
+          "march": 5,
+          "april": 20,
+          "may": 9,
+          "june": 20,
+          "july": 29,
+          "august": 17,
+          "september": 19,
+          "october": 7,
+          "november": 19,
+          "december": 19,
+          "total": 171
+        }
+      }
+    ]
+  },
+  {
+    "branch": "Красногорский",
+    "data": {
+      "january": 85,
+      "february": 55,
+      "march": 82,
+      "april": 82,
+      "may": 126,
+      "june": 62,
+      "july": 125,
+      "august": 79,
+      "september": 70,
+      "october": 57,
+      "november": 75,
+      "december": 82,
+      "total": 980
+    },
+    "productionOffices": [
+      {
+        "name": "Красногорское ПО",
+        "data": {
+          "january": 16,
+          "february": 12,
+          "march": 20,
+          "april": 18,
+          "may": 20,
+          "june": 10,
+          "july": 17,
+          "august": 13,
+          "september": 12,
+          "october": 10,
+          "november": 12,
+          "december": 18,
+          "total": 178
+        }
+      },
+      {
+        "name": "Истринское ПО",
+        "data": {
+          "january": 21,
+          "february": 12,
+          "march": 25,
+          "april": 25,
+          "may": 35,
+          "june": 24,
+          "july": 48,
+          "august": 24,
+          "september": 20,
+          "october": 18,
+          "november": 26,
+          "december": 24,
+          "total": 302
+        }
+      },
+      {
+        "name": "Долгопрудненское ПО",
+        "data": {
+          "january": 1,
+          "february": 4,
+          "march": 4,
+          "april": 12,
+          "may": 13,
+          "june": 11,
+          "july": 4,
+          "august": 9,
+          "september": 5,
+          "october": 11,
+          "november": 7,
+          "december": 15,
+          "total": 96
+        }
+      },
+      {
+        "name": "Клинское ПО",
+        "data": {
+          "january": 19,
+          "february": 12,
+          "march": 15,
+          "april": 10,
+          "may": 36,
+          "june": 7,
+          "july": 36,
+          "august": 17,
+          "september": 13,
+          "october": 9,
+          "november": 15,
+          "december": 10,
+          "total": 199
+        }
+      },
+      {
+        "name": "Химкинское ПО",
+        "data": {
+          "january": 28,
+          "february": 15,
+          "march": 18,
+          "april": 17,
+          "may": 22,
+          "june": 10,
+          "july": 20,
+          "august": 16,
+          "september": 20,
+          "october": 9,
+          "november": 15,
+          "december": 15,
+          "total": 205
+        }
+      }
+    ]
+  },
+  {
+    "branch": "Мытищинский",
+    "data": {
+      "january": 31,
+      "february": 38,
+      "march": 49,
+      "april": 44,
+      "may": 74,
+      "june": 49,
+      "july": 69,
+      "august": 48,
+      "september": 70,
+      "october": 37,
+      "november": 48,
+      "december": 59,
+      "total": 616
+    },
+    "productionOffices": [
+      {
+        "name": "Королёвское ПО",
+        "data": {
+          "january": 0,
+          "february": 2,
+          "march": 3,
+          "april": 3,
+          "may": 2,
+          "june": 2,
+          "july": 3,
+          "august": 1,
+          "september": 9,
+          "october": 5,
+          "november": 3,
+          "december": 6,
+          "total": 39
+        }
+      },
+      {
+        "name": "Пушкинское ПО",
+        "data": {
+          "january": 13,
+          "february": 20,
+          "march": 28,
+          "april": 28,
+          "may": 48,
+          "june": 34,
+          "july": 40,
+          "august": 26,
+          "september": 34,
+          "october": 13,
+          "november": 26,
+          "december": 32,
+          "total": 342
+        }
+      },
+      {
+        "name": "Мытищинское ПО",
+        "data": {
+          "january": 18,
+          "february": 16,
+          "march": 18,
+          "april": 13,
+          "may": 24,
+          "june": 13,
+          "july": 26,
+          "august": 21,
+          "september": 27,
+          "october": 19,
+          "november": 19,
+          "december": 21,
+          "total": 235
+        }
+      }
+    ]
+  },
+  {
+    "branch": "Одинцовский",
+    "data": {
+      "january": 73,
+      "february": 90,
+      "march": 86,
+      "april": 110,
+      "may": 103,
+      "june": 103,
+      "july": 106,
+      "august": 105,
+      "september": 67,
+      "october": 58,
+      "november": 88,
+      "december": 69,
+      "total": 1058
+    },
+    "productionOffices": [
+      {
+        "name": "Голицынское ПО",
+        "data": {
+          "january": 12,
+          "february": 18,
+          "march": 19,
+          "april": 25,
+          "may": 33,
+          "june": 27,
+          "july": 17,
+          "august": 15,
+          "september": 10,
+          "october": 9,
+          "november": 15,
+          "december": 18,
+          "total": 218
+        }
+      },
+      {
+        "name": "Звенигородское ПО",
+        "data": {
+          "january": 3,
+          "february": 6,
+          "march": 8,
+          "april": 5,
+          "may": 1,
+          "june": 8,
+          "july": 5,
+          "august": 5,
+          "september": 6,
+          "october": 3,
+          "november": 3,
+          "december": 0,
+          "total": 53
+        }
+      },
+      {
+        "name": "Наро-Фоминское ПО",
+        "data": {
+          "january": 28,
+          "february": 28,
+          "march": 25,
+          "april": 46,
+          "may": 24,
+          "june": 27,
+          "july": 32,
+          "august": 42,
+          "september": 29,
+          "october": 21,
+          "november": 28,
+          "december": 33,
+          "total": 363
+        }
+      },
+      {
+        "name": "Одинцовское ПО",
+        "data": {
+          "january": 26,
+          "february": 36,
+          "march": 28,
+          "april": 25,
+          "may": 42,
+          "june": 37,
+          "july": 45,
+          "august": 35,
+          "september": 17,
+          "october": 21,
+          "november": 39,
+          "december": 14,
+          "total": 365
+        }
+      },
+      {
+        "name": "Рузское ПО",
+        "data": {
+          "january": 4,
+          "february": 1,
+          "march": 4,
+          "april": 6,
+          "may": 3,
+          "june": 3,
+          "july": 6,
+          "august": 5,
+          "september": 4,
+          "october": 3,
+          "november": 3,
+          "december": 3,
+          "total": 45
+        }
+      },
+      {
+        "name": "Краснознаменское ПО",
+        "data": {
+          "january": 0,
+          "february": 1,
+          "march": 2,
+          "april": 3,
+          "may": 0,
+          "june": 1,
+          "july": 1,
+          "august": 3,
+          "september": 1,
+          "october": 1,
+          "november": 0,
+          "december": 1,
+          "total": 14
+        }
+      }
+    ]
+  },
+  {
+    "branch": "Орехово-Зуевский",
+    "data": {
+      "january": 4,
+      "february": 3,
+      "march": 5,
+      "april": 7,
+      "may": 8,
+      "june": 4,
+      "july": 6,
+      "august": 8,
+      "september": 6,
+      "october": 1,
+      "november": 7,
+      "december": 5,
+      "total": 64
+    },
+    "productionOffices": []
+  },
+  {
+    "branch": "Павлово-Посадский",
+    "data": {
+      "january": 42,
+      "february": 29,
+      "march": 32,
+      "april": 40,
+      "may": 44,
+      "june": 43,
+      "july": 46,
+      "august": 20,
+      "september": 32,
+      "october": 32,
+      "november": 45,
+      "december": 28,
+      "total": 433
+    },
+    "productionOffices": [
+      {
+        "name": "Егорьевское ПО",
+        "data": {
+          "january": 7,
+          "february": 3,
+          "march": 10,
+          "april": 5,
+          "may": 3,
+          "june": 7,
+          "july": 6,
+          "august": 1,
+          "september": 6,
+          "october": 8,
+          "november": 9,
+          "december": 7,
+          "total": 72
+        }
+      },
+      {
+        "name": "Орехово-Зуевское ПО",
+        "data": {
+          "january": 9,
+          "february": 5,
+          "march": 7,
+          "april": 6,
+          "may": 10,
+          "june": 11,
+          "july": 10,
+          "august": 4,
+          "september": 8,
+          "october": 8,
+          "november": 8,
+          "december": 6,
+          "total": 92
+        }
+      },
+      {
+        "name": "Павлово-Посадское ПО",
+        "data": {
+          "january": 6,
+          "february": 7,
+          "march": 2,
+          "april": 7,
+          "may": 9,
+          "june": 7,
+          "july": 2,
+          "august": 2,
+          "september": 4,
+          "october": 3,
+          "november": 11,
+          "december": 6,
+          "total": 66
+        }
+      },
+      {
+        "name": "Шатурское ПО",
+        "data": {
+          "january": 10,
+          "february": 4,
+          "march": 8,
+          "april": 11,
+          "may": 10,
+          "june": 12,
+          "july": 19,
+          "august": 8,
+          "september": 3,
+          "october": 6,
+          "november": 4,
+          "december": 7,
+          "total": 102
+        }
+      },
+      {
+        "name": "Электростальское ПО",
+        "data": {
+          "january": 10,
+          "february": 10,
+          "march": 5,
+          "april": 11,
+          "may": 12,
+          "june": 6,
+          "july": 9,
+          "august": 5,
+          "september": 11,
+          "october": 7,
+          "november": 13,
+          "december": 2,
+          "total": 101
+        }
+      }
+    ]
+  },
+  {
+    "branch": "Раменский",
+    "data": {
+      "january": 30,
+      "february": 49,
+      "march": 46,
+      "april": 70,
+      "may": 74,
+      "june": 69,
+      "july": 74,
+      "august": 46,
+      "september": 54,
+      "october": 37,
+      "november": 47,
+      "december": 48,
+      "total": 644
+    },
+    "productionOffices": [
+      {
+        "name": "Гжельское ПО",
+        "data": {
+          "january": 1,
+          "february": 2,
+          "march": 4,
+          "april": 3,
+          "may": 6,
+          "june": 6,
+          "july": 4,
+          "august": 1,
+          "september": 2,
+          "october": 1,
+          "november": 5,
+          "december": 6,
+          "total": 41
+        }
+      },
+      {
+        "name": "Ильинское ПО",
+        "data": {
+          "january": 8,
+          "february": 9,
+          "march": 5,
+          "april": 13,
+          "may": 16,
+          "june": 16,
+          "july": 13,
+          "august": 14,
+          "september": 13,
+          "october": 4,
+          "november": 9,
+          "december": 10,
+          "total": 130
+        }
+      },
+      {
+        "name": "Люберецкое ПО",
+        "data": {
+          "january": 9,
+          "february": 7,
+          "march": 12,
+          "april": 19,
+          "may": 15,
+          "june": 13,
+          "july": 20,
+          "august": 13,
+          "september": 10,
+          "october": 9,
+          "november": 12,
+          "december": 8,
+          "total": 147
+        }
+      },
+      {
+        "name": "Раменское ПО",
+        "data": {
+          "january": 12,
+          "february": 31,
+          "march": 25,
+          "april": 35,
+          "may": 37,
+          "june": 34,
+          "july": 37,
+          "august": 18,
+          "september": 29,
+          "october": 23,
+          "november": 21,
+          "december": 24,
+          "total": 326
+        }
+      }
+    ]
+  },
+  {
+    "branch": "Сергиево-Посадский",
+    "data": {
+      "january": 10,
+      "february": 5,
+      "march": 10,
+      "april": 8,
+      "may": 26,
+      "june": 5,
+      "july": 17,
+      "august": 8,
+      "september": 9,
+      "october": 8,
+      "november": 5,
+      "december": 6,
+      "total": 117
+    },
+    "productionOffices": [
+      {
+        "name": "Дубненское ПО",
+        "data": {
+          "january": 3,
+          "february": 3,
+          "march": 7,
+          "april": 2,
+          "may": 7,
+          "june": 3,
+          "july": 8,
+          "august": 1,
+          "september": 6,
+          "october": 4,
+          "november": 1,
+          "december": 2,
+          "total": 47
+        }
+      },
+      {
+        "name": "Сергиево-Посадское ПО",
+        "data": {
+          "january": 7,
+          "february": 2,
+          "march": 2,
+          "april": 4,
+          "may": 16,
+          "june": 2,
+          "july": 9,
+          "august": 5,
+          "september": 2,
+          "october": 4,
+          "november": 4,
+          "december": 3,
+          "total": 60
+        }
+      },
+      {
+        "name": "Талдомский участок",
+        "data": {
+          "january": 0,
+          "february": 0,
+          "march": 1,
+          "april": 2,
+          "may": 3,
+          "june": 0,
+          "july": 0,
+          "august": 2,
+          "september": 1,
+          "october": 0,
+          "november": 0,
+          "december": 1,
+          "total": 10
+        }
+      }
+    ]
+  },
+  {
+    "branch": "Щелковский",
+    "data": {
+      "january": 43,
+      "february": 38,
+      "march": 36,
+      "april": 52,
+      "may": 61,
+      "june": 52,
+      "july": 77,
+      "august": 67,
+      "september": 70,
+      "october": 44,
+      "november": 41,
+      "december": 61,
+      "total": 642
+    },
+    "productionOffices": [
+      {
+        "name": "Балашихинское ПО",
+        "data": {
+          "january": 27,
+          "february": 14,
+          "march": 11,
+          "april": 25,
+          "may": 27,
+          "june": 19,
+          "july": 28,
+          "august": 28,
+          "september": 30,
+          "october": 22,
+          "november": 18,
+          "december": 29,
+          "total": 278
+        }
+      },
+      {
+        "name": "Ногинское ПО",
+        "data": {
+          "january": 5,
+          "february": 6,
+          "march": 10,
+          "april": 12,
+          "may": 11,
+          "june": 15,
+          "july": 21,
+          "august": 11,
+          "september": 12,
+          "october": 9,
+          "november": 5,
+          "december": 15,
+          "total": 132
+        }
+      },
+      {
+        "name": "Фрязинское ПО",
+        "data": {
+          "january": 10,
+          "february": 15,
+          "march": 5,
+          "april": 9,
+          "may": 16,
+          "june": 10,
+          "july": 14,
+          "august": 15,
+          "september": 17,
+          "october": 10,
+          "november": 9,
+          "december": 8,
+          "total": 138
+        }
+      },
+      {
+        "name": "Щелковское ПО",
+        "data": {
+          "january": 1,
+          "february": 3,
+          "march": 10,
+          "april": 6,
+          "may": 7,
+          "june": 8,
+          "july": 14,
+          "august": 13,
+          "september": 11,
+          "october": 3,
+          "november": 9,
+          "december": 9,
+          "total": 94
+        }
+      }
+    ]
+  }
+]
