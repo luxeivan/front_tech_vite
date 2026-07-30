@@ -3,7 +3,7 @@ export const OPERATIONAL_FILIAL_ROUTES = [
   { name: "Раменский филиал", slug: "ramenski-filial" },
   { name: "Одинцовский филиал", slug: "odincovski-filial" },
   { name: "Красногорский филиал", slug: "krasnogorski-filial" },
-  { name: "Коломенское филиал", slug: "kolomenskoe-filial" },
+  { name: "Коломенский филиал", slug: "kolomenskoe-filial" },
   { name: "Домодедовский филиал", slug: "domodedovski-filial" },
   { name: "Сергиево-Посадский филиал", slug: "sergievo-posadski-filial" },
   { name: "Павлово-Посадский филиал", slug: "pavlovo-posadski-filial" },

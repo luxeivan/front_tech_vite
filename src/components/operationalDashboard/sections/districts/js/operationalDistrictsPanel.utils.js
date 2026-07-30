@@ -41,8 +41,8 @@ export const normalizeBranchName = (value) => {
 
   if (!normalized) return null;
 
-  if (normalized === "Коломенское") return "Коломенский";
-  if (normalized === "Щёлковский") return "Щелковский";
+  if (normalized === "Коломенский") return "Коломенский";
+  if (normalized === "Щёлковский") return "Щёлковский";
   return normalized;
 };
 
