@@ -25,3 +25,115 @@
 .planned-date-nowrap {
   white-space: nowrap;
 }
+
+.planned-toolbar {
+  display: grid;
+  grid-template-columns:
+    168px
+    minmax(156px, 0.9fr)
+    minmax(170px, 1fr)
+    max-content
+    minmax(280px, 1.35fr)
+    132px
+    44px
+    max-content
+    max-content
+    max-content
+    40px;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.planned-toolbar__date,
+.planned-toolbar__branch,
+.planned-toolbar__po,
+.planned-toolbar__statuses,
+.planned-toolbar__number {
+  width: 100%;
+  min-width: 0;
+}
+
+.planned-toolbar__status-label {
+  white-space: nowrap;
+}
+
+.planned-toolbar__export,
+.planned-toolbar__reset,
+.planned-toolbar__journal,
+.planned-toolbar__fresh,
+.planned-toolbar__refresh {
+  white-space: nowrap;
+}
+
+.planned-toolbar__fresh,
+.planned-toolbar__refresh {
+  width: 40px;
+  padding-inline: 0;
+}
+
+@media (max-width: 1500px) {
+  .planned-toolbar {
+    grid-template-columns:
+      144px
+      minmax(132px, 0.9fr)
+      minmax(140px, 1fr)
+      max-content
+      minmax(200px, 1.25fr)
+      100px
+      38px
+      max-content
+      max-content
+      max-content
+      36px;
+    gap: 5px;
+  }
+
+  .planned-toolbar .ant-btn {
+    padding-inline: 9px;
+  }
+
+  .planned-toolbar .ant-btn,
+  .planned-toolbar .ant-input,
+  .planned-toolbar .ant-picker,
+  .planned-toolbar .ant-select-selector {
+    font-size: 13px;
+  }
+
+  .planned-toolbar__fresh {
+    width: 38px;
+  }
+
+  .planned-toolbar__refresh {
+    width: 36px;
+  }
+}
+
+@media (max-width: 1280px) {
+  .planned-toolbar {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .planned-toolbar__status-label {
+    grid-column: span 1;
+  }
+
+  .planned-toolbar__statuses {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 760px) {
+  .planned-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .planned-toolbar__status-label,
+  .planned-toolbar__statuses {
+    grid-column: auto;
+  }
+
+  .planned-toolbar__refresh {
+    width: 100%;
+  }
+}

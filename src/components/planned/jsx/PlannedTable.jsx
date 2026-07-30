@@ -3,7 +3,6 @@ import {
   Button,
   ConfigProvider,
   DatePicker,
-  Flex,
   Input,
   Modal,
   Pagination,
@@ -366,13 +365,9 @@ export default function PlannedTable() {
         loading={isLoadingPlannedTns}
       />
 
-      <Flex
-        justify="space-between"
-        align="center"
-        style={{ marginBottom: 10, flexWrap: "wrap", gap: 8 }}
-      >
-        <Flex gap={8} wrap style={{ rowGap: 8 }}>
+      <div className="planned-toolbar">
           <DatePicker
+            className="planned-toolbar__date"
             value={date}
             format={"DD.MM.YYYY"}
             onChange={(v) => setDate(v)}
@@ -381,7 +376,7 @@ export default function PlannedTable() {
           />
           <Select
             allowClear
-            style={{ minWidth: 220 }}
+            className="planned-toolbar__branch"
             placeholder="Все филиалы"
             value={selectedBranch}
             onChange={(val) => setSelectedBranch(val)}
@@ -391,30 +386,30 @@ export default function PlannedTable() {
           <Select
             showSearch
             optionFilterProp="label"
-            style={{ minWidth: 240 }}
+            className="planned-toolbar__po"
             placeholder="Все ПО"
             value={selectedPo}
             onChange={(val) => setSelectedPo(val)}
             options={poOptions}
             dropdownMatchSelectWidth={false}
           />
-          <Typography.Text style={{ whiteSpace: "nowrap" }}>
+          <Typography.Text className="planned-toolbar__status-label">
             Статус заявки:
           </Typography.Text>
           <Select
             mode="multiple"
             allowClear
-            style={{ minWidth: 260 }}
+            className="planned-toolbar__statuses"
             placeholder="Выберите статус(ы)"
             value={selectedStatuses}
             onChange={(values) => setSelectedStatuses(values)}
             options={PLANNED_STATUS_OPTIONS}
             dropdownMatchSelectWidth={false}
-            maxTagCount={false}
+            maxTagCount="responsive"
           />
           <Input
             allowClear
-            style={{ width: 150 }}
+            className="planned-toolbar__number"
             placeholder="№ ТН..."
             value={numberQuery}
             onChange={(e) => setNumberQuery(e.target.value)}
@@ -422,6 +417,7 @@ export default function PlannedTable() {
           {showFreshSortButton && (
             <Tooltip title="Свежие поступления">
               <Button
+                className="planned-toolbar__fresh"
                 size="small"
                 type={sorter.field === "strapiId" ? "primary" : "default"}
                 onClick={() => setSorter({ field: "strapiId", order: "descend" })}
@@ -430,23 +426,32 @@ export default function PlannedTable() {
               </Button>
             </Tooltip>
           )}
-        </Flex>
-        <Flex gap={8} wrap justify="flex-end">
-          <Button type="primary" onClick={() => setIsExportModalOpen(true)}>
+          <Button
+            className="planned-toolbar__export"
+            type="primary"
+            onClick={() => setIsExportModalOpen(true)}
+          >
             Выгрузка в Excel
           </Button>
-          <Button onClick={resetFilters}>Сброс</Button>
+          <Button className="planned-toolbar__reset" onClick={resetFilters}>
+            Сброс
+          </Button>
           {showJournal && (
-            <Button onClick={() => setIsJournalOpen(true)}>Журнал отправки</Button>
+            <Button
+              className="planned-toolbar__journal"
+              onClick={() => setIsJournalOpen(true)}
+            >
+              Журнал отправки
+            </Button>
           )}
           <Button
+            className="planned-toolbar__refresh"
             onClick={refreshAll}
             disabled={isLoadingPlannedTns || isSendStatusLoading}
           >
             <ReloadOutlined />
           </Button>
-        </Flex>
-      </Flex>
+      </div>
 
       <Table
         className="planned-table--compact"
