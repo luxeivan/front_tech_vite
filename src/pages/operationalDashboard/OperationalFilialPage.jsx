@@ -55,6 +55,7 @@ export default function OperationalFilialPage() {
           fillGroup="po"
           hoverGroup="po"
           showDistrictLabels
+          showPesMarkers
           showTopline={false}
           showMobileTopline
           variant="filial"

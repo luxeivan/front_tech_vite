@@ -43,8 +43,6 @@ export async function fetchTnPoRows() {
         "fields[0]": "name",
         "fields[1]": "sort_order",
         "fields[2]": "is_active",
-        "fields[3]": "osn_resours",
-        "fields[4]": "ovb",
         "pagination[page]": page,
         "pagination[pageSize]": PAGE_SIZE,
         "populate[tn_filialy][fields][0]": "name",
