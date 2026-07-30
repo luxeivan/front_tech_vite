@@ -336,7 +336,8 @@ export function parseJournalStatuses(lines) {
       )[1]
     );
     if (!ch) return;
-    const isError = /(ошиб|error|fail|не\s*отправ)/i.test(line);
+    const isError =
+      /(ошиб|error|fail|не\s*отправ|http\s*(?:0|4\d{2}|5\d{2})|переданы\s+неверные\s+данные|отклон|не\s+принял|не\s+принята|не\s+принято)/i.test(line);
     const ok = !isError;
     if (guid) upsert(byGuid, String(guid), ch, ok, ts);
     if (num) upsert(byNumber, String(num), ch, ok, ts);

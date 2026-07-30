@@ -429,7 +429,8 @@ function parseJournalStatuses(lines) {
     const guid = extractJournalGuid(line);
     const ch = normalizeChannelName((line.match(/-\s*\d{2}\.\d{2}\.\d{4}\s\d{2}:\d{2}:\d{2}\s*-\s*([^\-\n\r:]+?)\s*-/) || [])[1]);
     if (!ch) return;
-    const isError = /(ошиб|error|fail|не\s*отправ)/i.test(line);
+    const isError =
+      /(ошиб|error|fail|не\s*отправ|http\s*(?:0|4\d{2}|5\d{2})|переданы\s+неверные\s+данные|отклон|не\s+принял|не\s+принята|не\s+принято)/i.test(line);
     const ok = !isError; // если есть запись и нет явной ошибки — считаем отправленным
     if (guid) upsert(byGuid, String(guid), ch, ok, ts);
     if (num) upsert(byNumber, String(num), ch, ok, ts);
