@@ -9,6 +9,11 @@ const EVENTS_ENDPOINT = SERVICES_URL
   ? `${String(SERVICES_URL).replace(/\/$/, "")}/services/event`
   : "";
 const PAGE_SIZE = 100;
+const CACHE_TTL_MS = 5 * 60 * 1000;
+
+let cachedTnFilialyRows = null;
+let cachedTnFilialyRowsAt = 0;
+let pendingTnFilialyRowsPromise = null;
 
 const getAuthHeaders = () => {
   const jwt = localStorage.getItem("jwt");
@@ -59,28 +64,45 @@ export const notifyTnFilialyRezimUpdated = (payload = {}) => {
     });
 };
 
-export async function fetchTnFilialyRows() {
-  const rows = [];
-  let page = 1;
-  let pageCount = 1;
+export async function fetchTnFilialyRows(options = {}) {
+  const force = Boolean(options?.force);
+  const now = Date.now();
+  if (!force && cachedTnFilialyRows && now - cachedTnFilialyRowsAt < CACHE_TTL_MS) {
+    return cachedTnFilialyRows;
+  }
+  if (!force && pendingTnFilialyRowsPromise) return pendingTnFilialyRowsPromise;
 
-  do {
-    const { data } = await axios.get(TN_FILIALIES_ENDPOINT, {
-      params: {
-        "filters[is_active][$eq]": true,
-        "pagination[page]": page,
-        "pagination[pageSize]": PAGE_SIZE,
-        "sort[0]": "sort_order:asc",
-      },
-      headers: getAuthHeaders(),
-    });
+  pendingTnFilialyRowsPromise = (async () => {
+    const rows = [];
+    let page = 1;
+    let pageCount = 1;
 
-    rows.push(...(Array.isArray(data?.data) ? data.data.map(mapStrapiItem) : []));
-    pageCount = Number(data?.meta?.pagination?.pageCount || 1);
-    page += 1;
-  } while (page <= pageCount);
+    do {
+      const { data } = await axios.get(TN_FILIALIES_ENDPOINT, {
+        params: {
+          "filters[is_active][$eq]": true,
+          "pagination[page]": page,
+          "pagination[pageSize]": PAGE_SIZE,
+          "sort[0]": "sort_order:asc",
+        },
+        headers: getAuthHeaders(),
+      });
 
-  return rows;
+      rows.push(...(Array.isArray(data?.data) ? data.data.map(mapStrapiItem) : []));
+      pageCount = Number(data?.meta?.pagination?.pageCount || 1);
+      page += 1;
+    } while (page <= pageCount);
+
+    cachedTnFilialyRows = rows;
+    cachedTnFilialyRowsAt = Date.now();
+    return rows;
+  })();
+
+  try {
+    return await pendingTnFilialyRowsPromise;
+  } finally {
+    pendingTnFilialyRowsPromise = null;
+  }
 }
 
 export async function updateTnFilialyRezim(writeId, rezim) {
@@ -93,6 +115,9 @@ export async function updateTnFilialyRezim(writeId, rezim) {
       headers: getAuthHeaders(),
     }
   );
+
+  cachedTnFilialyRows = null;
+  cachedTnFilialyRowsAt = 0;
 
   return mapStrapiItem(data?.data);
 }

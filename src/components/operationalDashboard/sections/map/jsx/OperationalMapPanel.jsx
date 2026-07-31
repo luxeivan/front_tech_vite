@@ -1120,9 +1120,9 @@ export default function OperationalMapPanel({
       }
     };
 
-    const loadDistrictFeatures = async ({ fit = false } = {}) => {
+    const loadDistrictFeatures = async ({ fit = false, force = false } = {}) => {
       try {
-        const rows = await fetchTnOkrugaRows();
+        const rows = await fetchTnOkrugaRows({ force });
         if (cancelled || !mapRef.current || !districtSourceRef.current) return;
         writeCachedTnOkrugaRows(rows);
         applyDistrictRows(rows, { fit });
@@ -1137,10 +1137,10 @@ export default function OperationalMapPanel({
     }
     loadFallbackFeatures();
     loadDistrictFeatures({ fit: !cachedRows.length });
-    const handleFilialModeUpdated = () => loadDistrictFeatures();
+    const handleFilialModeUpdated = () => loadDistrictFeatures({ force: true });
     const handleFilialModeStorageUpdated = (event) => {
       if (event.key === TN_FILIALY_REZIM_UPDATED_STORAGE_KEY) {
-        loadDistrictFeatures();
+        loadDistrictFeatures({ force: true });
       }
     };
     window.addEventListener(TN_FILIALY_REZIM_UPDATED_EVENT, handleFilialModeUpdated);

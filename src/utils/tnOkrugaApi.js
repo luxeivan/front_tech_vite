@@ -3,6 +3,11 @@ import axios from "axios";
 const BACKEND_URL = import.meta.env.VITE_URL_BACKEND;
 const TN_OKRUGA_ENDPOINT = `${BACKEND_URL}/api/tn-okruga`;
 const PAGE_SIZE = 100;
+const CACHE_TTL_MS = 5 * 60 * 1000;
+
+let cachedTnOkrugaRows = null;
+let cachedTnOkrugaRowsAt = 0;
+let pendingTnOkrugaRowsPromise = null;
 
 const getAuthHeaders = () => {
   const jwt = localStorage.getItem("jwt");
@@ -66,43 +71,60 @@ export const getTnOkrugaFilialRows = (row) => {
   return uniqueRelationsByName([...directFilials, ...poFilials]);
 };
 
-export async function fetchTnOkrugaRows() {
-  const rows = [];
-  let page = 1;
-  let pageCount = 1;
+export async function fetchTnOkrugaRows(options = {}) {
+  const force = Boolean(options?.force);
+  const now = Date.now();
+  if (!force && cachedTnOkrugaRows && now - cachedTnOkrugaRowsAt < CACHE_TTL_MS) {
+    return cachedTnOkrugaRows;
+  }
+  if (!force && pendingTnOkrugaRowsPromise) return pendingTnOkrugaRowsPromise;
 
-  do {
-    const { data } = await axios.get(TN_OKRUGA_ENDPOINT, {
-      params: {
-        "filters[is_active][$eq]": true,
-        "fields[0]": "name",
-        "fields[1]": "source_name",
-        "fields[2]": "geometry",
-        "fields[3]": "properties",
-        "fields[4]": "sort_order",
-        "fields[5]": "is_active",
-        "pagination[page]": page,
-        "pagination[pageSize]": PAGE_SIZE,
-        "populate[tn_pos][fields][0]": "name",
-        "populate[tn_pos][fields][1]": "sort_order",
-        "populate[tn_pos][fields][2]": "is_active",
-        "populate[tn_pos][populate][tn_filialy][fields][0]": "name",
-        "populate[tn_pos][populate][tn_filialy][fields][1]": "rezim",
-        "populate[tn_pos][populate][tn_filialy][fields][2]": "is_active",
-        "populate[tn_filialies][fields][0]": "name",
-        "populate[tn_filialies][fields][1]": "rezim",
-        "populate[tn_filialies][fields][2]": "is_active",
-        "sort[0]": "sort_order:asc",
-      },
-      headers: getAuthHeaders(),
-    });
+  pendingTnOkrugaRowsPromise = (async () => {
+    const rows = [];
+    let page = 1;
+    let pageCount = 1;
 
-    rows.push(...(Array.isArray(data?.data) ? data.data.map(mapStrapiItem) : []));
-    pageCount = Number(data?.meta?.pagination?.pageCount || 1);
-    page += 1;
-  } while (page <= pageCount);
+    do {
+      const { data } = await axios.get(TN_OKRUGA_ENDPOINT, {
+        params: {
+          "filters[is_active][$eq]": true,
+          "fields[0]": "name",
+          "fields[1]": "source_name",
+          "fields[2]": "geometry",
+          "fields[3]": "properties",
+          "fields[4]": "sort_order",
+          "fields[5]": "is_active",
+          "pagination[page]": page,
+          "pagination[pageSize]": PAGE_SIZE,
+          "populate[tn_pos][fields][0]": "name",
+          "populate[tn_pos][fields][1]": "sort_order",
+          "populate[tn_pos][fields][2]": "is_active",
+          "populate[tn_pos][populate][tn_filialy][fields][0]": "name",
+          "populate[tn_pos][populate][tn_filialy][fields][1]": "rezim",
+          "populate[tn_pos][populate][tn_filialy][fields][2]": "is_active",
+          "populate[tn_filialies][fields][0]": "name",
+          "populate[tn_filialies][fields][1]": "rezim",
+          "populate[tn_filialies][fields][2]": "is_active",
+          "sort[0]": "sort_order:asc",
+        },
+        headers: getAuthHeaders(),
+      });
 
-  return rows;
+      rows.push(...(Array.isArray(data?.data) ? data.data.map(mapStrapiItem) : []));
+      pageCount = Number(data?.meta?.pagination?.pageCount || 1);
+      page += 1;
+    } while (page <= pageCount);
+
+    cachedTnOkrugaRows = rows;
+    cachedTnOkrugaRowsAt = Date.now();
+    return rows;
+  })();
+
+  try {
+    return await pendingTnOkrugaRowsPromise;
+  } finally {
+    pendingTnOkrugaRowsPromise = null;
+  }
 }
 
 export async function fetchTnOkrugaRelationRows() {
