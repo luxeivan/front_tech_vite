@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Spin } from "antd";
 
 import OperationalChartsPanel from "../sections/charts/jsx/OperationalChartsPanel";
@@ -29,6 +29,7 @@ export default function OperationalDashboardShell() {
   const loadData = useOperationalDashboardStore((store) => store.loadData);
   const isLoading = useOperationalDashboardStore((store) => store.isLoading);
   const hasLoaded = useOperationalDashboardStore((store) => store.hasLoaded);
+  const [hoveredBranchName, setHoveredBranchName] = useState("");
 
   useEffect(() => {
     loadData();
@@ -91,8 +92,8 @@ export default function OperationalDashboardShell() {
       <h1 className="operational-dashboard__title">ОПЕРАТИВНАЯ ОБСТАНОВКА</h1>
       <div className="operational-dashboard__grid">
         <OperationalDonutsPanel />
-        <OperationalMapPanel />
-        <OperationalDistrictsPanel />
+        <OperationalMapPanel externalHoverName={hoveredBranchName} />
+        <OperationalDistrictsPanel onBranchHover={setHoveredBranchName} />
         <OperationalChartsPanel />
       </div>
     </section>

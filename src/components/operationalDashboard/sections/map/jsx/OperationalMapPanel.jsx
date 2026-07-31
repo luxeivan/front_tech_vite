@@ -190,7 +190,7 @@ const MODE_BOUNDARY_STYLE = (feature) =>
     zIndex: 40,
     stroke: new Stroke({
       color: feature.get("strokeColor") || "#0061aa",
-      width: OPERATIONAL_MAP_MODE_STROKE_WIDTH,
+      width: feature.get("strokeWidth") || OPERATIONAL_MAP_MODE_STROKE_WIDTH,
     }),
   });
 const MAP_FALLBACK_CENTER = [38.25, 55.58];
@@ -270,6 +270,13 @@ const getFeatureAreaName = (feature, areaGroup) => {
   return getFeatureFilialName(feature);
 };
 
+const getFeatureLabelName = (feature, labelGroup) => {
+  const areaLabel = String(feature?.get?.("area_label") || "").trim();
+  if (areaLabel) return areaLabel;
+  if (labelGroup === "po") return "";
+  return getFeatureDistrictLabel(feature);
+};
+
 const getFeatureHoverName = (feature, hoverGroup) => {
   if (hoverGroup === "po") return getFeaturePoName(feature);
   if (hoverGroup === "none") return "";
@@ -288,7 +295,22 @@ const isActivePesMarkerItem = (item) =>
 
 const isFeatureInHoverGroup = (feature, hoverGroup, hoverName) => {
   if (!hoverName) return false;
-  return getFeatureHoverName(feature, hoverGroup) === hoverName;
+  const featureHoverName = getFeatureHoverName(feature, hoverGroup);
+  return (
+    featureHoverName === hoverName ||
+    normalizeOperationalMapAreaName(featureHoverName) === normalizeOperationalMapAreaName(hoverName)
+  );
+};
+
+const applyHoverBoundary = (hoverSource, districtSource, hoverGroup, hoverName) => {
+  hoverSource?.clear();
+  if (!hoverSource || !districtSource || !hoverName) return;
+
+  const nextFeatures = districtSource
+    .getFeatures()
+    .filter((feature) => isFeatureInHoverGroup(feature, hoverGroup, hoverName));
+  const boundaryFeature = buildBoundaryFeature(nextFeatures, { groupName: hoverName });
+  if (boundaryFeature) hoverSource.addFeature(boundaryFeature);
 };
 
 const getFeatureDistrictLabel = (feature) =>
@@ -688,6 +710,33 @@ const buildGroupBoundaryFeatures = (features, group, getProperties) => {
     .filter(Boolean);
 };
 
+const assignAreaLabels = (features, labelGroup) => {
+  features.forEach((feature) => feature.set("area_label", ""));
+  if (labelGroup !== "po") return;
+
+  const groups = new Map();
+  features.forEach((feature) => {
+    const areaName = getFeatureAreaName(feature, labelGroup);
+    const areaKey = normalizeOperationalMapAreaName(areaName);
+    if (!areaKey) return;
+
+    if (!groups.has(areaKey)) {
+      groups.set(areaKey, {
+        name: areaName,
+        features: [],
+      });
+    }
+    groups.get(areaKey).features.push(feature);
+  });
+
+  groups.forEach((group) => {
+    const labelFeature = [...group.features].sort(
+      (left, right) => getFeatureExtentArea(right) - getFeatureExtentArea(left)
+    )[0];
+    labelFeature?.set("area_label", group.name);
+  });
+};
+
 const getDistrictStyle = (
   feature,
   areaDataByKey,
@@ -699,7 +748,7 @@ const getDistrictStyle = (
   const areaData = findOperationalMapAreaData(areaDataByKey, areaName);
   const people = areaData?.people || 0;
   const fillColor = people > 0 ? areaData.color : "rgba(255, 255, 255, 0.96)";
-  const strokeColor = "#cfd6de";
+  const strokeColor = fillGroup === "po" ? "rgba(207, 214, 222, 0)" : "#cfd6de";
 
   return new Style({
     zIndex: 1,
@@ -711,8 +760,8 @@ const getDistrictStyle = (
   });
 };
 
-const getDistrictLabelStyle = (feature, compactLabels = false) => {
-  const label = wrapMapLabel(getFeatureDistrictLabel(feature), compactLabels);
+const getDistrictLabelStyle = (feature, compactLabels = false, labelGroup = "district") => {
+  const label = wrapMapLabel(getFeatureLabelName(feature, labelGroup), compactLabels);
   if (!label) return null;
 
   return new Style({
@@ -852,6 +901,7 @@ export function OperationalMapTopline({ className = "" }) {
 export default function OperationalMapPanel({
   filialName = "",
   enableFilialNavigation = true,
+  externalHoverName = "",
   fillGroup = "filial",
   hoverGroup = "filial",
   showDistrictLabels = false,
@@ -870,6 +920,8 @@ export default function OperationalMapPanel({
   const districtSourceRef = useRef(null);
   const districtLayerRef = useRef(null);
   const districtLabelLayerRef = useRef(null);
+  const filialHoverSourceRef = useRef(null);
+  const externalHoverNameRef = useRef("");
   const modeBoundarySourceRef = useRef(null);
   const pesMarkerSourceRef = useRef(null);
   const pesMarkerLayerRef = useRef(null);
@@ -991,6 +1043,7 @@ export default function OperationalMapPanel({
     districtSourceRef.current = districtSource;
     districtLayerRef.current = districtLayer;
     districtLabelLayerRef.current = districtLabelLayer;
+    filialHoverSourceRef.current = filialHoverSource;
     modeBoundarySourceRef.current = modeBoundarySource;
     pesMarkerSourceRef.current = pesMarkerSource;
     pesMarkerLayerRef.current = pesMarkerLayer;
@@ -1005,9 +1058,22 @@ export default function OperationalMapPanel({
         featureProjection: "EPSG:3857",
       });
       districtSourceRef.current.clear();
+      assignAreaLabels(features, fillGroup);
       districtSourceRef.current.addFeatures(features);
       filialHoverSource.clear();
       modeBoundarySource.clear();
+      const areaBoundaryFeatures =
+        fillGroup === "po"
+          ? buildGroupBoundaryFeatures(
+              features,
+              "po",
+              (groupName) => ({
+                groupName,
+                strokeColor: "#cfd6de",
+                strokeWidth: OPERATIONAL_MAP_DISTRICT_STROKE_WIDTH,
+              })
+            )
+          : [];
       const modeBoundaryFeatures = buildGroupBoundaryFeatures(
         districtSourceRef.current.getFeatures(),
         "filial",
@@ -1022,7 +1088,7 @@ export default function OperationalMapPanel({
           };
         }
       ).filter((feature) => feature.get("strokeColor"));
-      modeBoundarySource.addFeatures(modeBoundaryFeatures);
+      modeBoundarySource.addFeatures([...areaBoundaryFeatures, ...modeBoundaryFeatures]);
       districtLayerRef.current?.changed();
       districtLabelLayerRef.current?.changed();
       setMapFeaturesVersion((version) => version + 1);
@@ -1038,11 +1104,7 @@ export default function OperationalMapPanel({
       filialHoverSource.clear();
       if (!hoverName) return;
 
-      const nextFeatures = districtSource
-        .getFeatures()
-        .filter((feature) => isFeatureInHoverGroup(feature, hoverGroup, hoverName));
-      const boundaryFeature = buildBoundaryFeature(nextFeatures, { groupName: hoverName });
-      if (boundaryFeature) filialHoverSource.addFeature(boundaryFeature);
+      applyHoverBoundary(filialHoverSource, districtSource, hoverGroup, hoverName);
     };
 
     const applyDistrictRows = (rows, options) => {
@@ -1113,7 +1175,7 @@ export default function OperationalMapPanel({
 
     const handlePointerLeave = () => {
       map.getTargetElement().style.cursor = "";
-      highlightHoverGroup("");
+      highlightHoverGroup(externalHoverNameRef.current);
       setHoveredArea(null);
     };
 
@@ -1153,11 +1215,24 @@ export default function OperationalMapPanel({
       districtSourceRef.current = null;
       districtLayerRef.current = null;
       districtLabelLayerRef.current = null;
+      filialHoverSourceRef.current = null;
       modeBoundarySourceRef.current = null;
       pesMarkerSourceRef.current = null;
       pesMarkerLayerRef.current = null;
     };
-  }, [enableFilialNavigation, filialName, hoverGroup, navigate]);
+  }, [enableFilialNavigation, filialName, fillGroup, hoverGroup, navigate]);
+
+  useEffect(() => {
+    externalHoverNameRef.current = externalHoverName;
+    if (hoveredArea?.name) return;
+
+    applyHoverBoundary(
+      filialHoverSourceRef.current,
+      districtSourceRef.current,
+      hoverGroup,
+      externalHoverName
+    );
+  }, [externalHoverName, hoverGroup, hoveredArea?.name, mapFeaturesVersion]);
 
   useEffect(() => {
     const markerSource = pesMarkerSourceRef.current;
@@ -1196,7 +1271,7 @@ export default function OperationalMapPanel({
     if (labelLayer) {
       labelLayer.setStyle(
         showDistrictLabels
-          ? (feature) => getDistrictLabelStyle(feature, isCompactViewport)
+          ? (feature) => getDistrictLabelStyle(feature, isCompactViewport, fillGroup)
           : null
       );
       labelLayer.changed();

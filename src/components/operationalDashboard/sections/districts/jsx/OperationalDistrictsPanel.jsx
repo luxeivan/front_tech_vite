@@ -18,14 +18,14 @@ import "../css/OperationalDistrictsPanel.css";
 const formatCellValue = (value) =>
   typeof value === "number" ? new Intl.NumberFormat("ru-RU").format(value) : value;
 
-const renderBranchLink = (branch, children) => {
+const renderBranchLink = (branch, children, eventHandlers = {}) => {
   const path = getOperationalFilialPath(`${branch} филиал`);
   return path ? (
-    <Link className="operational-districts-panel__branch-link" to={path}>
+    <Link className="operational-districts-panel__branch-link" to={path} {...eventHandlers}>
       {children}
     </Link>
   ) : (
-    children
+    <span {...eventHandlers}>{children}</span>
   );
 };
 
@@ -76,6 +76,7 @@ export default function OperationalDistrictsPanel({
   className = "",
   filialName = "",
   groupBy = "filial",
+  onBranchHover,
 }) {
   const rows = useOperationalDashboardStore((store) => store.rows);
   const isLoading = useOperationalDashboardStore((store) => store.isLoading);
@@ -144,13 +145,22 @@ export default function OperationalDistrictsPanel({
         render: (value, record) => {
           const formattedValue = formatCellValue(value);
           if (groupBy === "filial" && column.dataIndex === "branch" && record.key !== "summary") {
-            return renderBranchLink(record.branch, formattedValue);
+            const hoverHandlers =
+              typeof onBranchHover === "function"
+                ? {
+                    onMouseEnter: () => onBranchHover(record.branch),
+                    onMouseLeave: () => onBranchHover(""),
+                    onFocus: () => onBranchHover(record.branch),
+                    onBlur: () => onBranchHover(""),
+                  }
+                : {};
+            return renderBranchLink(record.branch, formattedValue, hoverHandlers);
           }
 
           return formattedValue;
         },
       })),
-    [groupBy]
+    [groupBy, onBranchHover]
   );
 
   const panelClassName = [
@@ -179,7 +189,18 @@ export default function OperationalDistrictsPanel({
             >
               <h3>
                 {groupBy === "filial" && record.key !== "summary"
-                  ? renderBranchLink(record.branch, record.branch)
+                  ? renderBranchLink(
+                      record.branch,
+                      record.branch,
+                      typeof onBranchHover === "function"
+                        ? {
+                            onMouseEnter: () => onBranchHover(record.branch),
+                            onMouseLeave: () => onBranchHover(""),
+                            onFocus: () => onBranchHover(record.branch),
+                            onBlur: () => onBranchHover(""),
+                          }
+                        : {}
+                    )
                   : record.branch}
               </h3>
               <div className="operational-districts-panel__mobile-metrics">
