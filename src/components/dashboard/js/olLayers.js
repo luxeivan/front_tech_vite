@@ -44,6 +44,7 @@ export function createBaseLayers({ onProviderError } = {}) {
       visible: false,
     }),
     rgis: new TileLayer({
+      className: "mo-rgis-white-layer",
       source: new XYZ({
         url: "https://rgis.mosreg.ru/wmts/m10/{z}/{x}/{y}.png",
       }),
