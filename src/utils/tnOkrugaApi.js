@@ -31,8 +31,40 @@ const unwrapFirstRelation = (...relations) => {
   return null;
 };
 
+const toRelationList = (...relations) =>
+  relations.flatMap((relation) => {
+    const value = unwrapRelation(relation);
+    if (Array.isArray(value)) return value;
+    return value ? [value] : [];
+  });
+
+const uniqueRelationsByName = (rows) => {
+  const seen = new Set();
+  return rows.filter((row) => {
+    const key = String(row?.name || row?.documentId || row?.id || "").trim();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
 export const unwrapTnOkrugaRelation = unwrapRelation;
 export const unwrapFirstTnOkrugaRelation = unwrapFirstRelation;
+
+export const getTnOkrugaPoRows = (row) =>
+  uniqueRelationsByName(toRelationList(row?.tn_po, row?.tn_pos));
+
+export const getTnOkrugaDirectFilialRows = (row) =>
+  uniqueRelationsByName(toRelationList(row?.tn_filialy, row?.tn_filialies));
+
+export const getTnPoFilialRow = (poRow) =>
+  unwrapFirstRelation(poRow?.tn_filialy, poRow?.tn_filialies);
+
+export const getTnOkrugaFilialRows = (row) => {
+  const directFilials = getTnOkrugaDirectFilialRows(row);
+  const poFilials = getTnOkrugaPoRows(row).map(getTnPoFilialRow).filter(Boolean);
+  return uniqueRelationsByName([...directFilials, ...poFilials]);
+};
 
 export async function fetchTnOkrugaRows() {
   const rows = [];
@@ -43,9 +75,23 @@ export async function fetchTnOkrugaRows() {
     const { data } = await axios.get(TN_OKRUGA_ENDPOINT, {
       params: {
         "filters[is_active][$eq]": true,
+        "fields[0]": "name",
+        "fields[1]": "source_name",
+        "fields[2]": "geometry",
+        "fields[3]": "properties",
+        "fields[4]": "sort_order",
+        "fields[5]": "is_active",
         "pagination[page]": page,
         "pagination[pageSize]": PAGE_SIZE,
-        populate: "*",
+        "populate[tn_pos][fields][0]": "name",
+        "populate[tn_pos][fields][1]": "sort_order",
+        "populate[tn_pos][fields][2]": "is_active",
+        "populate[tn_pos][populate][tn_filialy][fields][0]": "name",
+        "populate[tn_pos][populate][tn_filialy][fields][1]": "rezim",
+        "populate[tn_pos][populate][tn_filialy][fields][2]": "is_active",
+        "populate[tn_filialies][fields][0]": "name",
+        "populate[tn_filialies][fields][1]": "rezim",
+        "populate[tn_filialies][fields][2]": "is_active",
         "sort[0]": "sort_order:asc",
       },
       headers: getAuthHeaders(),
@@ -77,6 +123,7 @@ export async function fetchTnOkrugaRelationRows() {
         "populate[tn_pos][fields][0]": "name",
         "populate[tn_pos][fields][1]": "sort_order",
         "populate[tn_pos][fields][2]": "is_active",
+        "populate[tn_pos][populate][tn_filialy][fields][0]": "name",
         "populate[tn_filialies][fields][0]": "name",
         "sort[0]": "sort_order:asc",
       },
@@ -96,8 +143,8 @@ export const buildTnOkrugaFeatureCollection = (rows) => ({
   features: (Array.isArray(rows) ? rows : [])
     .filter((row) => row?.geometry)
     .map((row) => {
-      const filial = unwrapFirstRelation(row.tn_filialy, row.tn_filialies);
-      const po = unwrapFirstRelation(row.tn_po, row.tn_pos);
+      const filial = getTnOkrugaFilialRows(row)[0] || null;
+      const po = getTnOkrugaPoRows(row)[0] || null;
 
       return {
         type: "Feature",

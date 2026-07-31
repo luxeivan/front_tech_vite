@@ -37,6 +37,7 @@ import {
 import {
   buildTnOkrugaFeatureCollection,
   fetchTnOkrugaRows,
+  getTnOkrugaFilialRows,
 } from "../../../../../utils/tnOkrugaApi";
 import {
   getOperationalFilialPath,
@@ -196,7 +197,7 @@ const MODE_BOUNDARY_STYLE = (feature) =>
 const MAP_FALLBACK_CENTER = [38.25, 55.58];
 const MAP_FALLBACK_ZOOM = 8;
 const MAP_FIT_PADDING = [10, 6, 8, 6];
-const TN_OKRUGA_MAP_CACHE_KEY = "operationalDashboard.tnOkrugaRows.filialModes.v1";
+const TN_OKRUGA_MAP_CACHE_KEY = "operationalDashboard.tnOkrugaRows.filialModes.v3";
 const PES_MARKER_AREA_POINTS = [
   [-0.24, -0.16],
   [0.24, 0.16],
@@ -594,14 +595,7 @@ const getRowsByFilialName = (rows, filialName) => {
 
   return (Array.isArray(rows) ? rows : []).filter(
     (row) => {
-      const filialRelations = [
-        row?.tn_filialy,
-        row?.tn_filialy?.data,
-        ...(Array.isArray(row?.tn_filialies) ? row.tn_filialies : []),
-        ...(Array.isArray(row?.tn_filialies?.data) ? row.tn_filialies.data : []),
-      ].filter(Boolean);
-
-      return filialRelations.some(
+      return getTnOkrugaFilialRows(row).some(
         (relation) =>
           normalizeOperationalFilialName(
             relation?.name || relation?.attributes?.name || relation?.data?.attributes?.name
