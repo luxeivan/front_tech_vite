@@ -349,7 +349,7 @@
   }
 }
 
-@media (max-width: 1280px) {
+@media (max-width: 768px) {
   .operational-map-panel {
     height: auto;
   }
@@ -415,7 +415,7 @@
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 640px) {
   .operational-map-panel__surface {
     grid-template-columns: 1fr;
     grid-template-rows: auto minmax(320px, 46vh) auto auto;

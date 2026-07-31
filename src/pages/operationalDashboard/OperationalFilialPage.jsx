@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Spin } from "antd";
 
+import OperationalNavigationSteps from "../../components/operationalDashboard/jsx/OperationalNavigationSteps";
 import OperationalMapPanel, {
   OperationalMapTopline,
 } from "../../components/operationalDashboard/sections/map/jsx/OperationalMapPanel";
@@ -34,7 +35,7 @@ export default function OperationalFilialPage() {
           <Link className="operational-filial-page__back" to="/dashboard-oo">
             назад
           </Link>
-          <div className="operational-filial-page__filial-name">{filialName}</div>
+          <OperationalNavigationSteps filialName={filialName} />
         </div>
         <div className="operational-filial-page__heading">
           <h1 className="operational-dashboard__title operational-filial-page__title">

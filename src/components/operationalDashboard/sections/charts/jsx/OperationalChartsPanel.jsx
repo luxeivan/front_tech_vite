@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Column } from "@ant-design/plots";
 import { Alert, Spin } from "antd";
 
@@ -16,6 +16,25 @@ import "../css/OperationalChartsPanel.css";
 
 const formatNumber = (value) => Number(value || 0).toLocaleString("ru-RU");
 const CHART_PADDING = [24, 16, 38, 16];
+const TABLET_LANDSCAPE_CHART_PADDING = [18, 8, 44, 8];
+
+const useTabletLandscape = () => {
+  const getValue = () =>
+    typeof window !== "undefined" &&
+    window.innerWidth >= 901 &&
+    window.innerWidth <= 1200 &&
+    window.innerWidth > window.innerHeight;
+
+  const [isTabletLandscape, setIsTabletLandscape] = useState(getValue);
+
+  useEffect(() => {
+    const handleResize = () => setIsTabletLandscape(getValue());
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  return isTabletLandscape;
+};
 
 const formatStatsDate = (value) => {
   if (!value) return null;
@@ -52,6 +71,7 @@ export default function OperationalChartsPanel() {
   const hasStatsLoaded = useOperationalDashboardStore((store) => store.hasStatsLoaded);
   const rowsCurrentYear = useOperationalDashboardStore((store) => store.rowsCurrentYear);
   const statsMeta = useOperationalDashboardStore((store) => store.statsMeta);
+  const isTabletLandscape = useTabletLandscape();
 
   const chartData = useMemo(
     () => buildBranchTechViolationChartData(rowsCurrentYear, statsMeta),
@@ -67,8 +87,8 @@ export default function OperationalChartsPanel() {
     yField: "value",
     colorField: "year",
     group: true,
-    height: 210,
-    padding: CHART_PADDING,
+    height: isTabletLandscape ? 188 : 210,
+    padding: isTabletLandscape ? TABLET_LANDSCAPE_CHART_PADDING : CHART_PADDING,
     legend: false,
     tooltip: false,
     scale: {
@@ -77,7 +97,7 @@ export default function OperationalChartsPanel() {
       },
     },
     style: {
-      maxWidth: 18,
+      maxWidth: isTabletLandscape ? 14 : 18,
     },
     label: {
       text: "value",
@@ -89,19 +109,19 @@ export default function OperationalChartsPanel() {
         textBaseline: "bottom",
         dx: 0,
         dy: -6,
-        fontSize: 11,
+        fontSize: isTabletLandscape ? 9 : 11,
         fontWeight: 700,
       },
     },
     axis: {
       x: {
         title: false,
-        labelFontSize: 10,
+        labelFontSize: isTabletLandscape ? 8 : 10,
         labelFill: "#0072c6",
         labelFillOpacity: 1,
         labelOpacity: 1,
         labelFontWeight: 700,
-        labelTransform: "rotate(0)",
+        labelTransform: isTabletLandscape ? "rotate(-18)" : "rotate(0)",
       },
       y: {
         title: false,

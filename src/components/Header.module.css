@@ -59,29 +59,14 @@
   white-space: nowrap;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1200px) {
   .header {
-    padding: 7px 12px;
+    flex-wrap: nowrap;
+    padding: 10px 14px;
   }
 
   .leftSide {
-    flex-basis: 100%;
-  }
-}
-
-@media (max-width: 640px) {
-  .header {
-    flex-direction: row;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 12px;
-  }
-
-  .leftSide {
-    display: flex;
     flex: 1 1 auto;
-    flex-direction: row;
-    align-items: center;
     gap: 0;
     width: auto;
     min-width: 0;
@@ -103,16 +88,46 @@
   .mobileMenuButton {
     display: inline-flex;
     flex: 0 0 auto;
-    height: 34px;
-    padding-inline: 12px;
+    height: 36px;
+    padding-inline: 14px;
     align-items: center;
     border-radius: 8px;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
   }
 
   .rightSide {
     display: none !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .header {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .leftSide {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: row;
+    align-items: center;
+    gap: 0;
+    width: auto;
+    min-width: 0;
+  }
+
+  .logo :global(img) {
+    width: min(100%, 226px) !important;
+    height: auto !important;
+  }
+
+  .mobileMenuButton {
+    height: 34px;
+    padding-inline: 12px;
+    font-size: 13px;
   }
 }
 

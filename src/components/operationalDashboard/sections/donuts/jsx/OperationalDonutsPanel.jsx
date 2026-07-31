@@ -26,6 +26,24 @@ const EMPTY_DONUT_SEGMENT = {
 
 const ensureDonutData = (items) => (items.length ? items : [EMPTY_DONUT_SEGMENT]);
 
+const useTabletLandscape = () => {
+  const getValue = () =>
+    typeof window !== "undefined" &&
+    window.innerWidth >= 901 &&
+    window.innerWidth <= 1200 &&
+    window.innerWidth > window.innerHeight;
+
+  const [isTabletLandscape, setIsTabletLandscape] = useState(getValue);
+
+  useEffect(() => {
+    const handleResize = () => setIsTabletLandscape(getValue());
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  return isTabletLandscape;
+};
+
 const getDurationChartData = (data) =>
   ensureDonutData(
     DURATION_DONUT_CONFIG.segments
@@ -76,6 +94,8 @@ const getPieConfig = ({
   radius = 0.72,
   height = 270,
   statisticFontSize = "46px",
+  labelFontSize = 11,
+  labelOffset = 14,
 }) => ({
   data,
   angleField: "value",
@@ -89,14 +109,14 @@ const getPieConfig = ({
   label: labelText
     ? {
         position: labelPosition,
-        offset: 14,
+        offset: labelOffset,
         labelHeight,
         text: labelText,
         style: {
           fill: "#1575bc",
-          fontSize: 11,
+          fontSize: labelFontSize,
           fontWeight: 600,
-          lineHeight: 16,
+          lineHeight: labelFontSize + 4,
         },
       }
     : false,
@@ -123,7 +143,7 @@ const getPieConfig = ({
   },
 });
 
-function DurationDonut({ data, groupBy = "filial" }) {
+function DurationDonut({ data, groupBy = "filial", compact = false }) {
   const chartData = getDurationChartData(data);
   const total = Number(data?.total || 0);
   const hasValues = total > 0;
@@ -131,10 +151,17 @@ function DurationDonut({ data, groupBy = "filial" }) {
   const config = getPieConfig({
     data: chartData,
     total,
-    height: isFilialView ? 238 : 270,
-    radius: isFilialView ? 0.68 : 0.72,
-    labelPadding: isFilialView ? [14, 108, 14, 108] : [20, 118, 20, 118],
+    height: compact ? 218 : isFilialView ? 238 : 270,
+    radius: compact ? 0.56 : isFilialView ? 0.68 : 0.72,
+    labelPadding: compact
+      ? [8, 56, 8, 56]
+      : isFilialView
+        ? [14, 108, 14, 108]
+        : [20, 118, 20, 118],
     labelPosition: "spider",
+    labelFontSize: compact ? 9 : 11,
+    labelOffset: compact ? 8 : 14,
+    statisticFontSize: compact ? "38px" : "46px",
     labelText: hasValues
       ? (datum) =>
           !datum.isEmpty && datum.value > 0
@@ -156,7 +183,7 @@ function DurationDonut({ data, groupBy = "filial" }) {
   );
 }
 
-function PopulationDonut({ data, groupBy = "filial" }) {
+function PopulationDonut({ data, groupBy = "filial", compact = false }) {
   const chartData = getPopulationChartData(data);
   const total = Number(data?.total || 0);
   const hasValues = total > 0;
@@ -164,13 +191,19 @@ function PopulationDonut({ data, groupBy = "filial" }) {
   const config = getPieConfig({
     data: chartData,
     total,
-    height: isFilialView ? 238 : 270,
-    innerRadius: isFilialView ? 0.62 : 0.56,
-    radius: isFilialView ? 0.68 : 0.66,
-    labelPadding: isFilialView ? [14, 116, 14, 116] : [18, 160, 54, 160],
+    height: compact ? 218 : isFilialView ? 238 : 270,
+    innerRadius: compact ? 0.58 : isFilialView ? 0.62 : 0.56,
+    radius: compact ? 0.56 : isFilialView ? 0.68 : 0.66,
+    labelPadding: compact
+      ? [8, 60, 8, 60]
+      : isFilialView
+        ? [14, 116, 14, 116]
+        : [18, 160, 54, 160],
     labelPosition: "spider",
     labelHeight: isFilialView ? undefined : 36,
-    statisticFontSize: isFilialView ? "46px" : "40px",
+    statisticFontSize: compact ? "38px" : isFilialView ? "46px" : "40px",
+    labelFontSize: compact ? 9 : 11,
+    labelOffset: compact ? 8 : 14,
     labelText: hasValues
       ? (datum) =>
           !datum.isEmpty && datum.value > 0
@@ -202,6 +235,7 @@ export default function OperationalDonutsPanel({
   const hasLoaded = useOperationalDashboardStore((store) => store.hasLoaded);
   const error = useOperationalDashboardStore((store) => store.error);
   const [now, setNow] = useState(() => dayjs());
+  const isTabletLandscape = useTabletLandscape();
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(dayjs()), 60 * 1000);
@@ -236,8 +270,16 @@ export default function OperationalDonutsPanel({
         ) : (
           <Spin spinning={isLoading && hasLoaded}>
             <div className="operational-donuts-panel__grid">
-              <DurationDonut data={durationData} groupBy={groupBy} />
-              <PopulationDonut data={populationData} groupBy={groupBy} />
+              <DurationDonut
+                data={durationData}
+                groupBy={groupBy}
+                compact={isTabletLandscape}
+              />
+              <PopulationDonut
+                data={populationData}
+                groupBy={groupBy}
+                compact={isTabletLandscape}
+              />
             </div>
           </Spin>
         )}

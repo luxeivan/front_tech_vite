@@ -253,6 +253,36 @@
   }
 }
 
+@media (min-width: 901px) and (max-width: 1200px) and (orientation: landscape) {
+  .operational-dashboard__panel--donuts .operational-dashboard__panel-body {
+    padding: 8px 10px;
+  }
+
+  .operational-donuts-panel__grid {
+    gap: 8px;
+  }
+
+  .operational-donuts-panel__item {
+    grid-template-rows: 40px 1fr;
+    padding: 0 4px;
+  }
+
+  .operational-donuts-panel__title {
+    min-height: 40px;
+    font-size: 13px;
+  }
+
+  .operational-donuts-panel__chart,
+  .operational-donuts-panel__chart--population {
+    height: 214px;
+    min-height: 214px;
+  }
+
+  .operational-donuts-panel__center-number {
+    font-size: 38px;
+  }
+}
+
 @media (max-width: 920px) {
   .operational-donuts-panel__grid {
     grid-template-columns: 1fr;
