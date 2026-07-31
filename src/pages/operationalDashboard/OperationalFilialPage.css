@@ -245,12 +245,12 @@
   }
 
   .operational-filial-page__topline.operational-map-panel__topline {
-    --weather-card-width: min(100%, 340px);
+    --weather-card-width: min(100%, 378px);
 
     display: flex;
     grid-template-columns: none;
     justify-self: center;
-    width: min(100%, 520px);
+    width: min(100%, 578px);
     margin-top: 2px;
   }
 
