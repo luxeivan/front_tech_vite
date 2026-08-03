@@ -1,4 +1,9 @@
-import { isDashboardBaseType, isNotDeletedTN, pick } from "../../../../dashboard/js/dashboardCommon";
+import {
+  getTnFilialName,
+  isDashboardBaseType,
+  isNotDeletedTN,
+  pick,
+} from "../../../../dashboard/js/dashboardCommon";
 import { OPERATIONAL_BRANCHES } from "../../districts/js/operationalDistrictsPanel.config";
 import {
   getOperationalBranchByRow,
@@ -20,7 +25,11 @@ export const buildBranchTechViolationChartData = (rowsCurrentYear, statsMeta) =>
     const rawCount = pick(row, "__count");
     const precomputedCount = rawCount == null ? null : Number(rawCount);
     const branch = Number.isFinite(precomputedCount)
-      ? normalizeBranchName(pick(row, "OWN_SCNAME"))
+      ? normalizeBranchName(
+          getTnFilialName(row) ||
+            // Старые предрасчитанные строки графика до перехода на SC_FILIAL.
+            pick(row, "OWN_SCNAME")
+        )
       : getOperationalBranchByRow(row);
 
     if (!branch) return;

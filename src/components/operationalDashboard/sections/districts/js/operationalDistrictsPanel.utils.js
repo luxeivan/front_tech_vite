@@ -3,6 +3,8 @@ import {
   isNotDeletedTN,
   isOpenTN,
   pick,
+  getTnFilialName,
+  getTnPoName,
   toNumber,
 } from "../../../../dashboard/js/dashboardCommon";
 
@@ -61,9 +63,15 @@ const DISPCENTER_BRANCH_BY_NORMALIZED_NAME = new Map(
 );
 
 export const getOperationalBranchByRow = (row) => {
-  const dispcenter = pick(row, "DISPCENTER_NAME_");
-  const branch = DISPCENTER_BRANCH_BY_NORMALIZED_NAME.get(normalizeLookupName(dispcenter));
-  return branch || null;
+  const branch = normalizeBranchName(getTnFilialName(row));
+  if (branch) return branch;
+
+  // Старый источник филиала до перехода на SC_FILIAL:
+  // const dispcenter = pick(row, "DISPCENTER_NAME_");
+  // const oldBranch = DISPCENTER_BRANCH_BY_NORMALIZED_NAME.get(normalizeLookupName(dispcenter));
+  // return oldBranch || null;
+
+  return null;
 };
 
 export const isOperationalDashboardRow = (row) =>
@@ -101,7 +109,7 @@ const getPoOvb = (row) => row?.ovb;
 const hasValue = (value) => value !== null && value !== undefined && value !== "";
 
 const getOperationalPoByRow = (row) => {
-  const poName = pick(row, "SCNAME");
+  const poName = getTnPoName(row);
   return typeof poName === "string" ? poName.trim() : poName;
 };
 

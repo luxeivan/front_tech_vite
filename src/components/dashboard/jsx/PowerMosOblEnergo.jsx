@@ -13,8 +13,9 @@ import {
   URL,
   isDashboardBaseType,
   toNumber,
-  pick,
   pickAny,
+  getTnFilialName,
+  getTnPoName,
   isOpenTN,
   uniqueSorted,
 } from "../js/dashboardCommon"; // Общие хелперы dashboard.
@@ -136,10 +137,8 @@ export default function PowerMosOblEnergo() {
 
   const totals = useMemo(
     () => ({
-      // Филиалы считаем строго по OWN_SCNAME (уникальные значения)
-      filials: uniqCountBy((r) => pickAny(r, "OWN_SCNAME")),
-      // ПО считаем строго по SCNAME (уникальные значения)
-      pos: uniqCountBy((r) => pickAny(r, "SCNAME")),
+      filials: uniqCountBy(getTnFilialName),
+      pos: uniqCountBy(getTnPoName),
       brigades: sumField("BRIGADECOUNT"),
       employees: sumField("EMPLOYEECOUNT"),
       tech: sumField("SPECIALTECHNIQUECOUNT"),
@@ -150,8 +149,8 @@ export default function PowerMosOblEnergo() {
   );
 
   const lists = useMemo(() => ({
-    filials: uniqueSorted(rows.map((r) => pickAny(r, "OWN_SCNAME"))),
-    pos: uniqueSorted(rows.map((r) => pickAny(r, "SCNAME"))),
+    filials: uniqueSorted(rows.map(getTnFilialName)),
+    pos: uniqueSorted(rows.map(getTnPoName)),
   }), [rows]);
 
   // загрузка только открытых ТН

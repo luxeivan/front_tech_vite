@@ -3,6 +3,7 @@ import {
   isNotDeletedTN,
   isOpenTN,
   pick,
+  getTnPoName,
   toNumber,
 } from "../../../../dashboard/js/dashboardCommon";
 import { getOperationalBranchByRow } from "../../districts/js/operationalDistrictsPanel.utils";
@@ -180,7 +181,7 @@ export const buildOperationalMapFilialData = (rows) =>
   buildOperationalMapAreaData(rows, getOperationalBranchByRow);
 
 export const buildOperationalMapPoData = (rows) =>
-  buildOperationalMapAreaData(rows, (row) => pick(row, "SCNAME"));
+  buildOperationalMapAreaData(rows, getTnPoName);
 
 export const getWeatherView = (code) => {
   const value = Number(code);
