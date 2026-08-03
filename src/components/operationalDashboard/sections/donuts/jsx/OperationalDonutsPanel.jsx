@@ -118,7 +118,6 @@ const getPieConfig = ({
   innerRadius = 0.62,
   radius = 0.72,
   height = 270,
-  statisticFontSize = "46px",
   labelFontSize = 11,
   labelOffset = 14,
 }) => ({
@@ -154,18 +153,7 @@ const getPieConfig = ({
     stroke: "#ffffff",
     lineWidth: 2,
   },
-  statistic: {
-    title: false,
-    content: {
-      style: {
-        color: "#1575bc",
-        fontSize: statisticFontSize,
-        fontWeight: 400,
-        lineHeight: "1",
-      },
-      formatter: () => formatNumber(total),
-    },
-  },
+  statistic: false,
 });
 
 function DurationDonut({ data, groupBy = "filial", compact = false }) {
@@ -177,7 +165,8 @@ function DurationDonut({ data, groupBy = "filial", compact = false }) {
     data: chartData,
     total,
     height: compact ? 218 : isFilialView ? 238 : 270,
-    radius: compact ? 0.56 : isFilialView ? 0.68 : 0.72,
+    innerRadius: compact ? 0.66 : 0.62,
+    radius: compact ? 0.76 : isFilialView ? 0.68 : 0.72,
     labelPadding: compact
       ? [8, 56, 8, 56]
       : isFilialView
@@ -186,7 +175,6 @@ function DurationDonut({ data, groupBy = "filial", compact = false }) {
     labelPosition: "spider",
     labelFontSize: compact ? 9 : 11,
     labelOffset: compact ? 8 : 14,
-    statisticFontSize: compact ? "38px" : "46px",
     labelText: hasValues
       ? (datum) =>
           !datum.isEmpty && datum.value > 0
@@ -217,8 +205,8 @@ function PopulationDonut({ data, groupBy = "filial", compact = false }) {
     data: chartData,
     total,
     height: compact ? 218 : isFilialView ? 238 : 270,
-    innerRadius: compact ? 0.58 : isFilialView ? 0.62 : 0.56,
-    radius: compact ? 0.56 : isFilialView ? 0.68 : 0.66,
+    innerRadius: compact ? 0.66 : isFilialView ? 0.62 : 0.56,
+    radius: compact ? 0.76 : isFilialView ? 0.68 : 0.66,
     labelPadding: compact
       ? [8, 72, 8, 72]
       : isFilialView
@@ -226,7 +214,6 @@ function PopulationDonut({ data, groupBy = "filial", compact = false }) {
         : [18, 160, 54, 160],
     labelPosition: "spider",
     labelHeight: isFilialView ? compact ? 28 : 34 : 36,
-    statisticFontSize: compact ? "38px" : isFilialView ? "46px" : "40px",
     labelFontSize: compact ? 9 : 11,
     labelOffset: compact ? 8 : 14,
     labelText: hasValues
