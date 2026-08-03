@@ -166,28 +166,23 @@
 }
 
 .operational-filial-page__topline.operational-map-panel__topline {
-  --weather-card-width: min(30vw, 320px);
+  --weather-card-width: 300px;
 
   grid-area: topline;
   position: relative;
   top: auto;
   right: auto;
   z-index: 1;
-  display: grid;
-  grid-template-columns: auto minmax(0, var(--weather-card-width));
-  align-items: center;
-  gap: 12px;
+  align-items: flex-end;
   justify-self: end;
-  width: min(100%, 520px);
+  width: var(--weather-card-width);
+  max-width: 100%;
   pointer-events: auto;
 }
 
 .operational-filial-page__topline .operational-map-panel__time {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  justify-self: start;
-  text-align: left;
+  justify-content: flex-end;
+  text-align: right;
   white-space: nowrap;
 }
 
@@ -245,22 +240,23 @@
   }
 
   .operational-filial-page__topline.operational-map-panel__topline {
-    --weather-card-width: min(100%, 378px);
+    --weather-card-width: min(100%, 340px);
 
-    display: flex;
-    grid-template-columns: none;
     justify-self: center;
-    width: min(100%, 578px);
+    align-items: center;
+    width: min(100%, var(--weather-card-width));
+    max-width: 100%;
     margin-top: 2px;
   }
 
   .operational-filial-page__topline .operational-map-panel__time {
-    flex: 0 0 auto;
+    justify-content: center;
+    text-align: center;
   }
 }
 
 @media (max-width: 640px) {
   .operational-filial-page__topline.operational-map-panel__topline {
-    display: none;
+    --weather-card-width: min(100%, 320px);
   }
 }

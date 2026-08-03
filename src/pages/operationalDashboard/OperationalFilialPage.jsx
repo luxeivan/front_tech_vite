@@ -44,7 +44,7 @@ export default function OperationalFilialPage() {
             ОПЕРАТИВНАЯ ОБСТАНОВКА
           </h1>
         </div>
-        <OperationalMapTopline className="operational-filial-page__topline" />
+        <OperationalMapTopline className="operational-dashboard__topline operational-filial-page__topline" />
       </header>
       <div className="operational-dashboard__grid operational-filial-page__grid">
         <OperationalDonutsPanel
@@ -60,7 +60,6 @@ export default function OperationalFilialPage() {
           showDistrictLabels
           showPesMarkers
           showTopline={false}
-          showMobileTopline
           variant="filial"
         />
         <OperationalDistrictsPanel
