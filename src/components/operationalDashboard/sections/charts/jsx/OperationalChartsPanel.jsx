@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Column } from "@ant-design/plots";
-import { Alert, Spin } from "antd";
+import { Alert } from "antd";
 
+import BrandSunLoader from "../../../../ui/BrandSunLoader";
 import useOperationalDashboardStore from "../../../../../stores/operationalDashboard/useOperationalDashboardStore";
 import {
   OPERATIONAL_CHART_CURRENT_YEAR,
@@ -152,7 +153,7 @@ export default function OperationalChartsPanel() {
             <Alert type="warning" showIcon message={statsError} />
           ) : hasLoaded && (isStatsLoading || !hasStatsLoaded) ? (
             <div className="operational-charts-panel__loading">
-              <Spin size="large" />
+              <BrandSunLoader size={46} text="Загружаем статистику" />
             </div>
           ) : hasLoaded && hasStatsLoaded ? (
             <>

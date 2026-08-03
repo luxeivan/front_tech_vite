@@ -3,6 +3,7 @@ import dayjs from "dayjs";
 import { Alert, Spin } from "antd";
 import { Pie } from "@ant-design/plots";
 
+import BrandSunLoader from "../../../../ui/BrandSunLoader";
 import useOperationalDashboardStore from "../../../../../stores/operationalDashboard/useOperationalDashboardStore";
 import {
   DURATION_DONUT_CONFIG,
@@ -292,7 +293,10 @@ export default function OperationalDonutsPanel({
         {error ? (
           <Alert type="error" showIcon message={error} />
         ) : (
-          <Spin spinning={isLoading && hasLoaded}>
+          <Spin
+            spinning={isLoading && hasLoaded}
+            indicator={<BrandSunLoader size={34} />}
+          >
             <div className="operational-donuts-panel__grid">
               <DurationDonut
                 data={durationData}
