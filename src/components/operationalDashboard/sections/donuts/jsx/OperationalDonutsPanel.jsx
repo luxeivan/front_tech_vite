@@ -224,7 +224,7 @@ function PopulationDonut({ data, groupBy = "filial", compact = false }) {
         ? [14, 140, 14, 140]
         : [18, 160, 54, 160],
     labelPosition: "spider",
-    labelHeight: isFilialView ? undefined : 36,
+    labelHeight: isFilialView ? compact ? 28 : 34 : 36,
     statisticFontSize: compact ? "38px" : isFilialView ? "46px" : "40px",
     labelFontSize: compact ? 9 : 11,
     labelOffset: compact ? 8 : 14,
