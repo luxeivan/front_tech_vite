@@ -4,7 +4,9 @@ import { Spin } from "antd";
 import OperationalChartsPanel from "../sections/charts/jsx/OperationalChartsPanel";
 import OperationalDistrictsPanel from "../sections/districts/jsx/OperationalDistrictsPanel";
 import OperationalDonutsPanel from "../sections/donuts/jsx/OperationalDonutsPanel";
-import OperationalMapPanel from "../sections/map/jsx/OperationalMapPanel";
+import OperationalMapPanel, {
+  OperationalMapTopline,
+} from "../sections/map/jsx/OperationalMapPanel";
 import useOperationalDashboardStore from "../../../stores/operationalDashboard/useOperationalDashboardStore";
 import { TN_FILIALY_REZIM_UPDATED_EVENT } from "../../../utils/tnFilialyApi";
 import "../css/OperationalDashboard.css";
@@ -89,10 +91,13 @@ export default function OperationalDashboardShell() {
   return (
     <section className="operational-dashboard">
       <Spin fullscreen spinning={isLoading && !hasLoaded} />
-      <h1 className="operational-dashboard__title">ОПЕРАТИВНАЯ ОБСТАНОВКА</h1>
+      <header className="operational-dashboard__header">
+        <h1 className="operational-dashboard__title">ОПЕРАТИВНАЯ ОБСТАНОВКА</h1>
+        <OperationalMapTopline className="operational-dashboard__topline" />
+      </header>
       <div className="operational-dashboard__grid">
         <OperationalDonutsPanel />
-        <OperationalMapPanel externalHoverName={hoveredBranchName} />
+        <OperationalMapPanel externalHoverName={hoveredBranchName} showTopline={false} />
         <OperationalDistrictsPanel onBranchHover={setHoveredBranchName} />
         <OperationalChartsPanel />
       </div>

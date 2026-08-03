@@ -35,15 +35,28 @@
 .operational-dashboard:not(.operational-filial-page) .operational-dashboard__grid {
   grid-template-rows: minmax(285px, 0.86fr) minmax(150px, 0.46fr) minmax(275px, 0.82fr);
   gap: 14px 24px;
-  min-height: calc(100vh - 226px);
+  min-height: calc(100vh - 204px);
 }
 
 .operational-dashboard:not(.operational-filial-page) .operational-dashboard__title {
-  margin-bottom: 6px;
   font-size: 32px;
 }
 
+.operational-dashboard__header .operational-dashboard__title {
+  margin-bottom: 0;
+}
+
+.operational-dashboard__header {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) auto minmax(240px, 1fr);
+  grid-template-areas: ". title topline";
+  align-items: start;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
 .operational-dashboard__title {
+  grid-area: title;
   margin: 0 0 10px;
   color: #006eb8;
   font-size: 34px;
@@ -52,6 +65,64 @@
   letter-spacing: 0;
   text-align: center;
   text-transform: uppercase;
+}
+
+.operational-dashboard__topline.operational-map-panel__topline {
+  --weather-card-width: 248px;
+
+  grid-area: topline;
+  position: relative;
+  top: auto;
+  right: auto;
+  z-index: 1;
+  justify-self: end;
+  align-items: flex-end;
+  width: var(--weather-card-width);
+  pointer-events: auto;
+}
+
+.operational-dashboard__topline .operational-map-panel__time {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.operational-dashboard__topline .operational-map-panel__time strong,
+.operational-dashboard__topline .operational-map-panel__time span {
+  font-size: 15px;
+}
+
+.operational-dashboard__topline .operational-map-panel__weather {
+  width: 100%;
+  min-width: 0;
+  min-height: 62px;
+  padding: 7px 9px 8px;
+}
+
+.operational-dashboard__topline .operational-map-panel__weather-content {
+  grid-template-columns: minmax(72px, auto) 1fr;
+  gap: 6px;
+}
+
+.operational-dashboard__topline .operational-map-panel__weather-main {
+  gap: 6px;
+}
+
+.operational-dashboard__topline .operational-map-panel__weather-icon {
+  width: 28px;
+  height: 28px;
+  font-size: 22px;
+}
+
+.operational-dashboard__topline .operational-map-panel__weather-main strong {
+  font-size: 21px;
+}
+
+.operational-dashboard__topline .operational-map-panel__weather-details {
+  gap: 2px 6px;
+  font-size: 8px;
 }
 
 .operational-dashboard__panel--donuts {
