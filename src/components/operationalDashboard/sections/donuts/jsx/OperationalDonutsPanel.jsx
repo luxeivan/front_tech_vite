@@ -26,6 +26,30 @@ const EMPTY_DONUT_SEGMENT = {
 
 const ensureDonutData = (items) => (items.length ? items : [EMPTY_DONUT_SEGMENT]);
 
+const wrapDonutLabelName = (value, maxLineLength = 13) => {
+  const label = String(value || "").trim();
+  if (!label) return "";
+  if (label.includes("-")) return label.replace(/-/g, "-\n");
+  if (label.length <= maxLineLength) return label;
+
+  const lines = [];
+  let currentLine = "";
+  label.split(" ").forEach((word) => {
+    const nextLine = currentLine ? `${currentLine} ${word}` : word;
+    if (nextLine.length > maxLineLength && currentLine) {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = nextLine;
+    }
+  });
+  if (currentLine) lines.push(currentLine);
+  return lines.join("\n");
+};
+
+const formatDonutLabel = (name, value, maxLineLength) =>
+  `${wrapDonutLabelName(name, maxLineLength)}\n${formatNumber(value)}`;
+
 const useTabletLandscape = () => {
   const getValue = () =>
     typeof window !== "undefined" &&
@@ -195,9 +219,9 @@ function PopulationDonut({ data, groupBy = "filial", compact = false }) {
     innerRadius: compact ? 0.58 : isFilialView ? 0.62 : 0.56,
     radius: compact ? 0.56 : isFilialView ? 0.68 : 0.66,
     labelPadding: compact
-      ? [8, 60, 8, 60]
+      ? [8, 72, 8, 72]
       : isFilialView
-        ? [14, 116, 14, 116]
+        ? [14, 140, 14, 140]
         : [18, 160, 54, 160],
     labelPosition: "spider",
     labelHeight: isFilialView ? undefined : 36,
@@ -207,7 +231,7 @@ function PopulationDonut({ data, groupBy = "filial", compact = false }) {
     labelText: hasValues
       ? (datum) =>
           !datum.isEmpty && datum.value > 0
-            ? `${datum.type}\n${formatNumber(datum.value)}`
+            ? formatDonutLabel(datum.type, datum.value, compact ? 10 : 13)
             : ""
       : null,
   });
