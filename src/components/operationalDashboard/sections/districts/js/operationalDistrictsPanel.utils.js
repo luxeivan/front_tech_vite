@@ -42,7 +42,7 @@ export const normalizeBranchName = (value) => {
   if (!normalized) return null;
 
   if (normalized === "Коломенский") return "Коломенский";
-  if (normalized === "Щёлковский") return "Щёлковский";
+  if (normalized === "Щёлковский" || normalized === "Щелковский") return "Щёлковский";
   return normalized;
 };
 

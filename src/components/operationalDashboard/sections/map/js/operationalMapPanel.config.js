@@ -32,7 +32,7 @@ export const OPERATIONAL_BRANCH_POINTS = {
   "Павлово-Посадский": { lon: 38.65, lat: 55.78 },
   Раменский: { lon: 38.23, lat: 55.57 },
   "Сергиево-Посадский": { lon: 38.13, lat: 56.3 },
-  Щелковский: { lon: 38.0, lat: 55.92 },
+  Щёлковский: { lon: 38.0, lat: 55.92 },
 };
 
 export const OPERATIONAL_BRANCH_DISTRICT_ALIASES = {
@@ -45,7 +45,7 @@ export const OPERATIONAL_BRANCH_DISTRICT_ALIASES = {
   "Павлово-Посадский": ["павлов", "посад"],
   Раменский: ["рамен"],
   "Сергиево-Посадский": ["сергиев", "посад"],
-  Щелковский: ["щелков", "щёлков"],
+  Щёлковский: ["щелков", "щёлков"],
 };
 
 export const OPERATIONAL_MAP_COLORS = {
