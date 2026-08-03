@@ -173,8 +173,8 @@ export default function OperationalChartsPanel() {
                   </div>
                 </div>
                 <div className="operational-charts-panel__summary-percent">
-                  {totals.percent > 0 ? "+" : ""}
-                  {formatNumber(totals.percent)}%
+                  {totals.percent > 0 ? "↑ " : totals.percent < 0 ? "↓ " : ""}
+                  {formatNumber(Math.abs(totals.percent))}%
                 </div>
               </div>
             </>
