@@ -208,6 +208,29 @@
 }
 
 @media (max-width: 900px), (max-width: 1200px) and (orientation: portrait) {
+  .operational-dashboard__header {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "title"
+      "topline";
+    justify-items: center;
+    gap: 8px;
+  }
+
+  .operational-dashboard__topline.operational-map-panel__topline {
+    --weather-card-width: min(100%, 340px);
+
+    justify-self: center;
+    align-items: center;
+    width: min(100%, var(--weather-card-width));
+    max-width: 100%;
+  }
+
+  .operational-dashboard__topline .operational-map-panel__time {
+    justify-content: center;
+    text-align: center;
+  }
+
   .operational-dashboard__grid {
     grid-template-columns: 1fr;
     grid-template-areas:
@@ -231,13 +254,71 @@
     padding: 10px;
   }
 
+  .operational-dashboard__header {
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
   .operational-dashboard__title {
     margin-bottom: 8px;
     font-size: 24px;
   }
 
+  .operational-dashboard__topline.operational-map-panel__topline {
+    --weather-card-width: min(100%, 320px);
+  }
+
+  .operational-dashboard__topline .operational-map-panel__time strong,
+  .operational-dashboard__topline .operational-map-panel__time span {
+    font-size: 13px;
+  }
+
+  .operational-dashboard__topline .operational-map-panel__weather {
+    min-height: 58px;
+    padding: 7px 8px;
+  }
+
+  .operational-dashboard__topline .operational-map-panel__weather-parts {
+    grid-template-columns: repeat(4, minmax(24px, 1fr));
+  }
+
   .operational-dashboard__grid {
     gap: 10px;
     min-height: auto;
+  }
+}
+
+@media (max-width: 430px) {
+  .operational-dashboard__topline.operational-map-panel__topline {
+    --weather-card-width: min(100%, 300px);
+  }
+
+  .operational-dashboard__topline .operational-map-panel__weather-content {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 5px;
+  }
+
+  .operational-dashboard__topline .operational-map-panel__weather-main {
+    justify-content: center;
+  }
+
+  .operational-dashboard__topline .operational-map-panel__weather-parts {
+    gap: 2px;
+  }
+
+  .operational-dashboard__topline .operational-map-panel__weather-part b {
+    font-size: 7px;
+  }
+
+  .operational-dashboard__topline .operational-map-panel__weather-part i {
+    font-size: 11px;
+  }
+
+  .operational-dashboard__topline .operational-map-panel__weather-part em {
+    font-size: 8px;
+  }
+
+  .operational-dashboard__topline .operational-map-panel__weather-details {
+    justify-content: center;
   }
 }
