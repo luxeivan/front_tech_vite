@@ -207,6 +207,61 @@
   }
 }
 
+@media (min-width: 901px) and (max-width: 1200px) and (orientation: landscape) {
+  .operational-filial-page__header {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "nav"
+      "title"
+      "topline";
+    align-items: center;
+    justify-items: stretch;
+    gap: 8px;
+  }
+
+  .operational-filial-page__heading {
+    justify-items: center;
+  }
+
+  .operational-filial-page__nav {
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding-top: 10px;
+  }
+
+  .operational-filial-page__topline.operational-map-panel__topline {
+    --weather-card-width: min(100%, 340px);
+
+    justify-self: center;
+    align-items: center;
+    width: min(100%, var(--weather-card-width));
+    max-width: 100%;
+    margin-top: 2px;
+  }
+
+  .operational-filial-page__topline .operational-map-panel__time {
+    justify-content: center;
+    text-align: center;
+  }
+
+  .operational-filial-page__grid {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "map"
+      "donuts"
+      "districts"
+      "charts";
+    grid-template-rows: minmax(520px, 62vh) auto auto minmax(300px, auto);
+    height: auto;
+    min-height: auto;
+  }
+
+  .operational-filial-page__grid > .operational-districts-panel--po {
+    margin-top: 0;
+  }
+}
+
 @media (max-width: 900px), (max-width: 1200px) and (orientation: portrait) {
   .operational-filial-page__header {
     grid-template-columns: 1fr;
