@@ -68,7 +68,7 @@
 }
 
 .operational-dashboard__topline.operational-map-panel__topline {
-  --weather-card-width: 248px;
+  --weather-card-width: 300px;
 
   grid-area: topline;
   position: relative;
@@ -179,14 +179,78 @@
   padding: 0;
 }
 
-@media (min-width: 901px) and (max-width: 1200px) and (orientation: landscape) {
+@media (min-width: 901px) and (max-width: 1320px) and (orientation: landscape) {
   .operational-dashboard {
     padding: 8px 14px 10px;
   }
 
+  .operational-dashboard__header {
+    grid-template-columns: minmax(0, 1fr) minmax(294px, 300px);
+    grid-template-areas: "title topline";
+    gap: 12px;
+  }
+
   .operational-dashboard__title {
     margin-bottom: 6px;
-    font-size: 28px;
+    min-width: 0;
+    font-size: 26px;
+    justify-self: center;
+  }
+
+  .operational-dashboard__topline.operational-map-panel__topline {
+    --weather-card-width: 300px;
+
+    width: var(--weather-card-width);
+  }
+
+  .operational-dashboard__topline .operational-map-panel__time strong,
+  .operational-dashboard__topline .operational-map-panel__time span {
+    font-size: 14px;
+  }
+
+  .operational-dashboard__topline .operational-map-panel__weather {
+    min-height: 58px;
+    padding: 6px 10px 7px;
+  }
+
+  .operational-dashboard__topline .operational-map-panel__weather-content {
+    grid-template-columns: minmax(94px, auto) 1fr;
+    gap: 7px;
+  }
+
+  .operational-dashboard__topline .operational-map-panel__weather-icon {
+    width: 25px;
+    height: 25px;
+    font-size: 20px;
+  }
+
+  .operational-dashboard__topline .operational-map-panel__weather-main strong {
+    font-size: 19px;
+  }
+
+  .operational-dashboard__topline .operational-map-panel__weather-main span:not(.operational-map-panel__weather-icon) {
+    font-size: 9px;
+  }
+
+  .operational-dashboard__topline .operational-map-panel__weather-parts {
+    gap: 4px;
+  }
+
+  .operational-dashboard__topline .operational-map-panel__weather-part b {
+    font-size: 7px;
+  }
+
+  .operational-dashboard__topline .operational-map-panel__weather-part i {
+    font-size: 11px;
+  }
+
+  .operational-dashboard__topline .operational-map-panel__weather-part em {
+    font-size: 8px;
+  }
+
+  .operational-dashboard__topline .operational-map-panel__weather-details {
+    gap: 2px 5px;
+    font-size: 7px;
   }
 
   .operational-dashboard__grid {

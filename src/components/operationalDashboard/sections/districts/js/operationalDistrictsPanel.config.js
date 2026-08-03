@@ -86,6 +86,14 @@ const compactTitle = (title) =>
     title
   );
 
+const twoLineTitle = (firstLine, secondLine) =>
+  createElement(
+    "span",
+    { className: "operational-districts-panel__header-title--two-line" },
+    createElement("span", null, firstLine),
+    createElement("span", null, secondLine)
+  );
+
 export const OPERATIONAL_BRANCH_COLUMNS = [
   {
     title: "Филиал",
@@ -103,7 +111,7 @@ export const OPERATIONAL_BRANCH_COLUMNS = [
   { title: "ВЗУ ВНС", dataIndex: "vzuVns", width: 54 },
   { title: "КНС", dataIndex: "kns", width: 40, ...nowrapHeader },
   { title: "Больницы Поликлиники", dataIndex: "medical", width: 74 },
-  { title: "Школы д. сады", dataIndex: "schools", width: 68 },
+  { title: twoLineTitle("Школы", "д.сады"), dataIndex: "schools", width: 68 },
   { title: compactTitle("Бригады"), dataIndex: "brigades", width: 50, ...compactHeader },
   { title: compactTitle("Персонал"), dataIndex: "staff", width: 54, ...compactHeader },
   { title: compactTitle("Техника"), dataIndex: "vehicles", width: 50, ...compactHeader },

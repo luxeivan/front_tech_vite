@@ -87,6 +87,18 @@
   white-space: nowrap;
 }
 
+.operational-districts-panel__header-title--two-line {
+  display: inline-grid;
+  gap: 1px;
+  justify-items: center;
+  line-height: 1;
+}
+
+.operational-districts-panel__header-title--two-line span {
+  white-space: nowrap;
+  word-break: normal;
+}
+
 .operational-districts-panel__table .ant-table-thead > tr > th:first-child,
 .operational-districts-panel__table .ant-table-tbody > tr > td:first-child {
   word-break: normal;
