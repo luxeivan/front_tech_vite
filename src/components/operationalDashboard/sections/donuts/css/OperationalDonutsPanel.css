@@ -85,6 +85,12 @@
   white-space: nowrap;
 }
 
+.operational-donuts-panel__center-number--compact {
+  top: 0;
+  bottom: auto;
+  height: 204px;
+}
+
 .operational-donuts-panel__stage {
   position: relative;
   display: none;
@@ -275,8 +281,8 @@
 
   .operational-donuts-panel__chart,
   .operational-donuts-panel__chart--population {
-    height: 214px;
-    min-height: 214px;
+    height: 218px;
+    min-height: 218px;
   }
 
   .operational-donuts-panel__center-number {

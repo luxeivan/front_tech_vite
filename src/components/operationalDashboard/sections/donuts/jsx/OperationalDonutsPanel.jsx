@@ -188,7 +188,12 @@ function DurationDonut({ data, groupBy = "filial", compact = false }) {
       <h3 className="operational-donuts-panel__title">Количество аварийных отключений ЛЭП</h3>
       <div className="operational-donuts-panel__chart">
         <Pie {...config} />
-        <div className="operational-donuts-panel__center-number">
+        <div
+          className={[
+            "operational-donuts-panel__center-number",
+            compact ? "operational-donuts-panel__center-number--compact" : "",
+          ].filter(Boolean).join(" ")}
+        >
           {formatNumber(total)}
         </div>
       </div>
@@ -229,7 +234,12 @@ function PopulationDonut({ data, groupBy = "filial", compact = false }) {
       <h3 className="operational-donuts-panel__title">Обесточено населения</h3>
       <div className="operational-donuts-panel__chart operational-donuts-panel__chart--population">
         <Pie {...config} />
-        <div className="operational-donuts-panel__center-number">
+        <div
+          className={[
+            "operational-donuts-panel__center-number",
+            compact ? "operational-donuts-panel__center-number--compact" : "",
+          ].filter(Boolean).join(" ")}
+        >
           {formatNumber(total)}
         </div>
       </div>
