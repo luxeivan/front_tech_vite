@@ -189,7 +189,7 @@ export function mapPlannedRow(item, sendStatus) {
     plannedNum !== null && plannedNum !== undefined
       ? sendStatus.byNumber[String(plannedNum).trim()]
       : null;
-  const send = sendByGuid || sendByNumber || null;
+  const send = sendByGuid || (guid ? null : sendByNumber) || null;
 
   const documentId =
     getField(item, "documentId") ||
