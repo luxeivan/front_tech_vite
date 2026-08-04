@@ -4,6 +4,7 @@ const BACKEND_URL = import.meta.env.VITE_URL_BACKEND;
 const TN_OKRUGA_ENDPOINT = `${BACKEND_URL}/api/tn-okruga`;
 const PAGE_SIZE = 100;
 const CACHE_TTL_MS = 5 * 60 * 1000;
+const TN_OKRUGA_STATUS = "draft";
 
 let cachedTnOkrugaRows = null;
 let cachedTnOkrugaRowsAt = 0;
@@ -87,6 +88,7 @@ export async function fetchTnOkrugaRows(options = {}) {
     do {
       const { data } = await axios.get(TN_OKRUGA_ENDPOINT, {
         params: {
+          status: TN_OKRUGA_STATUS,
           "filters[is_active][$eq]": true,
           "fields[0]": "name",
           "fields[1]": "source_name",
@@ -135,6 +137,7 @@ export async function fetchTnOkrugaRelationRows() {
   do {
     const { data } = await axios.get(TN_OKRUGA_ENDPOINT, {
       params: {
+        status: TN_OKRUGA_STATUS,
         "filters[is_active][$eq]": true,
         "fields[0]": "name",
         "fields[1]": "source_name",
