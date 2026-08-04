@@ -27,7 +27,10 @@ const isFilialModeEvent = (payload) =>
   payload?.type === TN_FILIALY_REZIM_UPDATED_EVENT ||
   payload?.payload?.type === TN_FILIALY_REZIM_UPDATED_EVENT;
 
-export default function OperationalDashboardShell() {
+export default function OperationalDashboardShell({
+  MapPanelComponent = OperationalMapPanel,
+  className = "",
+}) {
   const loadData = useOperationalDashboardStore((store) => store.loadData);
   const isLoading = useOperationalDashboardStore((store) => store.isLoading);
   const hasLoaded = useOperationalDashboardStore((store) => store.hasLoaded);
@@ -89,7 +92,7 @@ export default function OperationalDashboardShell() {
   }, [loadData]);
 
   return (
-    <section className="operational-dashboard">
+    <section className={["operational-dashboard", className].filter(Boolean).join(" ")}>
       {isLoading && !hasLoaded ? (
         <BrandSunLoader fullscreen size={74} text="Загружаем оперативную обстановку" />
       ) : null}
@@ -99,7 +102,7 @@ export default function OperationalDashboardShell() {
       </header>
       <div className="operational-dashboard__grid">
         <OperationalDonutsPanel />
-        <OperationalMapPanel externalHoverName={hoveredBranchName} showTopline={false} />
+        <MapPanelComponent externalHoverName={hoveredBranchName} showTopline={false} />
         <OperationalDistrictsPanel onBranchHover={setHoveredBranchName} />
         <OperationalChartsPanel />
       </div>
