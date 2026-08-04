@@ -12,6 +12,7 @@ import AuthForm from "./components/AuthForm";
 import BrandSunLoader from "./components/ui/BrandSunLoader";
 import DashboardPage from "./pages/dashboard/DashboardPage";
 import OperationalDashboardPage from "./pages/operationalDashboard/OperationalDashboardPage";
+import OperationalDashboardTestMapPage from "./pages/operationalDashboard/OperationalDashboardTestMapPage";
 import OperationalFilialPage from "./pages/operationalDashboard/OperationalFilialPage";
 import Portal404 from "./components/Portal404/Portal404";
 import PesPage from "./pages/pes/PesPage";
@@ -112,6 +113,16 @@ function App() {
               <Protected>
                 <FeatureOnly featureKey="operationalDashboard">
                   <OperationalDashboardPage />
+                </FeatureOnly>
+              </Protected>
+            }
+          />
+          <Route
+            path="/dashboard-oo-test-map"
+            element={
+              <Protected>
+                <FeatureOnly featureKey="operationalDashboard">
+                  <OperationalDashboardTestMapPage />
                 </FeatureOnly>
               </Protected>
             }

@@ -32,6 +32,10 @@ let pesAllowlistCache = {
   loadedAt: 0,
   ids: null,
 };
+let pesModuleStatusCache = {
+  loadedAt: 0,
+  map: null,
+};
 
 const toIntId = (v) => {
   const n = typeof v === "number" ? v : parseInt(v, 10);
@@ -97,10 +101,18 @@ async function getPesAllowlistIds(signal) {
   return ids;
 }
 
-export const pesIconDataUrl = (fillColor = PES_ICON_COLOR_IDLE) => {
-  const patched = String(pesIconSvgRaw || "")
-    .replace(/fill:\s*#000000/gi, `fill:${fillColor}`)
-    .replace(/fill="#000000"/gi, `fill="${fillColor}"`);
+export const pesIconDataUrl = (
+  fillColor = PES_ICON_COLOR_IDLE,
+  { svgRaw = pesIconSvgRaw, recolorAllFills = false } = {},
+) => {
+  const svg = String(svgRaw || "");
+  const patched = recolorAllFills
+    ? svg
+        .replace(/fill:\s*#[0-9a-f]{3,8}/gi, `fill:${fillColor}`)
+        .replace(/fill="#[0-9a-f]{3,8}"/gi, `fill="${fillColor}"`)
+    : svg
+        .replace(/fill:\s*#000000/gi, `fill:${fillColor}`)
+        .replace(/fill="#000000"/gi, `fill="${fillColor}"`);
   return `data:image/svg+xml;utf8,${encodeURIComponent(patched.trim())}`;
 };
 
@@ -208,6 +220,28 @@ async function fetchPesModuleStatusMap(signal) {
   return map;
 }
 
+async function getPesModuleStatusMapCached(signal) {
+  const now = Date.now();
+  if (
+    pesModuleStatusCache.map &&
+    now - pesModuleStatusCache.loadedAt < PES_ALLOWLIST_CACHE_TTL_MS
+  ) {
+    return pesModuleStatusCache.map;
+  }
+
+  const map = await fetchPesModuleStatusMap(signal);
+  pesModuleStatusCache = { loadedAt: now, map };
+  return map;
+}
+
+export async function getPesModuleInfoByNumber(pesNumber, signal) {
+  const normalized = normalizePesNumber(pesNumber);
+  if (!normalized) return null;
+
+  const statusMap = await getPesModuleStatusMapCached(signal);
+  return statusMap.get(normalized) || null;
+}
+
 const formatTime = (ms) => {
   const n = Number(ms);
   if (!Number.isFinite(n) || n <= 0) return "—";
@@ -248,15 +282,92 @@ export const buildPesPopupHtml = ({
  * @param {object} params
  * @param {() => number} params.getZoom - функция, возвращающая текущий zoom (из viewRef)
  * @param {() => number} params.getFallbackZoom - запасной zoom (из React state)
+ * @param {() => number[]} [params.getVisibleExtent] - текущий видимый экстент карты
+ * @param {(coordinate: number[]) => number[]} [params.getPixelFromCoordinate] - пиксель координаты в карте
+ * @param {() => number[]} [params.getViewportSize] - размер viewport карты
+ * @param {number} [params.viewportPaddingPx] - отступ от края viewport для скрытия обрезанных иконок
+ * @param {(coordinate: number[]) => boolean} [params.isCoordinateAllowed] - фильтр геометрии карты
+ * @param {string} [params.iconSvgRaw] - SVG для иконки ПЭС
+ * @param {number} [params.scaleMultiplier] - базовый множитель масштаба иконки
+ * @param {boolean} [params.recolorAllFills] - перекрашивать все fill в SVG
  */
-export const createPesLayer = ({ getZoom, getFallbackZoom }) => {
+export const createPesLayer = ({
+  getZoom,
+  getFallbackZoom,
+  getVisibleExtent,
+  getPixelFromCoordinate,
+  getViewportSize,
+  viewportPaddingPx = 0,
+  isCoordinateAllowed,
+  iconSvgRaw,
+  scaleMultiplier = PES_ICON_SCALE_MULT,
+  recolorAllFills = false,
+}) => {
   const source = new VectorSource();
+  const buildIconDataUrl = (fillColor) =>
+    pesIconDataUrl(fillColor, {
+      svgRaw: iconSvgRaw || pesIconSvgRaw,
+      recolorAllFills,
+    });
+  const iconSrcIdle = buildIconDataUrl(PES_ICON_COLOR_IDLE);
+  const iconSrcMoving = buildIconDataUrl(PES_ICON_COLOR_MOVING);
+  const iconSrcConnected = buildIconDataUrl(PES_ICON_COLOR_CONNECTED);
+  const iconSrcByStatus = {
+    ready: buildIconDataUrl(PES_ICON_COLOR_READY),
+    command_sent: buildIconDataUrl(PES_ICON_COLOR_COMMAND_SENT),
+    delay: buildIconDataUrl(PES_ICON_COLOR_DELAY),
+    en_route: buildIconDataUrl(PES_ICON_COLOR_EN_ROUTE),
+    connected: iconSrcConnected,
+    repair: buildIconDataUrl(PES_ICON_COLOR_REPAIR),
+  };
 
   const layer = new VectorLayer({
     source,
     zIndex: 9999,
     declutter: true,
+    renderBuffer: 0,
     style: (feature) => {
+      const coordinate = feature.getGeometry?.()?.getCoordinates?.();
+      const visibleExtent = getVisibleExtent?.();
+      if (
+        Array.isArray(coordinate) &&
+        Array.isArray(visibleExtent) &&
+        coordinate.some((value) => !Number.isFinite(value))
+      ) {
+        return undefined;
+      }
+      if (
+        Array.isArray(coordinate) &&
+        Array.isArray(visibleExtent) &&
+        visibleExtent.every(Number.isFinite) &&
+        (coordinate[0] < visibleExtent[0] ||
+          coordinate[0] > visibleExtent[2] ||
+          coordinate[1] < visibleExtent[1] ||
+          coordinate[1] > visibleExtent[3])
+      ) {
+        return undefined;
+      }
+      if (Array.isArray(coordinate) && isCoordinateAllowed?.(coordinate) === false) {
+        return undefined;
+      }
+      const pixel = Array.isArray(coordinate)
+        ? getPixelFromCoordinate?.(coordinate)
+        : null;
+      const viewportSize = getViewportSize?.();
+      if (
+        Array.isArray(pixel) &&
+        Array.isArray(viewportSize) &&
+        viewportSize.length >= 2 &&
+        viewportSize.every(Number.isFinite) &&
+        viewportPaddingPx > 0 &&
+        (pixel[0] < viewportPaddingPx ||
+          pixel[0] > viewportSize[0] - viewportPaddingPx ||
+          pixel[1] < viewportPaddingPx ||
+          pixel[1] > viewportSize[1] - viewportPaddingPx)
+      ) {
+        return undefined;
+      }
+
       const z =
         (getZoom && getZoom()) ?? (getFallbackZoom && getFallbackZoom()) ?? 10;
 
@@ -268,8 +379,8 @@ export const createPesLayer = ({ getZoom, getFallbackZoom }) => {
         Number.isFinite(speed) && speed > PES_MOVING_SPEED_THRESHOLD;
       const showLabel = z >= 12;
       const iconSrc =
-        PES_ICON_SRC_BY_STATUS[moduleStatus] ||
-        (moving ? PES_ICON_SRC_MOVING : PES_ICON_SRC_IDLE);
+        iconSrcByStatus[moduleStatus] ||
+        (moving ? iconSrcMoving : iconSrcIdle);
 
       const iconStyle = new Style({
         image: new Icon({
@@ -285,7 +396,7 @@ export const createPesLayer = ({ getZoom, getFallbackZoom }) => {
                   ? 0.75
                   : z < 16
                     ? 0.85
-                    : 0.95) * PES_ICON_SCALE_MULT,
+                    : 0.95) * scaleMultiplier,
           anchor: [0.5, 1],
           anchorXUnits: "fraction",
           anchorYUnits: "fraction",
@@ -340,6 +451,7 @@ export const startPesPolling = ({
   source,
   endpoint,
   pollMs = PES_POLL_MS_DEFAULT,
+  loadModuleInfo = true,
   onError,
 }) => {
   if (!source || !endpoint) {
@@ -358,10 +470,12 @@ export const startPesPolling = ({
       const vehiclesRaw = Array.isArray(json?.vehicles) ? json.vehicles : [];
       const [allowedIds, statusMap] = await Promise.all([
         getPesAllowlistIds(ac.signal),
-        fetchPesModuleStatusMap(ac.signal).catch((e) => {
-          console.warn("[MapOL] PES module status error:", e?.message || e);
-          return new Map();
-        }),
+        loadModuleInfo
+          ? fetchPesModuleStatusMap(ac.signal).catch((e) => {
+              console.warn("[MapOL] PES module status error:", e?.message || e);
+              return new Map();
+            })
+          : Promise.resolve(new Map()),
       ]);
 
       const vehicles = vehiclesRaw.filter((v) => {
@@ -395,6 +509,8 @@ export const startPesPolling = ({
           speed,
           time,
           pesNumber,
+          lat,
+          lon,
           moduleStatus,
           moduleBranch: moduleInfo?.branch || "",
           modulePo: moduleInfo?.po || "",
