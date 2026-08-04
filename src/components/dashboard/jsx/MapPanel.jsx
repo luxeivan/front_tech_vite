@@ -1,11 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Input, Radio, message } from "antd";
-import VectorLayer from "ol/layer/Vector";
-import VectorSource from "ol/source/Vector";
-import GeoJSON from "ol/format/GeoJSON";
-import Style from "ol/style/Style";
-import Fill from "ol/style/Fill";
-import Stroke from "ol/style/Stroke";
 
 import {
   attachMapClickPopup,
@@ -38,21 +32,6 @@ import {
   parsePesNumber,
   extractModelNumber,
 } from "../js/mapPanel.utils"; // Утилиты запросов и поиска ПЭС.
-import {
-  buildTnOkrugaFeatureCollection,
-  fetchTnOkrugaRows,
-} from "../../../utils/tnOkrugaApi";
-
-const createDistrictStyle = () =>
-  new Style({
-    fill: new Fill({ color: "rgba(255, 255, 255, 0.34)" }),
-    stroke: new Stroke({ color: "rgba(21, 117, 188, 0.34)", width: 1.25 }),
-  });
-
-const hoverDistrictStyle = new Style({
-  fill: new Fill({ color: "rgba(255, 255, 255, 0.08)" }),
-  stroke: new Stroke({ color: "#1575bc", width: 3 }),
-});
 
 export default function MapPanel({
   height = "100%",
@@ -79,15 +58,11 @@ export default function MapPanel({
   const accSourceRef = useRef(null);
   const accLayerRef = useRef(null);
   const pesSourceRef = useRef(null);
-  const districtSourceRef = useRef(null);
-  const districtHoverSourceRef = useRef(null);
-  const districtLayerRef = useRef(null);
   const tpIndexRef = useRef([]);
   const tpUpdaterRef = useRef(null);
   const clickDetachRef = useRef(null);
   const popupDisposeRef = useRef(null);
   const baseCleanupRef = useRef(null);
-  const activeLayerRef = useRef("yandex");
 
   const [activeLayer, setActiveLayer] = useState("yandex");
   const [resolvedPoints, setResolvedPoints] = useState([]);
@@ -138,23 +113,6 @@ export default function MapPanel({
     });
     pesSourceRef.current = pesSource;
 
-    const districtSource = new VectorSource();
-    const districtHoverSource = new VectorSource();
-    const districtLayer = new VectorLayer({
-      source: districtSource,
-      visible: false,
-      declutter: true,
-      style: createDistrictStyle,
-    });
-    const districtHoverLayer = new VectorLayer({
-      source: districtHoverSource,
-      visible: false,
-      style: hoverDistrictStyle,
-    });
-    districtSourceRef.current = districtSource;
-    districtHoverSourceRef.current = districtHoverSource;
-    districtLayerRef.current = districtLayer;
-
     const view = createView({ initialState });
     viewRef.current = view;
 
@@ -163,7 +121,7 @@ export default function MapPanel({
       baseLayers,
       view,
       overlays: [overlay],
-      layers: [districtLayer, districtHoverLayer, tpLayer, accLayer, pesLayer],
+      layers: [tpLayer, accLayer, pesLayer],
     });
     olMapRef.current = map;
 
@@ -206,61 +164,10 @@ export default function MapPanel({
     tpUpdater.update();
     tpUpdater.bind();
 
-    const geojsonFormat = new GeoJSON();
-    let districtsCancelled = false;
-    fetchTnOkrugaRows()
-      .then((rows) => {
-        if (districtsCancelled) return;
-        const features = geojsonFormat.readFeatures(buildTnOkrugaFeatureCollection(rows), {
-          dataProjection: "EPSG:4326",
-          featureProjection: "EPSG:3857",
-        });
-        districtSource.clear();
-        districtSource.addFeatures(features);
-      })
-      .catch((error) => {
-        console.error("[MapOL] tn-okruga districts layer error:", error);
-      });
-
-    const getDistrictFeatureAtPixel = (pixel) =>
-      map.forEachFeatureAtPixel(pixel, (feature) => feature, {
-        layerFilter: (layer) => layer === districtLayer,
-      });
-
-    const handleDistrictPointerMove = (event) => {
-      if (activeLayerRef.current !== "rgis") return;
-      const feature = getDistrictFeatureAtPixel(event.pixel);
-      districtHoverSource.clear();
-      if (!feature) {
-        map.getTargetElement().style.cursor = "";
-        return;
-      }
-
-      const hoverFeature = feature.clone();
-      districtHoverSource.addFeature(hoverFeature);
-      map.getTargetElement().style.cursor = "pointer";
-    };
-
-    const handleDistrictPointerLeave = () => {
-      districtHoverSource.clear();
-      map.getTargetElement().style.cursor = "";
-    };
-
-    map.on("pointermove", handleDistrictPointerMove);
-    map.getTargetElement()?.addEventListener("mouseleave", handleDistrictPointerLeave);
-
     // default base layer
     baseLayers.yandex?.setVisible?.(true);
 
     return () => {
-      districtsCancelled = true;
-      try {
-        map.un("pointermove", handleDistrictPointerMove);
-      } catch (_) {}
-      try {
-        map.getTargetElement()?.removeEventListener("mouseleave", handleDistrictPointerLeave);
-      } catch (_) {}
-
       document.removeEventListener("fullscreenchange", resizeOnFs);
       try {
         view.un("change:resolution", onRes);
@@ -289,12 +196,7 @@ export default function MapPanel({
   }, []);
 
   useEffect(() => {
-    activeLayerRef.current = activeLayer;
     setActiveBaseLayer(layersRef.current, activeLayer);
-    const showDistricts = activeLayer === "rgis";
-    districtLayerRef.current?.setVisible?.(showDistricts);
-    districtHoverSourceRef.current?.clear?.();
-    districtHoverSourceRef.current?.changed?.();
   }, [activeLayer]);
 
   useEffect(() => {
@@ -617,12 +519,7 @@ export default function MapPanel({
   return (
     <div
       ref={wrapperRef}
-      className={[
-        "mo-map-wrapper",
-        activeLayer === "rgis" ? "mo-map-wrapper--rgis-white" : "",
-      ]
-        .filter(Boolean)
-        .join(" ")}
+      className="mo-map-wrapper"
       style={{
         position: "relative",
         width: "100%",
@@ -633,7 +530,6 @@ export default function MapPanel({
     >
       <style>{`
         .mo-map-wrapper .ol-control{display:none!important}
-        .mo-map-wrapper--rgis-white .mo-rgis-white-layer{filter:grayscale(1) saturate(0) brightness(1.35) contrast(.62) opacity(.58)}
         .mo-map-wrapper:fullscreen{width:100vw;height:100vh;background:#fff;display:flex;flex-direction:column}
         .mo-map-wrapper:fullscreen > .mo-map-area{flex:1 1 auto;min-height:0}
         .mo-map-toolbar{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}

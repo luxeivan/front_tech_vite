@@ -37,11 +37,25 @@
   width: 100%;
   height: 100%;
   background: transparent;
+  opacity: 1;
+  transition: opacity 180ms ease;
+}
+
+.operational-map-panel__map-frame--loading .operational-map-panel__map {
+  opacity: 0;
 }
 
 .operational-map-panel__map .ol-viewport,
 .operational-map-panel__map canvas {
   outline: none;
+}
+
+.operational-map-panel__rgis-layer {
+  filter: grayscale(1) saturate(0) brightness(2.4) contrast(0.04) opacity(0.06);
+}
+
+.operational-map-panel__map--rgis-detail .operational-map-panel__rgis-layer {
+  filter: grayscale(1) saturate(0) brightness(1.08) contrast(0.78) opacity(0.82);
 }
 
 .operational-map-panel__filial-tooltip {

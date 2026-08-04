@@ -5,8 +5,10 @@ import { useNavigate } from "react-router-dom";
 import Feature from "ol/Feature";
 import OlMap from "ol/Map";
 import View from "ol/View";
+import TileLayer from "ol/layer/Tile";
 import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
+import XYZ from "ol/source/XYZ";
 import MultiLineString from "ol/geom/MultiLineString";
 import Point from "ol/geom/Point";
 import { fromLonLat } from "ol/proj";
@@ -178,8 +180,8 @@ const loadOperationalWeather = async () => {
 };
 
 const EMPTY_DISTRICT_STYLE = new Style({
-  fill: new Fill({ color: "rgba(255, 255, 255, 0.96)" }),
-  stroke: new Stroke({ color: "#b8c4d0", width: OPERATIONAL_MAP_DISTRICT_STROKE_WIDTH }),
+  fill: new Fill({ color: "rgba(255, 255, 255, 0.92)" }),
+  stroke: new Stroke({ color: "rgba(21, 117, 188, 0.3)", width: 1.25 }),
 });
 const FILIAL_HOVER_STYLE = new Style({
   zIndex: 30,
@@ -196,6 +198,7 @@ const MODE_BOUNDARY_STYLE = (feature) =>
   });
 const MAP_FALLBACK_CENTER = [38.25, 55.58];
 const MAP_FALLBACK_ZOOM = 8;
+const RGIS_DETAIL_ZOOM = 9.25;
 const MAP_FIT_PADDING = [10, 6, 8, 6];
 const TN_OKRUGA_MAP_CACHE_KEY = "operationalDashboard.tnOkrugaRows.filialModes.v4";
 const PES_MARKER_AREA_POINTS = [
@@ -233,6 +236,32 @@ const MAP_ZOOM_DELTA =
   Number.isFinite(Number(OPERATIONAL_MAP_SCALE)) && Number(OPERATIONAL_MAP_SCALE) > 0
     ? Math.log2(Number(OPERATIONAL_MAP_SCALE))
     : 0;
+
+const RGIS_BASE_LAYER_URL = "https://rgis.mosreg.ru/wmts/m10/{z}/{x}/{y}.png";
+
+const createRgisBaseLayer = () =>
+  new TileLayer({
+    className: "operational-map-panel__rgis-layer",
+    source: new XYZ({
+      url: RGIS_BASE_LAYER_URL,
+    }),
+    visible: true,
+    zIndex: 0,
+  });
+
+const getIsRgisDetailMode = (zoom) =>
+  Number.isFinite(Number(zoom)) && Number(zoom) >= RGIS_DETAIL_ZOOM;
+
+const getRgisOverlayFillColor = (color, opacity = 0.68) => {
+  const hexMatch = String(color || "").match(/^#([0-9a-f]{6})$/i);
+  if (!hexMatch) return color;
+
+  const hex = hexMatch[1];
+  const red = parseInt(hex.slice(0, 2), 16);
+  const green = parseInt(hex.slice(2, 4), 16);
+  const blue = parseInt(hex.slice(4, 6), 16);
+  return `rgba(${red}, ${green}, ${blue}, ${opacity})`;
+};
 
 const fitMapToSource = (view, source) => {
   const extent = source.getExtent();
@@ -736,13 +765,23 @@ const getDistrictStyle = (
   areaDataByKey,
   {
     fillGroup = "filial",
+    isRgisDetailMode = false,
   } = {}
 ) => {
   const areaName = getFeatureAreaName(feature, fillGroup);
   const areaData = findOperationalMapAreaData(areaDataByKey, areaName);
   const people = areaData?.people || 0;
-  const fillColor = people > 0 ? areaData.color : "rgba(255, 255, 255, 0.96)";
-  const strokeColor = fillGroup === "po" ? "rgba(207, 214, 222, 0)" : "#cfd6de";
+  const emptyFillColor = isRgisDetailMode
+    ? "rgba(255, 255, 255, 0.14)"
+    : "rgba(255, 255, 255, 0.92)";
+  const activeFillOpacity = isRgisDetailMode ? 0.46 : 0.68;
+  const areaStrokeColor = isRgisDetailMode
+    ? "rgba(21, 117, 188, 0.48)"
+    : "rgba(21, 117, 188, 0.3)";
+  const fillColor = people > 0
+    ? getRgisOverlayFillColor(areaData.color, activeFillOpacity)
+    : emptyFillColor;
+  const strokeColor = fillGroup === "po" ? "rgba(207, 214, 222, 0)" : areaStrokeColor;
 
   return new Style({
     zIndex: 1,
@@ -922,6 +961,8 @@ export default function OperationalMapPanel({
   const [mapFeaturesVersion, setMapFeaturesVersion] = useState(0);
   const [hoveredArea, setHoveredArea] = useState(null);
   const [isCompactViewport, setIsCompactViewport] = useState(getIsCompactMapViewport);
+  const [isRgisDetailMode, setIsRgisDetailMode] = useState(false);
+  const [isMapReady, setIsMapReady] = useState(false);
   const panelClassName = [
     "operational-dashboard__panel",
     "operational-dashboard__panel--map",
@@ -978,6 +1019,7 @@ export default function OperationalMapPanel({
   useEffect(() => {
     if (!mapElRef.current) return undefined;
 
+    const rgisBaseLayer = createRgisBaseLayer();
     const districtSource = new VectorSource();
     const districtLayer = new VectorLayer({
       source: districtSource,
@@ -1014,6 +1056,7 @@ export default function OperationalMapPanel({
     const map = new OlMap({
       target: mapElRef.current,
       layers: [
+        rgisBaseLayer,
         districtLayer,
         filialHoverLayer,
         modeBoundaryLayer,
@@ -1024,12 +1067,12 @@ export default function OperationalMapPanel({
       controls: [],
       interactions: defaultInteractions({
         altShiftDragRotate: false,
-        doubleClickZoom: false,
-        dragPan: false,
+        doubleClickZoom: true,
+        dragPan: true,
         keyboard: false,
-        mouseWheelZoom: false,
+        mouseWheelZoom: true,
         pinchRotate: false,
-        pinchZoom: false,
+        pinchZoom: true,
       }),
     });
 
@@ -1054,6 +1097,7 @@ export default function OperationalMapPanel({
       districtSourceRef.current.clear();
       assignAreaLabels(features, fillGroup);
       districtSourceRef.current.addFeatures(features);
+      if (features.length) setIsMapReady(true);
       filialHoverSource.clear();
       modeBoundarySource.clear();
       const areaBoundaryFeatures =
@@ -1093,6 +1137,12 @@ export default function OperationalMapPanel({
       map.forEachFeatureAtPixel(pixel, (item) => item, {
         layerFilter: (layer) => layer === districtLayer,
       });
+
+    const handleZoomChange = () => {
+      setIsRgisDetailMode(getIsRgisDetailMode(view.getZoom()));
+    };
+    handleZoomChange();
+    view.on("change:resolution", handleZoomChange);
 
     const highlightHoverGroup = (hoverName) => {
       filialHoverSource.clear();
@@ -1200,6 +1250,7 @@ export default function OperationalMapPanel({
       cancelled = true;
       window.removeEventListener(TN_FILIALY_REZIM_UPDATED_EVENT, handleFilialModeUpdated);
       window.removeEventListener("storage", handleFilialModeStorageUpdated);
+      view.un("change:resolution", handleZoomChange);
       map.un("pointermove", handlePointerMove);
       map.un("singleclick", handleSingleClick);
       map.getTargetElement().removeEventListener("pointerleave", handlePointerLeave);
@@ -1258,6 +1309,7 @@ export default function OperationalMapPanel({
       getDistrictStyle(feature, areaDataByKey, {
         fillGroup,
         showDistrictLabels,
+        isRgisDetailMode,
       })
     );
     layer.changed();
@@ -1270,7 +1322,7 @@ export default function OperationalMapPanel({
       );
       labelLayer.changed();
     }
-  }, [areaDataByKey, fillGroup, isCompactViewport, showDistrictLabels]);
+  }, [areaDataByKey, fillGroup, isCompactViewport, isRgisDetailMode, showDistrictLabels]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -1292,10 +1344,18 @@ export default function OperationalMapPanel({
           {showMobileTopline ? (
             <OperationalMapTopline className="operational-map-panel__topline--mobile" />
           ) : null}
-          <div className="operational-map-panel__map-frame">
+          <div
+            className={[
+              "operational-map-panel__map-frame",
+              isMapReady ? "" : "operational-map-panel__map-frame--loading",
+            ].filter(Boolean).join(" ")}
+          >
             <div
               ref={mapElRef}
-              className="operational-map-panel__map"
+              className={[
+                "operational-map-panel__map",
+                isRgisDetailMode ? "operational-map-panel__map--rgis-detail" : "",
+              ].filter(Boolean).join(" ")}
               style={{
                 transform: `translateY(${OPERATIONAL_MAP_OFFSET_Y}px) scaleY(${OPERATIONAL_MAP_STRETCH_Y})`,
                 transformOrigin: "center center",
