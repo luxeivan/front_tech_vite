@@ -10,21 +10,16 @@ import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
 import XYZ from "ol/source/XYZ";
 import MultiLineString from "ol/geom/MultiLineString";
-import Point from "ol/geom/Point";
 import { fromLonLat } from "ol/proj";
 import { defaults as defaultInteractions } from "ol/interaction/defaults";
 import Style from "ol/style/Style";
 import Fill from "ol/style/Fill";
-import Icon from "ol/style/Icon";
 import Stroke from "ol/style/Stroke";
 import Text from "ol/style/Text";
 import GeoJSON from "ol/format/GeoJSON";
 import "ol/ol.css";
 
-import pesKamazIconUrl from "../../../../../assets/pes-kamaz-transparent.png";
 import useOperationalDashboardStore from "../../../../../stores/operationalDashboard/useOperationalDashboardStore";
-import usePesModuleDataStore from "../../../../../stores/pes/usePesModuleDataStore";
-import useAuth from "../../../../../stores/useAuth";
 import {
   OPERATIONAL_MAP_COLORS,
   OPERATIONAL_MAP_DISTRICT_STROKE_WIDTH,
@@ -57,9 +52,12 @@ import {
   getWeatherView,
   normalizeOperationalMapAreaName,
 } from "../js/operationalMapPanel.utils";
-import { normalizeBranchName } from "../../districts/js/operationalDistrictsPanel.utils";
-import { formatPowerKw } from "../../../../pes/js/pesModuleMeta";
-import { sortPesNumber } from "../../../../pes/js/pesTilesBoard.utils";
+import {
+  createPesLayer,
+  getPesEndpointFromEnv,
+  PES_POLL_MS_DEFAULT,
+  startPesPolling,
+} from "../../../../dashboard/js/pesLayer";
 import "../css/OperationalMapPanel.css";
 
 const SERVICES_URL =
@@ -201,37 +199,6 @@ const MAP_FALLBACK_ZOOM = 8;
 const RGIS_DETAIL_ZOOM = 9.25;
 const MAP_FIT_PADDING = [10, 6, 8, 6];
 const TN_OKRUGA_MAP_CACHE_KEY = "operationalDashboard.tnOkrugaRows.filialModes.v4";
-const PES_MARKER_AREA_POINTS = [
-  [-0.24, -0.16],
-  [0.24, 0.16],
-  [-0.18, 0.24],
-  [0.18, -0.24],
-  [-0.34, 0.04],
-  [0.34, -0.04],
-  [-0.06, -0.34],
-  [0.06, 0.34],
-  [-0.34, -0.26],
-  [0.34, 0.26],
-  [-0.28, 0.32],
-  [0.28, -0.32],
-];
-const PES_MARKER_FALLBACK_OFFSETS = [
-  [0, -5400],
-  [5400, 0],
-  [-5400, 0],
-  [0, 5400],
-  [7800, -3600],
-  [-7800, 3600],
-  [3600, 7800],
-  [-3600, -7800],
-];
-const PES_MARKER_ACTIVE_STATUSES = new Set([
-  "command_sent",
-  "delay",
-  "en_route",
-  "connected",
-]);
-const PES_MARKER_STYLE_CACHE = new Map();
 const MAP_ZOOM_DELTA =
   Number.isFinite(Number(OPERATIONAL_MAP_SCALE)) && Number(OPERATIONAL_MAP_SCALE) > 0
     ? Math.log2(Number(OPERATIONAL_MAP_SCALE))
@@ -313,16 +280,6 @@ const getFeatureHoverName = (feature, hoverGroup) => {
   return getFeatureFilialName(feature);
 };
 
-const normalizePesFilialName = (value) =>
-  normalizeOperationalMapAreaName(normalizeBranchName(value));
-
-const isActivePesMarkerItem = (item) =>
-  PES_MARKER_ACTIVE_STATUSES.has(
-    String(item?.effectiveStatus || item?.status || "")
-      .trim()
-      .toLowerCase()
-  );
-
 const isFeatureInHoverGroup = (feature, hoverGroup, hoverName) => {
   if (!hoverName) return false;
   const featureHoverName = getFeatureHoverName(feature, hoverGroup);
@@ -350,249 +307,10 @@ const getFeatureDistrictLabel = (feature) =>
     .replace(/\s+/g, " ")
     .trim();
 
-const getGeometryAnchorCoordinate = (geometry) => {
-  if (!geometry) return null;
-
-  if (geometry.getType() === "Polygon" && typeof geometry.getInteriorPoint === "function") {
-    return geometry.getInteriorPoint().getCoordinates();
-  }
-
-  if (geometry.getType() === "MultiPolygon" && typeof geometry.getInteriorPoints === "function") {
-    const points = geometry.getInteriorPoints().getCoordinates();
-    if (Array.isArray(points) && points.length) {
-      const extent = geometry.getExtent();
-      const centerX = (extent[0] + extent[2]) / 2;
-      const centerY = (extent[1] + extent[3]) / 2;
-      return points
-        .map((point) => ({
-          point,
-          distance: Math.hypot(point[0] - centerX, point[1] - centerY),
-        }))
-        .sort((a, b) => a.distance - b.distance)[0].point;
-    }
-  }
-
-  const extent = geometry.getExtent?.();
-  if (Array.isArray(extent) && extent.every(Number.isFinite)) {
-    return [(extent[0] + extent[2]) / 2, (extent[1] + extent[3]) / 2];
-  }
-
-  return null;
-};
-
 const getFeatureExtentArea = (feature) => {
   const extent = feature?.getGeometry?.()?.getExtent?.();
   if (!Array.isArray(extent) || !extent.every(Number.isFinite)) return 0;
   return Math.max(0, extent[2] - extent[0]) * Math.max(0, extent[3] - extent[1]);
-};
-
-const getCombinedFeatureGeometry = (features) => {
-  const list = (Array.isArray(features) ? features : []).filter((feature) => feature?.getGeometry?.());
-  if (!list.length) return null;
-  if (list.length === 1) return list[0].getGeometry();
-
-  const extent = [Infinity, Infinity, -Infinity, -Infinity];
-  list.forEach((feature) => {
-    const featureExtent = feature.getGeometry().getExtent?.();
-    if (!Array.isArray(featureExtent) || !featureExtent.every(Number.isFinite)) return;
-    extent[0] = Math.min(extent[0], featureExtent[0]);
-    extent[1] = Math.min(extent[1], featureExtent[1]);
-    extent[2] = Math.max(extent[2], featureExtent[2]);
-    extent[3] = Math.max(extent[3], featureExtent[3]);
-  });
-
-  if (!extent.every(Number.isFinite)) return list[0].getGeometry();
-
-  return {
-    getExtent: () => extent,
-    intersectsCoordinate: (coordinate) =>
-      list.some((feature) => feature.getGeometry()?.intersectsCoordinate?.(coordinate)),
-  };
-};
-
-const isCoordinateInsideGeometry = (geometry, coordinate) => {
-  if (!geometry || !Array.isArray(coordinate)) return false;
-  if (typeof geometry.intersectsCoordinate === "function") {
-    return geometry.intersectsCoordinate(coordinate);
-  }
-  return true;
-};
-
-const pushUniquePesCoordinate = (coordinates, geometry, coordinate, minDistance) => {
-  if (!isCoordinateInsideGeometry(geometry, coordinate)) return;
-  const hasNearPoint = coordinates.some(
-    (point) => Math.hypot(point[0] - coordinate[0], point[1] - coordinate[1]) < minDistance
-  );
-  if (!hasNearPoint) coordinates.push(coordinate);
-};
-
-const getPesFallbackCoordinate = (center, index, compact = false) => {
-  const [x, y] = PES_MARKER_FALLBACK_OFFSETS[index % PES_MARKER_FALLBACK_OFFSETS.length];
-  const ring = Math.floor(index / PES_MARKER_FALLBACK_OFFSETS.length);
-  const multiplier = compact ? 0.7 : 1;
-  return [
-    center[0] + (x + ring * 2200) * multiplier,
-    center[1] + (y + ring * 2200) * multiplier,
-  ];
-};
-
-const getPesMarkerCoordinates = (geometry, count, compact = false, fallbackCoordinate = null) => {
-  const center = getGeometryAnchorCoordinate(geometry) || fallbackCoordinate;
-  if (!center || !Number.isFinite(count) || count <= 0) return [];
-
-  const extent = geometry?.getExtent?.();
-  if (!Array.isArray(extent) || !extent.every(Number.isFinite)) {
-    return Array.from({ length: count }, (_, index) =>
-      getPesFallbackCoordinate(center, index, compact)
-    );
-  }
-
-  const extentWidth = extent[2] - extent[0];
-  const extentHeight = extent[3] - extent[1];
-  const spreadWidth = Math.max(extentWidth, compact ? 8000 : 12000);
-  const spreadHeight = Math.max(extentHeight, compact ? 8000 : 12000);
-  const minDistance = Math.min(spreadWidth, spreadHeight) * (compact ? 0.1 : 0.12);
-  const coordinates = [];
-
-  PES_MARKER_AREA_POINTS.forEach(([xRatio, yRatio]) => {
-    if (coordinates.length >= count) return;
-    pushUniquePesCoordinate(
-      coordinates,
-      geometry,
-      [center[0] + spreadWidth * xRatio, center[1] + spreadHeight * yRatio],
-      minDistance
-    );
-  });
-
-  const columns = Math.ceil(Math.sqrt(count * 2));
-  const rows = columns;
-  for (let row = 1; row <= rows && coordinates.length < count; row += 1) {
-    for (let column = 1; column <= columns && coordinates.length < count; column += 1) {
-      const coordinate = [
-        extent[0] + (extentWidth * column) / (columns + 1),
-        extent[1] + (extentHeight * row) / (rows + 1),
-      ];
-      pushUniquePesCoordinate(coordinates, geometry, coordinate, minDistance * 0.85);
-    }
-  }
-
-  while (coordinates.length < count) {
-    coordinates.push(getPesFallbackCoordinate(center, coordinates.length, compact));
-  }
-
-  return coordinates;
-};
-
-const findPesAnchorArea = (districtFeatures, item) => {
-  const districtKey = normalizeOperationalMapAreaName(item?.district);
-  if (districtKey) {
-    const districtFeature = districtFeatures.find((feature) => {
-      const featureKey = normalizeOperationalMapAreaName(getFeatureDistrictLabel(feature));
-      return (
-        featureKey === districtKey ||
-        featureKey.includes(districtKey) ||
-        districtKey.includes(featureKey)
-      );
-    });
-    if (districtFeature) {
-      const geometry = districtFeature.getGeometry?.();
-      return {
-        key:
-          districtFeature.getId?.() ||
-          normalizeOperationalMapAreaName(getFeatureDistrictLabel(districtFeature)),
-        coordinate: getGeometryAnchorCoordinate(geometry),
-        geometry,
-      };
-    }
-  }
-
-  const poKey = normalizeOperationalMapAreaName(item?.po);
-  if (!poKey) return null;
-  const poFeatures = districtFeatures.filter((feature) => {
-    const featurePoKey = normalizeOperationalMapAreaName(getFeaturePoName(feature));
-    return (
-      featurePoKey &&
-      (featurePoKey === poKey || featurePoKey.includes(poKey) || poKey.includes(featurePoKey))
-    );
-  });
-  if (!poFeatures.length) return null;
-
-  const geometry = getCombinedFeatureGeometry(poFeatures);
-  const biggestFeature = [...poFeatures].sort((a, b) => getFeatureExtentArea(b) - getFeatureExtentArea(a))[0];
-  return {
-    key: poKey,
-    coordinate: getGeometryAnchorCoordinate(biggestFeature?.getGeometry?.()) || getGeometryAnchorCoordinate(geometry),
-    geometry,
-  };
-};
-
-const getPesMarkerStyle = (feature) => {
-  const compact = Boolean(feature.get("compact"));
-  const status = String(feature.get("status") || "ready");
-  const priority = Boolean(feature.get("priority"));
-  const key = `${compact ? "compact" : "default"}:${status}:${priority ? "priority" : "regular"}`;
-  if (PES_MARKER_STYLE_CACHE.has(key)) return PES_MARKER_STYLE_CACHE.get(key);
-
-  const scale = compact ? 0.036 : 0.048;
-  const style = new Style({
-    image: new Icon({
-      src: pesKamazIconUrl,
-      scale,
-      anchor: [0.5, 0.5],
-    }),
-    zIndex: priority ? 48 : 46,
-  });
-  PES_MARKER_STYLE_CACHE.set(key, style);
-  return style;
-};
-
-const buildPesMarkerFeatures = ({ items, districtFeatures, compact }) => {
-  const groupedItems = new Map();
-  const fallbackGeometry = districtFeatures[0]?.getGeometry?.();
-  const fallbackCoordinate = getGeometryAnchorCoordinate(fallbackGeometry);
-
-  (Array.isArray(items) ? items : []).forEach((item) => {
-    const anchorArea = findPesAnchorArea(districtFeatures, item);
-    const anchorCoordinate = anchorArea?.coordinate || fallbackCoordinate;
-    if (!anchorCoordinate) return;
-
-    const anchorKey = anchorArea?.key || normalizeOperationalMapAreaName(item?.po) || "fallback";
-
-    if (!groupedItems.has(anchorKey)) {
-      groupedItems.set(anchorKey, {
-        coordinate: anchorCoordinate,
-        geometry: anchorArea?.geometry || fallbackGeometry,
-        items: [],
-      });
-    }
-    groupedItems.get(anchorKey).items.push(item);
-  });
-
-  const features = [];
-  groupedItems.forEach(({ coordinate, geometry, items: groupItems }) => {
-    const sortedItems = [...groupItems].sort(sortPesNumber);
-    const markerCoordinates = getPesMarkerCoordinates(
-      geometry,
-      sortedItems.length,
-      compact,
-      coordinate
-    );
-
-    sortedItems.forEach((item, index) => {
-      const feature = new Feature({
-        geometry: new Point(markerCoordinates[index] || coordinate),
-      });
-      feature.set("number", item.number || "");
-      feature.set("po", item.po || "");
-      feature.set("powerKw", formatPowerKw(item.powerKw));
-      feature.set("status", item.effectiveStatus || item.status || "ready");
-      feature.set("priority", Boolean(item.prioritet));
-      feature.set("compact", compact);
-      features.push(feature);
-    });
-  });
-
-  return features;
 };
 
 const wrapMapLabel = (value, compact = false) => {
@@ -938,16 +656,12 @@ export default function OperationalMapPanel({
   fillGroup = "filial",
   hoverGroup = "filial",
   showDistrictLabels = false,
-  showPesMarkers = false,
   showTopline = true,
   showMobileTopline = false,
   variant = "",
 }) {
   const navigate = useNavigate();
-  const user = useAuth((store) => store.user);
   const rows = useOperationalDashboardStore((store) => store.rows);
-  const pesItems = usePesModuleDataStore((store) => store.items);
-  const loadPesItems = usePesModuleDataStore((store) => store.loadItems);
   const mapElRef = useRef(null);
   const mapRef = useRef(null);
   const districtSourceRef = useRef(null);
@@ -956,8 +670,6 @@ export default function OperationalMapPanel({
   const filialHoverSourceRef = useRef(null);
   const externalHoverNameRef = useRef("");
   const modeBoundarySourceRef = useRef(null);
-  const pesMarkerSourceRef = useRef(null);
-  const pesMarkerLayerRef = useRef(null);
   const [mapFeaturesVersion, setMapFeaturesVersion] = useState(0);
   const [hoveredArea, setHoveredArea] = useState(null);
   const [isCompactViewport, setIsCompactViewport] = useState(getIsCompactMapViewport);
@@ -981,28 +693,6 @@ export default function OperationalMapPanel({
     () => new Map(areaData.map((item) => [item.key, item])),
     [areaData]
   );
-  const filialPesItems = useMemo(() => {
-    if (!showPesMarkers || !filialName) return [];
-    const normalizedFilialName = normalizePesFilialName(filialName);
-    return (Array.isArray(pesItems) ? pesItems : []).filter(
-      (item) =>
-        normalizePesFilialName(item?.branch) === normalizedFilialName &&
-        isActivePesMarkerItem(item)
-    );
-  }, [filialName, pesItems, showPesMarkers]);
-
-  useEffect(() => {
-    if (!showPesMarkers || !filialName) return undefined;
-
-    const loadCurrentPesItems = () => {
-      if (typeof document !== "undefined" && document.hidden) return;
-      loadPesItems(user, { silent: true });
-    };
-
-    loadCurrentPesItems();
-    const timer = window.setInterval(loadCurrentPesItems, 60 * 1000);
-    return () => window.clearInterval(timer);
-  }, [filialName, loadPesItems, showPesMarkers, user]);
 
   useEffect(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
@@ -1043,15 +733,13 @@ export default function OperationalMapPanel({
       style: null,
       zIndex: 50,
     });
-    const pesMarkerSource = new VectorSource();
-    const pesMarkerLayer = new VectorLayer({
-      source: pesMarkerSource,
-      style: getPesMarkerStyle,
-      zIndex: 45,
-    });
     const view = new View({
       center: fromLonLat(MAP_FALLBACK_CENTER),
       zoom: MAP_FALLBACK_ZOOM,
+    });
+    const { source: livePesSource, layer: livePesLayer } = createPesLayer({
+      getZoom: () => view.getZoom?.(),
+      getFallbackZoom: () => MAP_FALLBACK_ZOOM,
     });
     const map = new OlMap({
       target: mapElRef.current,
@@ -1060,8 +748,8 @@ export default function OperationalMapPanel({
         districtLayer,
         filialHoverLayer,
         modeBoundaryLayer,
-        pesMarkerLayer,
         districtLabelLayer,
+        livePesLayer,
       ],
       view,
       controls: [],
@@ -1082,8 +770,6 @@ export default function OperationalMapPanel({
     districtLabelLayerRef.current = districtLabelLayer;
     filialHoverSourceRef.current = filialHoverSource;
     modeBoundarySourceRef.current = modeBoundarySource;
-    pesMarkerSourceRef.current = pesMarkerSource;
-    pesMarkerLayerRef.current = pesMarkerLayer;
 
     let cancelled = false;
     const format = new GeoJSON();
@@ -1143,6 +829,15 @@ export default function OperationalMapPanel({
     };
     handleZoomChange();
     view.on("change:resolution", handleZoomChange);
+    const endpoint = getPesEndpointFromEnv();
+    const livePesPolling = endpoint
+      ? startPesPolling({
+          source: livePesSource,
+          endpoint,
+          pollMs: PES_POLL_MS_DEFAULT,
+          onError: (error) => console.error("[OperationalMap] PES vehicles error:", error),
+        })
+      : null;
 
     const highlightHoverGroup = (hoverName) => {
       filialHoverSource.clear();
@@ -1255,6 +950,7 @@ export default function OperationalMapPanel({
       map.un("singleclick", handleSingleClick);
       map.getTargetElement().removeEventListener("pointerleave", handlePointerLeave);
       resizeObserver.disconnect();
+      livePesPolling?.stop?.();
       map.setTarget(null);
       mapRef.current = null;
       districtSourceRef.current = null;
@@ -1262,8 +958,6 @@ export default function OperationalMapPanel({
       districtLabelLayerRef.current = null;
       filialHoverSourceRef.current = null;
       modeBoundarySourceRef.current = null;
-      pesMarkerSourceRef.current = null;
-      pesMarkerLayerRef.current = null;
     };
   }, [enableFilialNavigation, filialName, fillGroup, hoverGroup, navigate]);
 
@@ -1278,27 +972,6 @@ export default function OperationalMapPanel({
       externalHoverName
     );
   }, [externalHoverName, hoverGroup, hoveredArea?.name, mapFeaturesVersion]);
-
-  useEffect(() => {
-    const markerSource = pesMarkerSourceRef.current;
-    const districtSource = districtSourceRef.current;
-    if (!markerSource) return;
-
-    markerSource.clear();
-    if (!showPesMarkers || !districtSource) return;
-
-    const districtFeatures = districtSource.getFeatures();
-    if (!districtFeatures.length || !filialPesItems.length) return;
-
-    markerSource.addFeatures(
-      buildPesMarkerFeatures({
-        items: filialPesItems,
-        districtFeatures,
-        compact: isCompactViewport,
-      })
-    );
-    pesMarkerLayerRef.current?.changed();
-  }, [filialPesItems, isCompactViewport, mapFeaturesVersion, showPesMarkers]);
 
   useEffect(() => {
     const layer = districtLayerRef.current;
