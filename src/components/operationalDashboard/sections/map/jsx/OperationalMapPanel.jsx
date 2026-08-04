@@ -53,11 +53,15 @@ import {
   normalizeOperationalMapAreaName,
 } from "../js/operationalMapPanel.utils";
 import {
+  buildPesPopupHtml,
   createPesLayer,
+  getPesModuleInfoByNumber,
   getPesEndpointFromEnv,
   PES_POLL_MS_DEFAULT,
   startPesPolling,
 } from "../../../../dashboard/js/pesLayer";
+import { createPopupOverlay } from "../../../../dashboard/js/olLayers";
+import pesKamazVectorSvgRaw from "../../../../../assets/pes-kamaz-vector.svg?raw";
 import "../css/OperationalMapPanel.css";
 
 const SERVICES_URL =
@@ -737,9 +741,26 @@ export default function OperationalMapPanel({
       center: fromLonLat(MAP_FALLBACK_CENTER),
       zoom: MAP_FALLBACK_ZOOM,
     });
+    const isPesCoordinateInsideDistricts = (coordinate) => {
+      const features = districtSource.getFeatures?.() || [];
+      if (!features.length) return false;
+
+      return features.some((feature) =>
+        feature.getGeometry?.()?.intersectsCoordinate?.(coordinate)
+      );
+    };
     const { source: livePesSource, layer: livePesLayer } = createPesLayer({
       getZoom: () => view.getZoom?.(),
       getFallbackZoom: () => MAP_FALLBACK_ZOOM,
+      getVisibleExtent: () => view.calculateExtent(mapRef.current?.getSize?.()),
+      getPixelFromCoordinate: (coordinate) =>
+        mapRef.current?.getPixelFromCoordinate?.(coordinate),
+      getViewportSize: () => mapRef.current?.getSize?.(),
+      viewportPaddingPx: 28,
+      isCoordinateAllowed: isPesCoordinateInsideDistricts,
+      iconSvgRaw: pesKamazVectorSvgRaw,
+      scaleMultiplier: 0.028,
+      recolorAllFills: true,
     });
     const map = new OlMap({
       target: mapElRef.current,
@@ -763,6 +784,12 @@ export default function OperationalMapPanel({
         pinchZoom: true,
       }),
     });
+    const {
+      overlay: pesPopupOverlay,
+      contentEl: pesPopupContentEl,
+      dispose: disposePesPopup,
+    } = createPopupOverlay();
+    map.addOverlay(pesPopupOverlay);
 
     mapRef.current = map;
     districtSourceRef.current = districtSource;
@@ -815,6 +842,7 @@ export default function OperationalMapPanel({
       modeBoundarySource.addFeatures([...areaBoundaryFeatures, ...modeBoundaryFeatures]);
       districtLayerRef.current?.changed();
       districtLabelLayerRef.current?.changed();
+      livePesLayer.changed();
       setMapFeaturesVersion((version) => version + 1);
       if (fit) fitMapToSource(view, districtSourceRef.current);
     };
@@ -822,6 +850,12 @@ export default function OperationalMapPanel({
     const getDistrictFeatureAtPixel = (pixel) =>
       map.forEachFeatureAtPixel(pixel, (item) => item, {
         layerFilter: (layer) => layer === districtLayer,
+      });
+
+    const getPesFeatureAtPixel = (pixel) =>
+      map.forEachFeatureAtPixel(pixel, (item) => item, {
+        layerFilter: (layer) => layer === livePesLayer,
+        hitTolerance: 8,
       });
 
     const handleZoomChange = () => {
@@ -835,9 +869,69 @@ export default function OperationalMapPanel({
           source: livePesSource,
           endpoint,
           pollMs: PES_POLL_MS_DEFAULT,
+          loadModuleInfo: false,
           onError: (error) => console.error("[OperationalMap] PES vehicles error:", error),
         })
       : null;
+    let pesPopupAbortController = null;
+
+    const renderPesPopup = (feature, moduleInfo = null, { loading = false } = {}) => {
+      const moduleStatus =
+        moduleInfo?.status || feature.get("moduleStatus") || "";
+      const html = buildPesPopupHtml({
+        name: feature.get("name"),
+        model: feature.get("model"),
+        speed: feature.get("speed"),
+        time: feature.get("time"),
+        lat: Number(feature.get("lat")),
+        lon: Number(feature.get("lon")),
+        moduleStatus,
+      });
+      const branch = moduleInfo?.branch || feature.get("moduleBranch") || "";
+      const po = moduleInfo?.po || feature.get("modulePo") || "";
+      const details = [
+        branch ? `<br/>Филиал: ${branch}` : "",
+        po ? `<br/>ПО: ${po}` : "",
+        loading ? "<br/>Загрузка данных ПЭС..." : "",
+      ].join("");
+      pesPopupContentEl.innerHTML = html.replace("</div>", `${details}</div>`);
+    };
+
+    const showPesPopup = async (feature, coordinate) => {
+      if (!feature) return;
+      pesPopupAbortController?.abort?.();
+      pesPopupAbortController = new AbortController();
+
+      renderPesPopup(feature, null, { loading: true });
+      pesPopupOverlay.setPosition(coordinate);
+
+      const pesNumber = feature.get("pesNumber");
+      if (!pesNumber) {
+        renderPesPopup(feature);
+        return;
+      }
+
+      try {
+        const moduleInfo = await getPesModuleInfoByNumber(
+          pesNumber,
+          pesPopupAbortController.signal
+        );
+        if (pesPopupAbortController.signal.aborted) return;
+        if (moduleInfo) {
+          feature.setProperties({
+            moduleStatus: moduleInfo.status || "",
+            moduleBranch: moduleInfo.branch || "",
+            modulePo: moduleInfo.po || "",
+          });
+          livePesLayer.changed();
+        }
+        renderPesPopup(feature, moduleInfo);
+      } catch (error) {
+        if (error?.name === "AbortError") return;
+        renderPesPopup(feature);
+        console.error("[OperationalMap] PES popup info error:", error);
+      }
+    };
 
     const highlightHoverGroup = (hoverName) => {
       filialHoverSource.clear();
@@ -892,6 +986,14 @@ export default function OperationalMapPanel({
     window.addEventListener("storage", handleFilialModeStorageUpdated);
 
     const handlePointerMove = (event) => {
+      const pesFeature = getPesFeatureAtPixel(event.pixel);
+      if (pesFeature) {
+        map.getTargetElement().style.cursor = "pointer";
+        highlightHoverGroup("");
+        setHoveredArea(null);
+        return;
+      }
+
       const feature = getDistrictFeatureAtPixel(event.pixel);
       const hoverName = getFeatureHoverName(feature, hoverGroup);
 
@@ -919,6 +1021,13 @@ export default function OperationalMapPanel({
     };
 
     const handleSingleClick = (event) => {
+      const pesFeature = getPesFeatureAtPixel(event.pixel);
+      if (pesFeature) {
+        showPesPopup(pesFeature, event.coordinate);
+        return;
+      }
+
+      pesPopupOverlay.setPosition(undefined);
       if (!enableFilialNavigation) return;
 
       const feature = getDistrictFeatureAtPixel(event.pixel);
@@ -945,12 +1054,14 @@ export default function OperationalMapPanel({
       cancelled = true;
       window.removeEventListener(TN_FILIALY_REZIM_UPDATED_EVENT, handleFilialModeUpdated);
       window.removeEventListener("storage", handleFilialModeStorageUpdated);
+      pesPopupAbortController?.abort?.();
       view.un("change:resolution", handleZoomChange);
       map.un("pointermove", handlePointerMove);
       map.un("singleclick", handleSingleClick);
       map.getTargetElement().removeEventListener("pointerleave", handlePointerLeave);
       resizeObserver.disconnect();
       livePesPolling?.stop?.();
+      disposePesPopup();
       map.setTarget(null);
       mapRef.current = null;
       districtSourceRef.current = null;
