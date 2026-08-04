@@ -1,0 +1,35 @@
+.loader {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: var(--brand-sun-loader-size);
+  min-height: var(--brand-sun-loader-size);
+  color: #006eb8;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.sun {
+  width: var(--brand-sun-loader-size);
+  height: var(--brand-sun-loader-size);
+  flex: 0 0 auto;
+  filter: drop-shadow(0 2px 6px rgba(227, 112, 33, 0.22));
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.text {
+  font-size: max(11px, calc(var(--brand-sun-loader-size) * 0.28));
+  white-space: nowrap;
+}
+
+.fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  display: grid;
+  place-items: center;
+  background: rgba(248, 250, 252, 0.72);
+  backdrop-filter: blur(2px);
+}

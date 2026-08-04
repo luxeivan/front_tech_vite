@@ -197,7 +197,7 @@ const MODE_BOUNDARY_STYLE = (feature) =>
 const MAP_FALLBACK_CENTER = [38.25, 55.58];
 const MAP_FALLBACK_ZOOM = 8;
 const MAP_FIT_PADDING = [10, 6, 8, 6];
-const TN_OKRUGA_MAP_CACHE_KEY = "operationalDashboard.tnOkrugaRows.filialModes.v3";
+const TN_OKRUGA_MAP_CACHE_KEY = "operationalDashboard.tnOkrugaRows.filialModes.v4";
 const PES_MARKER_AREA_POINTS = [
   [-0.24, -0.16],
   [0.24, 0.16],
@@ -1120,9 +1120,9 @@ export default function OperationalMapPanel({
       }
     };
 
-    const loadDistrictFeatures = async ({ fit = false } = {}) => {
+    const loadDistrictFeatures = async ({ fit = false, force = false } = {}) => {
       try {
-        const rows = await fetchTnOkrugaRows();
+        const rows = await fetchTnOkrugaRows({ force });
         if (cancelled || !mapRef.current || !districtSourceRef.current) return;
         writeCachedTnOkrugaRows(rows);
         applyDistrictRows(rows, { fit });
@@ -1137,10 +1137,10 @@ export default function OperationalMapPanel({
     }
     loadFallbackFeatures();
     loadDistrictFeatures({ fit: !cachedRows.length });
-    const handleFilialModeUpdated = () => loadDistrictFeatures();
+    const handleFilialModeUpdated = () => loadDistrictFeatures({ force: true });
     const handleFilialModeStorageUpdated = (event) => {
       if (event.key === TN_FILIALY_REZIM_UPDATED_STORAGE_KEY) {
-        loadDistrictFeatures();
+        loadDistrictFeatures({ force: true });
       }
     };
     window.addEventListener(TN_FILIALY_REZIM_UPDATED_EVENT, handleFilialModeUpdated);

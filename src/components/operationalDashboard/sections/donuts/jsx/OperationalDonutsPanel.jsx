@@ -3,6 +3,7 @@ import dayjs from "dayjs";
 import { Alert, Spin } from "antd";
 import { Pie } from "@ant-design/plots";
 
+import BrandSunLoader from "../../../../ui/BrandSunLoader";
 import useOperationalDashboardStore from "../../../../../stores/operationalDashboard/useOperationalDashboardStore";
 import {
   DURATION_DONUT_CONFIG,
@@ -25,6 +26,30 @@ const EMPTY_DONUT_SEGMENT = {
 };
 
 const ensureDonutData = (items) => (items.length ? items : [EMPTY_DONUT_SEGMENT]);
+
+const wrapDonutLabelName = (value, maxLineLength = 13) => {
+  const label = String(value || "").trim();
+  if (!label) return "";
+  if (label.includes("-")) return label.replace(/-/g, "-\n");
+  if (label.length <= maxLineLength) return label;
+
+  const lines = [];
+  let currentLine = "";
+  label.split(" ").forEach((word) => {
+    const nextLine = currentLine ? `${currentLine} ${word}` : word;
+    if (nextLine.length > maxLineLength && currentLine) {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = nextLine;
+    }
+  });
+  if (currentLine) lines.push(currentLine);
+  return lines.join("\n");
+};
+
+const formatDonutLabel = (name, value, maxLineLength) =>
+  `${wrapDonutLabelName(name, maxLineLength)}\n${formatNumber(value)}`;
 
 const useTabletLandscape = () => {
   const getValue = () =>
@@ -93,7 +118,6 @@ const getPieConfig = ({
   innerRadius = 0.62,
   radius = 0.72,
   height = 270,
-  statisticFontSize = "46px",
   labelFontSize = 11,
   labelOffset = 14,
 }) => ({
@@ -129,18 +153,7 @@ const getPieConfig = ({
     stroke: "#ffffff",
     lineWidth: 2,
   },
-  statistic: {
-    title: false,
-    content: {
-      style: {
-        color: "#1575bc",
-        fontSize: statisticFontSize,
-        fontWeight: 400,
-        lineHeight: "1",
-      },
-      formatter: () => formatNumber(total),
-    },
-  },
+  statistic: false,
 });
 
 function DurationDonut({ data, groupBy = "filial", compact = false }) {
@@ -152,7 +165,8 @@ function DurationDonut({ data, groupBy = "filial", compact = false }) {
     data: chartData,
     total,
     height: compact ? 218 : isFilialView ? 238 : 270,
-    radius: compact ? 0.56 : isFilialView ? 0.68 : 0.72,
+    innerRadius: compact ? 0.66 : 0.62,
+    radius: compact ? 0.76 : isFilialView ? 0.68 : 0.72,
     labelPadding: compact
       ? [8, 56, 8, 56]
       : isFilialView
@@ -161,7 +175,6 @@ function DurationDonut({ data, groupBy = "filial", compact = false }) {
     labelPosition: "spider",
     labelFontSize: compact ? 9 : 11,
     labelOffset: compact ? 8 : 14,
-    statisticFontSize: compact ? "38px" : "46px",
     labelText: hasValues
       ? (datum) =>
           !datum.isEmpty && datum.value > 0
@@ -175,7 +188,12 @@ function DurationDonut({ data, groupBy = "filial", compact = false }) {
       <h3 className="operational-donuts-panel__title">Количество аварийных отключений ЛЭП</h3>
       <div className="operational-donuts-panel__chart">
         <Pie {...config} />
-        <div className="operational-donuts-panel__center-number">
+        <div
+          className={[
+            "operational-donuts-panel__center-number",
+            compact ? "operational-donuts-panel__center-number--compact" : "",
+          ].filter(Boolean).join(" ")}
+        >
           {formatNumber(total)}
         </div>
       </div>
@@ -192,22 +210,21 @@ function PopulationDonut({ data, groupBy = "filial", compact = false }) {
     data: chartData,
     total,
     height: compact ? 218 : isFilialView ? 238 : 270,
-    innerRadius: compact ? 0.58 : isFilialView ? 0.62 : 0.56,
-    radius: compact ? 0.56 : isFilialView ? 0.68 : 0.66,
+    innerRadius: compact ? 0.66 : isFilialView ? 0.62 : 0.56,
+    radius: compact ? 0.76 : isFilialView ? 0.68 : 0.66,
     labelPadding: compact
-      ? [8, 60, 8, 60]
+      ? [8, 72, 8, 72]
       : isFilialView
-        ? [14, 116, 14, 116]
+        ? [14, 140, 14, 140]
         : [18, 160, 54, 160],
     labelPosition: "spider",
-    labelHeight: isFilialView ? undefined : 36,
-    statisticFontSize: compact ? "38px" : isFilialView ? "46px" : "40px",
+    labelHeight: isFilialView ? compact ? 28 : 34 : 36,
     labelFontSize: compact ? 9 : 11,
     labelOffset: compact ? 8 : 14,
     labelText: hasValues
       ? (datum) =>
           !datum.isEmpty && datum.value > 0
-            ? `${datum.type}\n${formatNumber(datum.value)}`
+            ? formatDonutLabel(datum.type, datum.value, compact ? 10 : 13)
             : ""
       : null,
   });
@@ -217,7 +234,12 @@ function PopulationDonut({ data, groupBy = "filial", compact = false }) {
       <h3 className="operational-donuts-panel__title">Обесточено населения</h3>
       <div className="operational-donuts-panel__chart operational-donuts-panel__chart--population">
         <Pie {...config} />
-        <div className="operational-donuts-panel__center-number">
+        <div
+          className={[
+            "operational-donuts-panel__center-number",
+            compact ? "operational-donuts-panel__center-number--compact" : "",
+          ].filter(Boolean).join(" ")}
+        >
           {formatNumber(total)}
         </div>
       </div>
@@ -268,7 +290,10 @@ export default function OperationalDonutsPanel({
         {error ? (
           <Alert type="error" showIcon message={error} />
         ) : (
-          <Spin spinning={isLoading && hasLoaded}>
+          <Spin
+            spinning={isLoading && hasLoaded}
+            indicator={<BrandSunLoader size={34} />}
+          >
             <div className="operational-donuts-panel__grid">
               <DurationDonut
                 data={durationData}

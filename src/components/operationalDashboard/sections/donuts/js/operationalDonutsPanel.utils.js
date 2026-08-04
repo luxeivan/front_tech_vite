@@ -6,6 +6,7 @@ import {
   isNotDeletedTN,
   isOpenTN,
   pick,
+  getTnPoName,
   startDate,
   toNumber,
 } from "../../../../dashboard/js/dashboardCommon";
@@ -38,7 +39,7 @@ const normalizeLookupName = (value) =>
     .toLowerCase();
 
 const getOperationalPoByRow = (row) => {
-  const poName = pick(row, "SCNAME");
+  const poName = getTnPoName(row);
   return typeof poName === "string" ? poName.trim() : poName;
 };
 

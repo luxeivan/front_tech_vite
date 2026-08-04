@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Table } from "antd";
 import { Link } from "react-router-dom";
 
+import BrandSunLoader from "../../../../ui/BrandSunLoader";
 import useOperationalDashboardStore from "../../../../../stores/operationalDashboard/useOperationalDashboardStore";
 import { fetchTnFilialyRows } from "../../../../../utils/tnFilialyApi";
 import { fetchTnOkrugaRelationRows } from "../../../../../utils/tnOkrugaApi";
@@ -223,7 +224,10 @@ export default function OperationalDistrictsPanel({
           className="operational-districts-panel__table"
           columns={columns}
           dataSource={dataSource}
-          loading={isLoading && hasLoaded}
+          loading={{
+            spinning: isLoading && hasLoaded,
+            indicator: <BrandSunLoader size={32} />,
+          }}
           pagination={false}
           rowClassName={(record) =>
             record.key === "summary" ? "operational-districts-panel__row--summary" : ""

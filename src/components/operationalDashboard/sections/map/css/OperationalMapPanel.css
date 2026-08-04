@@ -177,7 +177,7 @@
 
 .operational-map-panel__weather-parts {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(26px, 1fr));
   gap: 4px;
   min-width: 0;
 }
@@ -346,6 +346,21 @@
   .operational-map-panel__weather-details {
     gap: 2px 6px;
     font-size: 8px;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1200px) and (orientation: portrait) {
+  .operational-map-panel__topline {
+    --weather-card-width: min(42vw, 360px);
+  }
+
+  .operational-map-panel__weather {
+    min-width: 324px;
+  }
+
+  .operational-map-panel__weather-parts {
+    grid-template-columns: repeat(4, minmax(31px, 1fr));
+    gap: 5px;
   }
 }
 

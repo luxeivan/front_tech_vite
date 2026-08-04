@@ -9,6 +9,10 @@ import SendBlock from "./SendBlock";
 import { buildDescriptionTemplate } from "../../../utils/descriptionTemplate";
 import { logAuditEvent } from "../../../utils/auditLogger";
 import { hasFeatureAccess } from "../../../config/viewRoleAccess";
+import {
+  getTnFilialName,
+  getTnPoName,
+} from "../../dashboard/js/dashboardCommon";
 import { PLANNED_EXTRA_SEND_CHANNELS } from "../../planned/js/plannedSendChannels";
 import {
   buildSzoSummaryFromItem,
@@ -182,12 +186,12 @@ export default function TNModal({ open, documentId, onClose, mode = "unplanned" 
       {
         key: "planned_branch",
         label: "Филиал",
-        children: getField(source, "OWN_SCNAME") || "—",
+        children: getTnFilialName(source) || "—",
       },
       {
         key: "planned_po",
         label: "ПО",
-        children: getField(source, "SCNAME") || "—",
+        children: getTnPoName(source) || "—",
       },
       {
         key: "planned_object",

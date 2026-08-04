@@ -9,6 +9,10 @@ import {
   isPlannedType,
   PLANNED_STATUS_OPTIONS,
 } from "./plannedTable.utils";
+import {
+  getTnFilialName,
+  getTnPoName,
+} from "../../dashboard/js/dashboardCommon";
 
 export const DEFAULT_PAGE_SIZE = 15;
 export const PAGE_SIZE_OPTIONS = [15, 30, 50, 100];
@@ -116,7 +120,7 @@ export function buildBranchOptions(rows) {
   const values = Array.from(
     new Set(
       rows
-        .map((item) => String(getField(item, "OWN_SCNAME") || "").trim())
+        .map((item) => String(getTnFilialName(item) || "").trim())
         .filter(Boolean)
     )
   ).sort(ruSort);
@@ -134,9 +138,9 @@ export function buildPoOptions(rows, selectedBranch) {
         rows
           .filter(
             (item) =>
-              String(getField(item, "OWN_SCNAME") || "").trim() === selectedBranch
+              String(getTnFilialName(item) || "").trim() === selectedBranch
           )
-          .map((item) => String(getField(item, "SCNAME") || "").trim())
+          .map((item) => String(getTnPoName(item) || "").trim())
           .filter(Boolean)
       )
     ).sort(ruSort);
@@ -152,8 +156,8 @@ export function buildPoOptions(rows, selectedBranch) {
 
   const byBranch = new Map();
   rows.forEach((item) => {
-    const branch = String(getField(item, "OWN_SCNAME") || "").trim();
-    const po = String(getField(item, "SCNAME") || "").trim();
+    const branch = String(getTnFilialName(item) || "").trim();
+    const po = String(getTnPoName(item) || "").trim();
     if (!branch || !po) return;
     if (!byBranch.has(branch)) byBranch.set(branch, new Set());
     byBranch.get(branch).add(po);
@@ -185,7 +189,7 @@ export function mapPlannedRow(item, sendStatus) {
     plannedNum !== null && plannedNum !== undefined
       ? sendStatus.byNumber[String(plannedNum).trim()]
       : null;
-  const send = sendByGuid || sendByNumber || null;
+  const send = sendByGuid || (guid ? null : sendByNumber) || null;
 
   const documentId =
     getField(item, "documentId") ||
@@ -203,8 +207,8 @@ export function mapPlannedRow(item, sendStatus) {
     startFact: formatDateTime(getField(item, "STARTDATETIME")),
     endPlan: formatDateTime(getField(item, "F81_070_RESTOR_SUPPLAYDATETIME")),
     endFact: formatDateTime(getField(item, "F81_290_RECOVERYDATETIME")),
-    branch: getField(item, "OWN_SCNAME") ?? "—",
-    po: getField(item, "SCNAME") ?? "—",
+    branch: getTnFilialName(item) ?? "—",
+    po: getTnPoName(item) ?? "—",
     objectName: getField(item, "F81_041_ENERGOOBJECTNAME") ?? "—",
     addressList: getField(item, "ADDRESS_LIST") ?? "—",
     description: getField(item, "BRIGADE_ACTION") ?? "—",
@@ -228,13 +232,13 @@ export function filterPlannedRows({
     .filter((item) => effectiveStatuses.includes(getPlannedStatusName(item)))
     .filter((item) => {
       if (selectedBranch === ALL_BRANCHES) return true;
-      return String(getField(item, "OWN_SCNAME") || "").trim() === selectedBranch;
+      return String(getTnFilialName(item) || "").trim() === selectedBranch;
     })
     .filter((item) => {
       if (selectedPo === ALL_PO) return true;
       const scoped = parseScopedPoValue(selectedPo);
-      const branch = String(getField(item, "OWN_SCNAME") || "").trim();
-      const po = String(getField(item, "SCNAME") || "").trim();
+      const branch = String(getTnFilialName(item) || "").trim();
+      const po = String(getTnPoName(item) || "").trim();
       if (scoped) return branch === scoped.branch && po === scoped.po;
       return po === selectedPo;
     })

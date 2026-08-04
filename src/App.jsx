@@ -4,12 +4,12 @@ import {
   Route,
   Navigate,
 } from "react-router-dom";
-import { Spin } from "antd";
 import { useEffect, useState } from "react";
 import useAuth from "./stores/useAuth";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import AuthForm from "./components/AuthForm";
+import BrandSunLoader from "./components/ui/BrandSunLoader";
 import DashboardPage from "./pages/dashboard/DashboardPage";
 import OperationalDashboardPage from "./pages/operationalDashboard/OperationalDashboardPage";
 import OperationalFilialPage from "./pages/operationalDashboard/OperationalFilialPage";
@@ -18,6 +18,7 @@ import PesPage from "./pages/pes/PesPage";
 import PlannedPage from "./pages/planned/PlannedPage";
 import EmergencyPage from "./pages/emergency/EmergencyPage";
 import LoggingPage from "./pages/logging/LoggingPage";
+import LoaderDemoPage from "./pages/loaderDemo/LoaderDemoPage";
 import { hasFeatureAccess } from "./config/viewRoleAccess";
 import PostAuthSplash from "./components/PostAuthSplash/PostAuthSplash";
 import styles from "./AppLayout.module.css";
@@ -59,7 +60,7 @@ function App() {
     if (!authChecked && hasJwt) {
       return (
         <div style={{ padding: 28, display: "flex", justifyContent: "center" }}>
-          <Spin size="large" />
+          <BrandSunLoader size={48} text="Проверяем доступ" />
         </div>
       );
     }
@@ -152,6 +153,7 @@ function App() {
                 </Protected>
               }
             />
+            <Route path="/loader-demo" element={<LoaderDemoPage />} />
 
             {/* Фоллбек */}
             {/* <Route path="*" element={<Navigate to="/" replace />} /> */}

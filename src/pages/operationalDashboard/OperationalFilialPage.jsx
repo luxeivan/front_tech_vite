@@ -1,6 +1,5 @@
 import React, { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Spin } from "antd";
 
 import OperationalNavigationSteps from "../../components/operationalDashboard/jsx/OperationalNavigationSteps";
 import OperationalMapPanel, {
@@ -8,6 +7,7 @@ import OperationalMapPanel, {
 } from "../../components/operationalDashboard/sections/map/jsx/OperationalMapPanel";
 import OperationalDonutsPanel from "../../components/operationalDashboard/sections/donuts/jsx/OperationalDonutsPanel";
 import OperationalDistrictsPanel from "../../components/operationalDashboard/sections/districts/jsx/OperationalDistrictsPanel";
+import BrandSunLoader from "../../components/ui/BrandSunLoader";
 import useOperationalDashboardStore from "../../stores/operationalDashboard/useOperationalDashboardStore";
 import { getOperationalFilialRouteBySlug } from "../../utils/operationalFilialRoutes";
 import "../../components/operationalDashboard/css/OperationalDashboard.css";
@@ -29,7 +29,9 @@ export default function OperationalFilialPage() {
 
   return (
     <section className="operational-dashboard operational-filial-page">
-      <Spin fullscreen spinning={isLoading && !hasLoaded} />
+      {isLoading && !hasLoaded ? (
+        <BrandSunLoader fullscreen size={74} text="Загружаем оперативную обстановку" />
+      ) : null}
       <header className="operational-filial-page__header">
         <div className="operational-filial-page__nav">
           <Link className="operational-filial-page__back" to="/dashboard-oo">
@@ -42,7 +44,7 @@ export default function OperationalFilialPage() {
             ОПЕРАТИВНАЯ ОБСТАНОВКА
           </h1>
         </div>
-        <OperationalMapTopline className="operational-filial-page__topline" />
+        <OperationalMapTopline className="operational-dashboard__topline operational-filial-page__topline" />
       </header>
       <div className="operational-dashboard__grid operational-filial-page__grid">
         <OperationalDonutsPanel
@@ -58,7 +60,6 @@ export default function OperationalFilialPage() {
           showDistrictLabels
           showPesMarkers
           showTopline={false}
-          showMobileTopline
           variant="filial"
         />
         <OperationalDistrictsPanel

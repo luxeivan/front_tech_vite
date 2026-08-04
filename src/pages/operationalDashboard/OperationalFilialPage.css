@@ -115,13 +115,13 @@
   min-height: 0;
 }
 
-.operational-navigation-steps .ant-steps-item-title {
+.operational-filial-page .operational-navigation-steps.ant-steps .ant-steps-item-title {
   max-width: none;
   padding-inline-end: 0;
-  color: #006eb8 !important;
-  font-size: 16px;
-  font-weight: 700;
-  line-height: 18px;
+  color: #1575bc !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  line-height: 1.1 !important;
   text-align: left;
   text-transform: uppercase;
   white-space: nowrap;
@@ -129,12 +129,15 @@
   text-overflow: clip;
 }
 
-.operational-navigation-steps .ant-steps-item-title::after {
+.operational-filial-page .operational-navigation-steps.ant-steps .ant-steps-item-title::after {
   display: none;
 }
 
 .operational-navigation-steps__link {
   color: inherit;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  line-height: 1.1 !important;
   text-decoration: none;
   text-underline-offset: 3px;
 }
@@ -144,10 +147,10 @@
   color: #005a9e;
 }
 
-.operational-navigation-steps .ant-steps-item-process .ant-steps-item-title {
+.operational-filial-page .operational-navigation-steps.ant-steps .ant-steps-item-process .ant-steps-item-title {
   text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 4px;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
 }
 
 .operational-filial-page__heading {
@@ -163,28 +166,23 @@
 }
 
 .operational-filial-page__topline.operational-map-panel__topline {
-  --weather-card-width: min(30vw, 320px);
+  --weather-card-width: 300px;
 
   grid-area: topline;
   position: relative;
   top: auto;
   right: auto;
   z-index: 1;
-  display: grid;
-  grid-template-columns: auto minmax(0, var(--weather-card-width));
-  align-items: center;
-  gap: 12px;
+  align-items: flex-end;
   justify-self: end;
-  width: min(100%, 520px);
+  width: var(--weather-card-width);
+  max-width: 100%;
   pointer-events: auto;
 }
 
 .operational-filial-page__topline .operational-map-panel__time {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  justify-self: start;
-  text-align: left;
+  justify-content: flex-end;
+  text-align: right;
   white-space: nowrap;
 }
 
@@ -206,6 +204,61 @@
 @media (min-width: 769px) {
   .operational-filial-page__grid > .operational-districts-panel--po {
     margin-top: 34px;
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1200px) and (orientation: landscape) {
+  .operational-filial-page__header {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "nav"
+      "title"
+      "topline";
+    align-items: center;
+    justify-items: stretch;
+    gap: 8px;
+  }
+
+  .operational-filial-page__heading {
+    justify-items: center;
+  }
+
+  .operational-filial-page__nav {
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding-top: 10px;
+  }
+
+  .operational-filial-page__topline.operational-map-panel__topline {
+    --weather-card-width: min(100%, 340px);
+
+    justify-self: center;
+    align-items: center;
+    width: min(100%, var(--weather-card-width));
+    max-width: 100%;
+    margin-top: 2px;
+  }
+
+  .operational-filial-page__topline .operational-map-panel__time {
+    justify-content: center;
+    text-align: center;
+  }
+
+  .operational-filial-page__grid {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "map"
+      "donuts"
+      "districts"
+      "charts";
+    grid-template-rows: minmax(520px, 62vh) auto auto minmax(300px, auto);
+    height: auto;
+    min-height: auto;
+  }
+
+  .operational-filial-page__grid > .operational-districts-panel--po {
+    margin-top: 0;
   }
 }
 
@@ -236,28 +289,29 @@
     width: auto;
   }
 
-  .operational-navigation-steps .ant-steps-item-title {
+  .operational-filial-page .operational-navigation-steps.ant-steps .ant-steps-item-title {
     max-width: none;
-    font-size: 14px;
+    font-size: 10px !important;
   }
 
   .operational-filial-page__topline.operational-map-panel__topline {
     --weather-card-width: min(100%, 340px);
 
-    display: flex;
-    grid-template-columns: none;
     justify-self: center;
-    width: min(100%, 520px);
+    align-items: center;
+    width: min(100%, var(--weather-card-width));
+    max-width: 100%;
     margin-top: 2px;
   }
 
   .operational-filial-page__topline .operational-map-panel__time {
-    flex: 0 0 auto;
+    justify-content: center;
+    text-align: center;
   }
 }
 
 @media (max-width: 640px) {
   .operational-filial-page__topline.operational-map-panel__topline {
-    display: none;
+    --weather-card-width: min(100%, 320px);
   }
 }
