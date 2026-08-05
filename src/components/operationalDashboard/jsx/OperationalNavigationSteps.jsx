@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { Steps } from "antd";
 
 export default function OperationalNavigationSteps({
+  basePath = "/dashboard-oo",
+  filialPath = "",
   filialName = "",
   poName = "",
   className = "",
@@ -11,14 +13,21 @@ export default function OperationalNavigationSteps({
     {
       icon: <span className="operational-navigation-steps__empty-icon" />,
       title: (
-        <Link className="operational-navigation-steps__link" to="/dashboard-oo">
+        <Link className="operational-navigation-steps__link" to={basePath}>
           АО «Мособлэнерго»
         </Link>
       ),
     },
     {
       icon: <span className="operational-navigation-steps__empty-icon" />,
-      title: filialName || "Филиал",
+      title:
+        poName && filialPath ? (
+          <Link className="operational-navigation-steps__link" to={filialPath}>
+            {filialName || "Филиал"}
+          </Link>
+        ) : (
+          filialName || "Филиал"
+        ),
     },
   ];
 

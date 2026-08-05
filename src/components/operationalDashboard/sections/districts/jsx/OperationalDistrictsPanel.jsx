@@ -7,11 +7,15 @@ import useOperationalDashboardStore from "../../../../../stores/operationalDashb
 import { fetchTnFilialyRows } from "../../../../../utils/tnFilialyApi";
 import { fetchTnOkrugaRelationRows } from "../../../../../utils/tnOkrugaApi";
 import { fetchTnPoRows } from "../../../../../utils/tnPosApi";
-import { getOperationalFilialPath } from "../../../../../utils/operationalFilialRoutes";
+import {
+  getOperationalFilialPathForBase,
+  getOperationalPoPath,
+} from "../../../../../utils/operationalFilialRoutes";
 import { OPERATIONAL_BRANCH_COLUMNS } from "../js/operationalDistrictsPanel.config";
 import {
   buildOperationalBranchRows,
   buildOperationalBranchSummary,
+  buildOperationalOkrugRows,
   buildOperationalPoRows,
 } from "../js/operationalDistrictsPanel.utils";
 import "../css/OperationalDistrictsPanel.css";
@@ -19,14 +23,25 @@ import "../css/OperationalDistrictsPanel.css";
 const formatCellValue = (value) =>
   typeof value === "number" ? new Intl.NumberFormat("ru-RU").format(value) : value;
 
-const renderBranchLink = (branch, children, eventHandlers = {}) => {
-  const path = getOperationalFilialPath(`${branch} филиал`);
+const renderBranchLink = (branch, children, eventHandlers = {}, basePath = "/dashboard-oo") => {
+  const path = getOperationalFilialPathForBase(`${branch} филиал`, basePath);
   return path ? (
     <Link className="operational-districts-panel__branch-link" to={path} {...eventHandlers}>
       {children}
     </Link>
   ) : (
     <span {...eventHandlers}>{children}</span>
+  );
+};
+
+const renderPoLink = (filialName, poName, children, basePath = "/dashboard-oo") => {
+  const path = getOperationalPoPath(filialName, poName, basePath);
+  return path ? (
+    <Link className="operational-districts-panel__branch-link" to={path}>
+      {children}
+    </Link>
+  ) : (
+    children
   );
 };
 
@@ -75,8 +90,11 @@ const OPERATIONAL_PO_COLUMN_WIDTHS = {
 
 export default function OperationalDistrictsPanel({
   className = "",
+  basePath = "/dashboard-oo",
   filialName = "",
   groupBy = "filial",
+  poName = "",
+  poSlug = "",
   onBranchHover,
 }) {
   const rows = useOperationalDashboardStore((store) => store.rows);
@@ -105,7 +123,7 @@ export default function OperationalDistrictsPanel({
   }, [groupBy]);
 
   useEffect(() => {
-    if (groupBy !== "po") return undefined;
+    if (groupBy === "filial") return undefined;
 
     let cancelled = false;
 
@@ -123,24 +141,30 @@ export default function OperationalDistrictsPanel({
   }, [groupBy]);
 
   const dataSource = useMemo(() => {
-    const branchRows =
-      groupBy === "po"
-        ? buildOperationalPoRows(rows, poRows, filialName, okrugaRows)
-        : buildOperationalBranchRows(rows, filialRows);
+    let branchRows;
+    if (groupBy === "okrug") {
+      branchRows = buildOperationalOkrugRows(rows, okrugaRows, filialName, poName, poSlug);
+    } else if (groupBy === "po") {
+      branchRows = buildOperationalPoRows(rows, poRows, filialName, okrugaRows);
+    } else {
+      branchRows = buildOperationalBranchRows(rows, filialRows);
+    }
     return [...branchRows, buildOperationalBranchSummary(branchRows)];
-  }, [filialName, filialRows, groupBy, okrugaRows, poRows, rows]);
+  }, [filialName, filialRows, groupBy, okrugaRows, poName, poRows, poSlug, rows]);
 
   const columns = useMemo(
     () =>
       OPERATIONAL_BRANCH_COLUMNS.map((column) => ({
         ...column,
-        width:
-          groupBy === "po"
+          width:
+          groupBy === "po" || groupBy === "okrug"
             ? OPERATIONAL_PO_COLUMN_WIDTHS[column.dataIndex] || column.width
             : OPERATIONAL_FILIAL_COLUMN_WIDTHS[column.dataIndex] || column.width,
         title:
           groupBy === "po" && column.dataIndex === "branch"
             ? "Производственное отделение/ сетевой участок"
+            : groupBy === "okrug" && column.dataIndex === "branch"
+              ? "Городской округ"
             : column.title,
         align: "center",
         render: (value, record) => {
@@ -155,13 +179,17 @@ export default function OperationalDistrictsPanel({
                     onBlur: () => onBranchHover(""),
                   }
                 : {};
-            return renderBranchLink(record.branch, formattedValue, hoverHandlers);
+            return renderBranchLink(record.branch, formattedValue, hoverHandlers, basePath);
+          }
+
+          if (groupBy === "po" && column.dataIndex === "branch" && record.key !== "summary") {
+            return renderPoLink(filialName, record.branch, formattedValue, basePath);
           }
 
           return formattedValue;
         },
       })),
-    [groupBy, onBranchHover]
+    [basePath, filialName, groupBy, onBranchHover]
   );
 
   const panelClassName = [
@@ -169,7 +197,8 @@ export default function OperationalDistrictsPanel({
     "operational-dashboard__panel--districts",
     "operational-districts-panel",
     groupBy === "filial" ? "operational-districts-panel--filial" : "",
-    groupBy === "po" ? "operational-districts-panel--po" : "",
+    groupBy === "po" || groupBy === "okrug" ? "operational-districts-panel--po" : "",
+    groupBy === "okrug" ? "operational-districts-panel--okrug" : "",
     className,
   ]
     .filter(Boolean)
@@ -200,9 +229,12 @@ export default function OperationalDistrictsPanel({
                             onFocus: () => onBranchHover(record.branch),
                             onBlur: () => onBranchHover(""),
                           }
-                        : {}
+                        : {},
+                      basePath
                     )
-                  : record.branch}
+                  : groupBy === "po" && record.key !== "summary"
+                    ? renderPoLink(filialName, record.branch, record.branch, basePath)
+                    : record.branch}
               </h3>
               <div className="operational-districts-panel__mobile-metrics">
                 {OPERATIONAL_BRANCH_COLUMNS.filter((column) => column.dataIndex !== "branch").map(
@@ -233,7 +265,11 @@ export default function OperationalDistrictsPanel({
             record.key === "summary" ? "operational-districts-panel__row--summary" : ""
           }
           size="small"
-          scroll={groupBy === "po" || groupBy === "filial" ? undefined : { x: OPERATIONAL_BRANCH_TABLE_SCROLL_X }}
+          scroll={
+            groupBy === "po" || groupBy === "filial" || groupBy === "okrug"
+              ? undefined
+              : { x: OPERATIONAL_BRANCH_TABLE_SCROLL_X }
+          }
           tableLayout="fixed"
         />
       </div>

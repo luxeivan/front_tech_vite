@@ -14,6 +14,7 @@ import {
   getOperationalBranchByRow,
   normalizeBranchName,
 } from "../../districts/js/operationalDistrictsPanel.utils";
+import { getOperationalPoSlug } from "../../../../../utils/operationalFilialRoutes";
 
 const isMediumVoltageLineOutage = (row) => {
   const raw = row?.data?.data ?? row?.data ?? row ?? {};
@@ -50,11 +51,23 @@ const isRowInFilial = (row, filialName) => {
   return normalizeLookupName(getOperationalBranchByRow(row)) === targetFilial;
 };
 
+const isRowInPo = (row, poName, poSlug = "") => {
+  const rowPoName = getOperationalPoByRow(row);
+  const normalizedPoName = normalizeLookupName(poName);
+  const normalizedPoSlug = String(poSlug || "").trim();
+  if (!normalizedPoName && !normalizedPoSlug) return true;
+
+  return (
+    (normalizedPoName && normalizeLookupName(rowPoName) === normalizedPoName) ||
+    (normalizedPoSlug && getOperationalPoSlug(rowPoName) === normalizedPoSlug)
+  );
+};
+
 const getPopulationGroupByRow = (row, groupBy) =>
   groupBy === "po" ? getOperationalPoByRow(row) : getOperationalBranchByRow(row);
 
 export const buildDurationDonutData = (rows, now = dayjs(), options = {}) => {
-  const { filialName = "" } = options;
+  const { filialName = "", poName = "", poSlug = "" } = options;
   const source = Array.isArray(rows) ? rows : [];
   const buckets = {
     under2h: [],
@@ -69,6 +82,7 @@ export const buildDurationDonutData = (rows, now = dayjs(), options = {}) => {
         isNotDeletedTN(row) &&
         isOpenTN(row) &&
         isRowInFilial(row, filialName) &&
+        isRowInPo(row, poName, poSlug) &&
         Boolean(getOperationalBranchByRow(row)) &&
         isMediumVoltageLineOutage(row)
     )
@@ -91,7 +105,7 @@ export const buildDurationDonutData = (rows, now = dayjs(), options = {}) => {
 };
 
 export const buildPopulationDonutData = (rows, options = {}) => {
-  const { filialName = "", groupBy = "filial" } = options;
+  const { filialName = "", groupBy = "filial", poName = "", poSlug = "" } = options;
   const source = Array.isArray(rows) ? rows : [];
   const districtTotals = new Map();
 
@@ -101,7 +115,8 @@ export const buildPopulationDonutData = (rows, options = {}) => {
         isDashboardBaseType(row) &&
         isNotDeletedTN(row) &&
         isOpenTN(row) &&
-        isRowInFilial(row, filialName)
+        isRowInFilial(row, filialName) &&
+        isRowInPo(row, poName, poSlug)
     )
     .forEach((row) => {
       const district = getPopulationGroupByRow(row, groupBy);

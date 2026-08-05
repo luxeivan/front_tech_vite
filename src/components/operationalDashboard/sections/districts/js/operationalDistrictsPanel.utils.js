@@ -3,10 +3,12 @@ import {
   isNotDeletedTN,
   isOpenTN,
   pick,
+  districtName,
   getTnFilialName,
   getTnPoName,
   toNumber,
 } from "../../../../dashboard/js/dashboardCommon";
+import { getOperationalPoSlug } from "../../../../../utils/operationalFilialRoutes";
 
 import {
   OPERATIONAL_DISPCENTER_TO_BRANCH,
@@ -116,10 +118,28 @@ const getOperationalPoByRow = (row) => {
 const isSameNormalizedName = (left, right) =>
   normalizeLookupName(left) === normalizeLookupName(right);
 
+const normalizeDistrictLookupName = (value) =>
+  normalizeLookupName(value)
+    .replace(/\b(?:городской|муниципальный|город|округ|район|г о|го)\b/giu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
 const isRowInBranch = (row, branchName) => {
   const branch = normalizeBranchName(branchName);
   if (!branch) return true;
   return isSameNormalizedName(getOperationalBranchByRow(row), branch);
+};
+
+const isRowInPo = (row, poName, poSlug = "") => {
+  const rowPoName = getOperationalPoByRow(row);
+  const normalizedPoName = normalizeLookupName(poName);
+  const normalizedPoSlug = String(poSlug || "").trim();
+  if (!normalizedPoName && !normalizedPoSlug) return true;
+
+  return (
+    (normalizedPoName && normalizeLookupName(rowPoName) === normalizedPoName) ||
+    (normalizedPoSlug && getOperationalPoSlug(rowPoName) === normalizedPoSlug)
+  );
 };
 
 const getPoFilialName = (poRow) => {
@@ -136,6 +156,34 @@ const getOkrugPoRows = (okrugRow) => {
   const po = unwrapTnOkrugaRelation(okrugRow?.tn_po || okrugRow?.tn_pos);
   if (Array.isArray(po)) return po;
   return po ? [po] : [];
+};
+
+const isOkrugInPo = (okrugRow, poName, poSlug = "") => {
+  const normalizedPoName = normalizeLookupName(poName);
+  const normalizedPoSlug = String(poSlug || "").trim();
+  if (!normalizedPoName && !normalizedPoSlug) return true;
+
+  return getOkrugPoRows(okrugRow).some((poRow) => {
+    const relationName = poRow?.name;
+    return (
+      (normalizedPoName && normalizeLookupName(relationName) === normalizedPoName) ||
+      (normalizedPoSlug && getOperationalPoSlug(relationName) === normalizedPoSlug)
+    );
+  });
+};
+
+const isOkrugInBranch = (okrugRow, filialName) => {
+  const normalizedBranchName = normalizeBranchName(filialName);
+  if (!normalizedBranchName) return true;
+
+  const directFilialName = getOkrugFilialName(okrugRow);
+  if (isSameNormalizedName(normalizeBranchName(directFilialName), normalizedBranchName)) {
+    return true;
+  }
+
+  return getOkrugPoRows(okrugRow).some((poRow) =>
+    isSameNormalizedName(normalizeBranchName(getPoFilialName(poRow)), normalizedBranchName)
+  );
 };
 
 const buildBranchResourceMap = (filialRows) =>
@@ -189,6 +237,17 @@ const createPoRow = (poRow, poResources) => {
     ...EMPTY_NUMERIC_VALUES,
     mainResource: resources?.mainResource ?? OPERATIONAL_BRANCH_UNKNOWN_VALUE,
     ovb: resources?.ovb ?? OPERATIONAL_BRANCH_UNKNOWN_VALUE,
+  };
+};
+
+const createOkrugRow = (okrugRow) => {
+  const okrugName = okrugRow?.name || okrugRow?.source_name || OPERATIONAL_BRANCH_UNKNOWN_VALUE;
+  return {
+    key: okrugRow?.documentId || okrugRow?.id || okrugName,
+    branch: okrugName,
+    ...EMPTY_NUMERIC_VALUES,
+    mainResource: OPERATIONAL_BRANCH_UNKNOWN_VALUE,
+    ovb: OPERATIONAL_BRANCH_UNKNOWN_VALUE,
   };
 };
 
@@ -258,6 +317,56 @@ export const buildOperationalPoRows = (rows, poRows = [], filialName = "", okrug
     });
 
   return Array.from(poMap.values());
+};
+
+export const buildOperationalOkrugRows = (
+  rows,
+  okrugaRows = [],
+  filialName = "",
+  poName = "",
+  poSlug = ""
+) => {
+  const normalizedBranchName = normalizeBranchName(filialName);
+  const okrugMap = new Map();
+  const okrugNameByKey = new Map();
+
+  (Array.isArray(okrugaRows) ? okrugaRows : [])
+    .filter(
+      (okrugRow) =>
+        okrugRow?.is_active !== false &&
+        isOkrugInBranch(okrugRow, normalizedBranchName) &&
+        isOkrugInPo(okrugRow, poName, poSlug)
+    )
+    .forEach((okrugRow) => {
+      const row = createOkrugRow(okrugRow);
+      const keys = [
+        normalizeDistrictLookupName(okrugRow?.name),
+        normalizeDistrictLookupName(okrugRow?.source_name),
+      ].filter(Boolean);
+
+      keys.forEach((key) => {
+        okrugNameByKey.set(key, row.branch);
+      });
+      if (!okrugMap.has(row.branch)) okrugMap.set(row.branch, row);
+    });
+
+  (Array.isArray(rows) ? rows : [])
+    .filter(
+      (row) =>
+        isOperationalDashboardRow(row) &&
+        isOpenTN(row) &&
+        isRowInBranch(row, filialName) &&
+        isRowInPo(row, poName, poSlug)
+    )
+    .forEach((row) => {
+      const rowDistrictKey = normalizeDistrictLookupName(districtName(row));
+      const okrugName = okrugNameByKey.get(rowDistrictKey);
+      if (!okrugName) return;
+
+      addRowToTotals(okrugMap.get(okrugName), row);
+    });
+
+  return Array.from(okrugMap.values());
 };
 
 export const buildOperationalBranchSummary = (rows) => {

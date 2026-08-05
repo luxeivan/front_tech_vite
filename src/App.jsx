@@ -14,6 +14,7 @@ import DashboardPage from "./pages/dashboard/DashboardPage";
 import OperationalDashboardPage from "./pages/operationalDashboard/OperationalDashboardPage";
 import OperationalDashboardTestMapPage from "./pages/operationalDashboard/OperationalDashboardTestMapPage";
 import OperationalFilialPage from "./pages/operationalDashboard/OperationalFilialPage";
+import OperationalFilialTestMapPage from "./pages/operationalDashboard/OperationalFilialTestMapPage";
 import Portal404 from "./components/Portal404/Portal404";
 import PesPage from "./pages/pes/PesPage";
 import PlannedPage from "./pages/planned/PlannedPage";
@@ -124,7 +125,31 @@ function App() {
             }
           />
           <Route
+            path="/dashboard-oo-test-map/:filialSlug"
+            element={
+              <Protected>
+                <OperationalFilialTestMapPage />
+              </Protected>
+            }
+          />
+          <Route
+            path="/dashboard-oo-test-map/:filialSlug/:poSlug"
+            element={
+              <Protected>
+                <OperationalFilialTestMapPage />
+              </Protected>
+            }
+          />
+          <Route
             path="/dashboard-oo/:filialSlug"
+            element={
+              <Protected>
+                <OperationalFilialPage />
+              </Protected>
+            }
+          />
+          <Route
+            path="/dashboard-oo/:filialSlug/:poSlug"
             element={
               <Protected>
                 <OperationalFilialPage />

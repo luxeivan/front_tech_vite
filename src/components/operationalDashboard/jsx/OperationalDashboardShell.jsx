@@ -29,6 +29,7 @@ const isFilialModeEvent = (payload) =>
 
 export default function OperationalDashboardShell({
   MapPanelComponent = OperationalMapPanel,
+  mapBasePath = "/dashboard-oo",
   className = "",
 }) {
   const loadData = useOperationalDashboardStore((store) => store.loadData);
@@ -102,8 +103,12 @@ export default function OperationalDashboardShell({
       </header>
       <div className="operational-dashboard__grid">
         <OperationalDonutsPanel />
-        <MapPanelComponent externalHoverName={hoveredBranchName} showTopline={false} />
-        <OperationalDistrictsPanel onBranchHover={setHoveredBranchName} />
+        <MapPanelComponent
+          basePath={mapBasePath}
+          externalHoverName={hoveredBranchName}
+          showTopline={false}
+        />
+        <OperationalDistrictsPanel basePath={mapBasePath} onBranchHover={setHoveredBranchName} />
         <OperationalChartsPanel />
       </div>
     </section>

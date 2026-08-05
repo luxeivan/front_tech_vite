@@ -38,9 +38,12 @@ import {
   buildTnOkrugaFeatureCollection,
   fetchTnOkrugaRows,
   getTnOkrugaFilialRows,
+  getTnOkrugaPoRows,
 } from "../../../../../utils/tnOkrugaApi";
 import {
-  getOperationalFilialPath,
+  getOperationalFilialPathForBase,
+  getOperationalPoPath,
+  getOperationalPoSlug,
   normalizeOperationalFilialName,
 } from "../../../../../utils/operationalFilialRoutes";
 import {
@@ -605,6 +608,23 @@ const getRowsByFilialName = (rows, filialName) => {
   );
 };
 
+const getRowsByPoName = (rows, poName, poSlug) => {
+  const normalizedPoName = normalizeOperationalFilialName(poName);
+  const normalizedPoSlug = String(poSlug || "").trim();
+  if (!normalizedPoName && !normalizedPoSlug) return rows;
+
+  return (Array.isArray(rows) ? rows : []).filter((row) =>
+    getTnOkrugaPoRows(row).some((relation) => {
+      const relationName =
+        relation?.name || relation?.attributes?.name || relation?.data?.attributes?.name;
+      return (
+        (normalizedPoName && normalizeOperationalFilialName(relationName) === normalizedPoName) ||
+        (normalizedPoSlug && getOperationalPoSlug(relationName) === normalizedPoSlug)
+      );
+    })
+  );
+};
+
 const readCachedTnOkrugaRows = () => {
   try {
     const rawRows = window.localStorage.getItem(TN_OKRUGA_MAP_CACHE_KEY);
@@ -735,6 +755,7 @@ const getDistrictStyle = (
   feature,
   areaDataByKey,
   {
+    districtDetailMode = false,
     fillGroup = "filial",
   } = {}
 ) => {
@@ -742,24 +763,33 @@ const getDistrictStyle = (
   const areaData = findOperationalMapAreaData(areaDataByKey, areaName);
   const people = areaData?.people || 0;
   const fillColor = people > 0 ? areaData.color : "rgba(255, 255, 255, 0.96)";
-  const strokeColor = fillGroup === "po" ? "rgba(207, 214, 222, 0)" : "#cfd6de";
+  const strokeColor = districtDetailMode
+    ? "#7faad0"
+    : fillGroup === "po"
+      ? "rgba(207, 214, 222, 0)"
+      : "#cfd6de";
 
   return new Style({
     zIndex: 1,
     fill: new Fill({ color: fillColor }),
     stroke: new Stroke({
       color: strokeColor,
-      width: OPERATIONAL_MAP_DISTRICT_STROKE_WIDTH,
+      width: districtDetailMode ? 1.8 : OPERATIONAL_MAP_DISTRICT_STROKE_WIDTH,
     }),
   });
 };
 
-const getDistrictLabelStyle = (feature, compactLabels = false, labelGroup = "district") => {
+const getDistrictLabelStyle = (
+  feature,
+  compactLabels = false,
+  labelGroup = "district",
+  districtDetailMode = false
+) => {
   const label = wrapMapLabel(getFeatureLabelName(feature, labelGroup), compactLabels);
   if (!label) return null;
 
   return new Style({
-    zIndex: 50,
+    zIndex: districtDetailMode ? 70 : 50,
     text: new Text({
       text: label,
       overflow: true,
@@ -893,11 +923,15 @@ export function OperationalMapTopline({ className = "" }) {
 }
 
 export default function OperationalMapPanel({
+  basePath = "/dashboard-oo",
   filialName = "",
+  poName = "",
+  poSlug = "",
   enableFilialNavigation = true,
   externalHoverName = "",
   fillGroup = "filial",
   hoverGroup = "filial",
+  districtDetailMode = false,
   showDistrictLabels = false,
   showPesMarkers = false,
   showTopline = true,
@@ -1102,7 +1136,8 @@ export default function OperationalMapPanel({
     };
 
     const applyDistrictRows = (rows, options) => {
-      const filteredRows = getRowsByFilialName(rows, filialName);
+      const filialRows = getRowsByFilialName(rows, filialName);
+      const filteredRows = getRowsByPoName(filialRows, poName, poSlug);
       applyFeatureCollection(buildTnOkrugaFeatureCollection(filteredRows), options);
     };
 
@@ -1177,7 +1212,17 @@ export default function OperationalMapPanel({
       if (!enableFilialNavigation) return;
 
       const feature = getDistrictFeatureAtPixel(event.pixel);
-      const filialPath = getOperationalFilialPath(getFeatureFilialName(feature));
+      const featureFilialName = getFeatureFilialName(feature);
+      const featurePoName = getFeaturePoName(feature);
+      const poPath =
+        filialName && featurePoName
+          ? getOperationalPoPath(filialName, featurePoName, basePath)
+          : "";
+      const filialPath = getOperationalFilialPathForBase(featureFilialName, basePath);
+      if (poPath) {
+        navigate(poPath);
+        return;
+      }
       if (filialPath) navigate(filialPath);
     };
 
@@ -1214,7 +1259,7 @@ export default function OperationalMapPanel({
       pesMarkerSourceRef.current = null;
       pesMarkerLayerRef.current = null;
     };
-  }, [enableFilialNavigation, filialName, fillGroup, hoverGroup, navigate]);
+  }, [basePath, enableFilialNavigation, filialName, fillGroup, hoverGroup, navigate, poName, poSlug]);
 
   useEffect(() => {
     externalHoverNameRef.current = externalHoverName;
@@ -1256,6 +1301,7 @@ export default function OperationalMapPanel({
 
     layer.setStyle((feature) =>
       getDistrictStyle(feature, areaDataByKey, {
+        districtDetailMode,
         fillGroup,
         showDistrictLabels,
       })
@@ -1265,12 +1311,20 @@ export default function OperationalMapPanel({
     if (labelLayer) {
       labelLayer.setStyle(
         showDistrictLabels
-          ? (feature) => getDistrictLabelStyle(feature, isCompactViewport, fillGroup)
+          ? (feature) =>
+              getDistrictLabelStyle(feature, isCompactViewport, fillGroup, districtDetailMode)
           : null
       );
       labelLayer.changed();
     }
-  }, [areaDataByKey, fillGroup, isCompactViewport, showDistrictLabels]);
+  }, [
+    areaDataByKey,
+    districtDetailMode,
+    fillGroup,
+    isCompactViewport,
+    mapFeaturesVersion,
+    showDistrictLabels,
+  ]);
 
   useEffect(() => {
     const map = mapRef.current;

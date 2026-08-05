@@ -250,6 +250,8 @@ function PopulationDonut({ data, groupBy = "filial", compact = false }) {
 export default function OperationalDonutsPanel({
   filialName = "",
   groupBy = "filial",
+  poName = "",
+  poSlug = "",
   className = "",
 }) {
   const rows = useOperationalDashboardStore((store) => store.rows);
@@ -265,12 +267,12 @@ export default function OperationalDonutsPanel({
   }, []);
 
   const durationData = useMemo(
-    () => buildDurationDonutData(rows, now, { filialName }),
-    [rows, now, filialName]
+    () => buildDurationDonutData(rows, now, { filialName, poName, poSlug }),
+    [rows, now, filialName, poName, poSlug]
   );
   const populationData = useMemo(
-    () => buildPopulationDonutData(rows, { filialName, groupBy }),
-    [rows, filialName, groupBy]
+    () => buildPopulationDonutData(rows, { filialName, groupBy, poName, poSlug }),
+    [rows, filialName, groupBy, poName, poSlug]
   );
 
   const panelClassName = [
