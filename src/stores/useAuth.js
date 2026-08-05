@@ -4,6 +4,20 @@ const urlBackend = import.meta.env.VITE_URL_BACKEND;
 
 let axiosInterceptorsInstalled = false;
 
+function isAuthSessionEndpoint(config = {}) {
+  const requestUrl = String(config.url || "");
+  const baseUrl = String(
+    config.baseURL || (typeof window !== "undefined" ? window.location.origin : "http://localhost")
+  );
+
+  try {
+    const url = new URL(requestUrl, baseUrl);
+    return url.pathname === "/api/users/me" || url.pathname.startsWith("/api/auth/");
+  } catch (_) {
+    return requestUrl.includes("/api/users/me") || requestUrl.includes("/api/auth/");
+  }
+}
+
 function installAxiosInterceptors() {
   if (axiosInterceptorsInstalled) return;
 
@@ -19,12 +33,13 @@ function installAxiosInterceptors() {
     return config;
   });
 
-  // Глобально ловим 401 и сбрасываем авторизацию
+  // Сбрасываем авторизацию только когда 401 пришел от проверки сессии или auth endpoint.
+  // Бизнес-запросы могут быть закрыты правами Strapi, но это не должно разлогинивать пользователя.
   axios.interceptors.response.use(
     (resp) => resp,
     (error) => {
       const status = error?.response?.status;
-      if (status === 401) {
+      if (status === 401 && isAuthSessionEndpoint(error?.config)) {
         try {
           localStorage.removeItem('jwt');
           sessionStorage.removeItem("postAuthSplashPending");

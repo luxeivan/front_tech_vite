@@ -14,6 +14,7 @@ export default function Header() {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const canSeeAuditLogs = hasFeatureAccess(user?.view_role, "auditLogging");
+  const canSeeOperationalDashboard = hasFeatureAccess(user?.view_role, "operationalDashboard");
   const displayName =
     user?.fullName ||
     user?.username ||
@@ -45,6 +46,15 @@ export default function Header() {
       action: "click_pes_module",
       label: "Модуль ПЭС",
     },
+    ...(canSeeOperationalDashboard
+      ? [
+          {
+            path: "/dashboard-oo",
+            action: "click_operational_dashboard",
+            label: "Дашборд ОО",
+          },
+        ]
+      : []),
     ...(canSeeAuditLogs
       ? [
           {
@@ -83,14 +93,6 @@ export default function Header() {
                 {item.label}
               </Button>
             ))}
-            {/* {canSeeOperationalDashboard && (
-              <Button
-                type={location.pathname === "/dashboard-oo" ? "primary" : "default"}
-                onClick={() => goTo("/dashboard-oo", "click_operational_dashboard")}
-              >
-                Дашборд ОО
-              </Button>
-            )} */}
           </Flex>
         )}
       </Flex>

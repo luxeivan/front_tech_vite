@@ -8,7 +8,7 @@ const FEATURE_ROLES = {
   eddsNewSend: ["preview"],
   mesSend: ["preview"],
   plannedModule: ["supergeneral", "standart", "preview"],
-  operationalDashboard: ["preview"],
+  operationalDashboard: ["supergeneral", "standart", "preview"],
   districtModeManage: ["preview"],
   auditLogging: ["preview"],
   journal: ["standart", "preview"],
