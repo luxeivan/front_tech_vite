@@ -111,9 +111,7 @@ function App() {
             path="/dashboard-oo"
             element={
               <Protected>
-                <FeatureOnly featureKey="operationalDashboard">
-                  <OperationalDashboardPage />
-                </FeatureOnly>
+                <OperationalDashboardPage />
               </Protected>
             }
           />
@@ -121,9 +119,7 @@ function App() {
             path="/dashboard-oo-test-map"
             element={
               <Protected>
-                <FeatureOnly featureKey="operationalDashboard">
-                  <OperationalDashboardTestMapPage />
-                </FeatureOnly>
+                <OperationalDashboardTestMapPage />
               </Protected>
             }
           />
@@ -131,9 +127,7 @@ function App() {
             path="/dashboard-oo/:filialSlug"
             element={
               <Protected>
-                <FeatureOnly featureKey="operationalDashboard">
-                  <OperationalFilialPage />
-                </FeatureOnly>
+                <OperationalFilialPage />
               </Protected>
             }
           />
