@@ -808,6 +808,7 @@ export default function OperationalMapPanel({
   const [isCompactViewport, setIsCompactViewport] = useState(getIsCompactMapViewport);
   const [isRgisDetailMode, setIsRgisDetailMode] = useState(false);
   const [isMapReady, setIsMapReady] = useState(false);
+  const isUserRgisDetailEnabledRef = useRef(false);
   const panelClassName = [
     "operational-dashboard__panel",
     "operational-dashboard__panel--map",
@@ -990,11 +991,24 @@ export default function OperationalMapPanel({
         hitTolerance: 8,
       });
 
-    const handleZoomChange = () => {
-      setIsRgisDetailMode(getIsRgisDetailMode(view.getZoom()));
+    const updateRgisDetailMode = () => {
+      setIsRgisDetailMode(
+        isUserRgisDetailEnabledRef.current && getIsRgisDetailMode(view.getZoom())
+      );
     };
-    handleZoomChange();
+    const handleZoomChange = () => {
+      updateRgisDetailMode();
+    };
+    updateRgisDetailMode();
     view.on("change:resolution", handleZoomChange);
+    const handleUserZoomIntent = () => {
+      isUserRgisDetailEnabledRef.current = true;
+      updateRgisDetailMode();
+    };
+    const mapTargetElement = map.getTargetElement();
+    mapTargetElement.addEventListener("wheel", handleUserZoomIntent, { passive: true });
+    mapTargetElement.addEventListener("dblclick", handleUserZoomIntent);
+    mapTargetElement.addEventListener("touchstart", handleUserZoomIntent, { passive: true });
     const endpoint = getPesEndpointFromEnv();
     const livePesPolling = endpoint
       ? startPesPolling({
@@ -1186,7 +1200,7 @@ export default function OperationalMapPanel({
 
     map.on("pointermove", handlePointerMove);
     map.on("singleclick", handleSingleClick);
-    map.getTargetElement().addEventListener("pointerleave", handlePointerLeave);
+    mapTargetElement.addEventListener("pointerleave", handlePointerLeave);
 
     const resizeObserver = new ResizeObserver(() => {
       window.requestAnimationFrame(() => {
@@ -1207,7 +1221,10 @@ export default function OperationalMapPanel({
       view.un("change:resolution", handleZoomChange);
       map.un("pointermove", handlePointerMove);
       map.un("singleclick", handleSingleClick);
-      map.getTargetElement().removeEventListener("pointerleave", handlePointerLeave);
+      mapTargetElement.removeEventListener("wheel", handleUserZoomIntent);
+      mapTargetElement.removeEventListener("dblclick", handleUserZoomIntent);
+      mapTargetElement.removeEventListener("touchstart", handleUserZoomIntent);
+      mapTargetElement.removeEventListener("pointerleave", handlePointerLeave);
       resizeObserver.disconnect();
       disposeRgisBaseLayerClip();
       livePesPolling?.stop?.();

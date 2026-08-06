@@ -32,14 +32,20 @@ const renderBranchLink = (branch, children, eventHandlers = {}, basePath = "/das
   );
 };
 
-const renderPoLink = (filialName, poName, children, basePath = "/dashboard-oo") => {
+const renderPoLink = (
+  filialName,
+  poName,
+  children,
+  eventHandlers = {},
+  basePath = "/dashboard-oo"
+) => {
   const path = getOperationalPoPath(filialName, poName, basePath);
   return path ? (
-    <Link className="operational-districts-panel__branch-link" to={path}>
+    <Link className="operational-districts-panel__branch-link" to={path} {...eventHandlers}>
       {children}
     </Link>
   ) : (
-    children
+    <span {...eventHandlers}>{children}</span>
   );
 };
 
@@ -128,6 +134,16 @@ export default function OperationalDistrictsPanel({
     return [...branchRows, buildOperationalBranchSummary(branchRows)];
   }, [filialName, filialRows, groupBy, poName, poSlug, rows]);
 
+  const getHoverHandlers = (record) =>
+    typeof onBranchHover === "function" && record?.key !== "summary"
+      ? {
+          onMouseEnter: () => onBranchHover(record.branch),
+          onMouseLeave: () => onBranchHover(""),
+          onFocus: () => onBranchHover(record.branch),
+          onBlur: () => onBranchHover(""),
+        }
+      : {};
+
   const columns = useMemo(
     () =>
       OPERATIONAL_BRANCH_COLUMNS.map((column) => ({
@@ -145,21 +161,14 @@ export default function OperationalDistrictsPanel({
         align: "center",
         render: (value, record) => {
           const formattedValue = formatCellValue(value);
+          const hoverHandlers = getHoverHandlers(record);
+
           if (groupBy === "filial" && column.dataIndex === "branch" && record.key !== "summary") {
-            const hoverHandlers =
-              typeof onBranchHover === "function"
-                ? {
-                    onMouseEnter: () => onBranchHover(record.branch),
-                    onMouseLeave: () => onBranchHover(""),
-                    onFocus: () => onBranchHover(record.branch),
-                    onBlur: () => onBranchHover(""),
-                  }
-                : {};
             return renderBranchLink(record.branch, formattedValue, hoverHandlers, basePath);
           }
 
           if (groupBy === "po" && column.dataIndex === "branch" && record.key !== "summary") {
-            return renderPoLink(filialName, record.branch, formattedValue, basePath);
+            return renderPoLink(filialName, record.branch, formattedValue, hoverHandlers, basePath);
           }
 
           return formattedValue;
@@ -187,6 +196,7 @@ export default function OperationalDistrictsPanel({
           {dataSource.map((record) => (
             <section
               key={record.key}
+              {...getHoverHandlers(record)}
               className={
                 record.key === "summary"
                   ? "operational-districts-panel__mobile-card operational-districts-panel__mobile-card--summary"
@@ -209,7 +219,15 @@ export default function OperationalDistrictsPanel({
                       basePath
                     )
                   : groupBy === "po" && record.key !== "summary"
-                    ? renderPoLink(filialName, record.branch, record.branch, basePath)
+                    ? renderPoLink(
+                        filialName,
+                        record.branch,
+                        record.branch,
+                        typeof onBranchHover === "function"
+                          ? getHoverHandlers(record)
+                          : {},
+                        basePath
+                      )
                     : record.branch}
               </h3>
               <div className="operational-districts-panel__mobile-metrics">
@@ -240,6 +258,7 @@ export default function OperationalDistrictsPanel({
           rowClassName={(record) =>
             record.key === "summary" ? "operational-districts-panel__row--summary" : ""
           }
+          onRow={(record) => getHoverHandlers(record)}
           size="small"
           scroll={
             groupBy === "po" || groupBy === "filial" || groupBy === "okrug"

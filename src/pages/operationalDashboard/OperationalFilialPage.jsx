@@ -50,6 +50,7 @@ export default function OperationalFilialPage({
   const filialRoute = getOperationalFilialRouteBySlug(filialSlug);
   const filialName = filialRoute?.name || "Филиал";
   const [filialRows, setFilialRows] = useState([]);
+  const [hoveredAreaName, setHoveredAreaName] = useState("");
   const poName = useMemo(
     () => getPoNameBySlug(filialRows, filialName, poSlug),
     [filialName, filialRows, poSlug]
@@ -126,6 +127,7 @@ export default function OperationalFilialPage({
           poSlug={poSlug}
           districtDetailMode={isPoLevel}
           enableFilialNavigation={!isPoLevel}
+          externalHoverName={hoveredAreaName}
           fillGroup={isPoLevel ? "district" : "po"}
           hoverGroup={isPoLevel ? "none" : "po"}
           showDistrictLabels
@@ -140,6 +142,7 @@ export default function OperationalFilialPage({
           poName={poName}
           poSlug={poSlug}
           groupBy={isPoLevel ? "okrug" : "po"}
+          onBranchHover={isPoLevel ? undefined : setHoveredAreaName}
         />
         <div className="operational-dashboard__panel operational-dashboard__panel--charts operational-filial-page__panel">
           <div className="operational-dashboard__panel-body" />
