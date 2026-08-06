@@ -9,7 +9,7 @@ const FEATURE_ROLES = {
   mesSend: ["preview"],
   plannedModule: ["supergeneral", "standart", "preview"],
   operationalDashboard: ["supergeneral", "standart", "preview"],
-  districtModeManage: ["preview"],
+  districtModeManage: ["standart", "preview"],
   auditLogging: ["preview"],
   journal: ["standart", "preview"],
   pesManage: ["standart", "preview"],
