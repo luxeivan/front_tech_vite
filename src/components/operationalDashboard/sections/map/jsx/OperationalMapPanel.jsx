@@ -283,7 +283,8 @@ const getFeaturePoNames = (feature) => {
 
 const getFeatureFilialName = (feature) => getFeatureFilialNames(feature)[0] || "";
 
-const getFeaturePoName = (feature) => getFeaturePoNames(feature)[0] || "";
+const getFeaturePoName = (feature) =>
+  String(feature?.get?.("primary_po_name") || "").trim() || getFeaturePoNames(feature)[0] || "";
 
 const getFeatureAreaName = (feature, areaGroup) => {
   if (areaGroup === "po") return getFeaturePoName(feature);
@@ -742,7 +743,10 @@ const buildGroupBoundaryFeatures = (features, group, getProperties) => {
 };
 
 const assignAreaLabels = (features, labelGroup) => {
-  features.forEach((feature) => feature.set("area_label", ""));
+  features.forEach((feature) => {
+    feature.set("area_label", "");
+    feature.set("primary_po_name", "");
+  });
   if (labelGroup !== "po") return;
 
   const groups = new Map();
@@ -779,6 +783,9 @@ const assignAreaLabels = (features, labelGroup) => {
       usedLabelFeatures.add(labelFeature);
       const currentLabel = String(labelFeature.get("area_label") || "").trim();
       labelFeature.set("area_label", currentLabel ? `${currentLabel}\n${group.name}` : group.name);
+      if (!String(labelFeature.get("primary_po_name") || "").trim()) {
+        labelFeature.set("primary_po_name", group.name);
+      }
     });
 };
 
