@@ -11,6 +11,7 @@ import VectorSource from "ol/source/Vector";
 import XYZ from "ol/source/XYZ";
 import MultiLineString from "ol/geom/MultiLineString";
 import { fromLonLat } from "ol/proj";
+import { getRenderPixel } from "ol/render";
 import { defaults as defaultInteractions } from "ol/interaction/defaults";
 import Style from "ol/style/Style";
 import Fill from "ol/style/Fill";
@@ -227,6 +228,59 @@ const createRgisBaseLayer = () =>
 
 const getIsRgisDetailMode = (zoom) =>
   Number.isFinite(Number(zoom)) && Number(zoom) >= RGIS_DETAIL_ZOOM;
+
+const getGeometryPolygons = (geometry) => {
+  if (!geometry) return [];
+  if (geometry.getType() === "Polygon") return [geometry.getCoordinates()];
+  if (geometry.getType() === "MultiPolygon") return geometry.getCoordinates();
+  return [];
+};
+
+const clipContextToSourceFeatures = (event, map, source) => {
+  const context = event.context;
+  if (!context || !map || !source?.getFeatures?.().length) return false;
+
+  context.save();
+  context.beginPath();
+
+  source.getFeatures().forEach((feature) => {
+    getGeometryPolygons(feature.getGeometry()).forEach((polygon) => {
+      polygon.forEach((ring) => {
+        ring.forEach((coordinate, index) => {
+          const [pixelX, pixelY] = getRenderPixel(event, map.getPixelFromCoordinate(coordinate));
+          if (index === 0) {
+            context.moveTo(pixelX, pixelY);
+          } else {
+            context.lineTo(pixelX, pixelY);
+          }
+        });
+        context.closePath();
+      });
+    });
+  });
+
+  context.clip("evenodd");
+  return true;
+};
+
+const applyRgisBaseLayerClip = (layer, map, source) => {
+  let isContextClipped = false;
+  const handlePreRender = (event) => {
+    isContextClipped = clipContextToSourceFeatures(event, map, source);
+  };
+  const handlePostRender = (event) => {
+    if (isContextClipped) event.context?.restore?.();
+    isContextClipped = false;
+  };
+
+  layer.on("prerender", handlePreRender);
+  layer.on("postrender", handlePostRender);
+
+  return () => {
+    layer.un("prerender", handlePreRender);
+    layer.un("postrender", handlePostRender);
+  };
+};
 
 const getRgisOverlayFillColor = (color, opacity = 0.68) => {
   const hexMatch = String(color || "").match(/^#([0-9a-f]{6})$/i);
@@ -875,6 +929,7 @@ export default function OperationalMapPanel({
 
     let cancelled = false;
     const format = new GeoJSON();
+    const disposeRgisBaseLayerClip = applyRgisBaseLayerClip(rgisBaseLayer, map, districtSource);
 
     const applyFeatureCollection = (featureCollection, { fit = false } = {}) => {
       if (cancelled || !mapRef.current || !districtSourceRef.current) return;
@@ -918,6 +973,7 @@ export default function OperationalMapPanel({
       modeBoundarySource.addFeatures([...areaBoundaryFeatures, ...modeBoundaryFeatures]);
       districtLayerRef.current?.changed();
       districtLabelLayerRef.current?.changed();
+      rgisBaseLayer.changed();
       livePesLayer.changed();
       setMapFeaturesVersion((version) => version + 1);
       if (fit) fitMapToSource(view, districtSourceRef.current);
@@ -1153,6 +1209,7 @@ export default function OperationalMapPanel({
       map.un("singleclick", handleSingleClick);
       map.getTargetElement().removeEventListener("pointerleave", handlePointerLeave);
       resizeObserver.disconnect();
+      disposeRgisBaseLayerClip();
       livePesPolling?.stop?.();
       disposePesPopup();
       map.setTarget(null);
