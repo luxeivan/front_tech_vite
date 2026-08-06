@@ -64,6 +64,11 @@ const normalizeLookupName = (value) =>
     .trim()
     .toLowerCase();
 
+const isEmptyLookupValue = (value) => {
+  const normalized = normalizeLookupName(value);
+  return !normalized || normalized === "-" || normalized === "—";
+};
+
 const DISPCENTER_BRANCH_BY_NORMALIZED_NAME = new Map(
   Object.entries(OPERATIONAL_DISPCENTER_TO_BRANCH).map(([dispcenter, branch]) => [
     normalizeLookupName(dispcenter),
@@ -135,16 +140,39 @@ const normalizeDistrictLookupName = (value) =>
     .replace(/\s+/g, " ")
     .trim();
 
+const extractDistrictNameFromAddress = (address) => {
+  const value = String(address || "").replace(/\s+/g, " ").trim();
+  if (!value) return "";
+
+  const firstSegment = value.split(",")[0]?.trim();
+  if (
+    firstSegment &&
+    /^(?:(?:городской|муниципальный)\s+округ|г\.?\s*о\.?)\b/i.test(firstSegment)
+  ) {
+    return firstSegment;
+  }
+
+  const goMatch = value.match(/(?:городской|муниципальный)\s+округ\s+[^,]+/i);
+  if (goMatch?.[0]) return goMatch[0].trim();
+
+  const shortGoMatch = value.match(/г\.?\s*о\.?\s+[^,]+/i);
+  if (shortGoMatch?.[0]) return shortGoMatch[0].trim();
+
+  return value;
+};
+
 const normalizePesBranchKey = (value) => normalizeLookupName(normalizeBranchName(value));
 
+const normalizePesPoKey = (value) => (isEmptyLookupValue(value) ? "" : normalizeLookupName(value));
+
 const buildPesPoCountKey = (branchName, poName) =>
-  `${normalizePesBranchKey(branchName)}|||${normalizeLookupName(poName)}`;
+  `${normalizePesBranchKey(branchName)}|||${normalizePesPoKey(poName)}`;
 
 const buildPesOkrugBranchCountKey = (branchName, okrugName) =>
   `${normalizePesBranchKey(branchName)}|||${normalizeDistrictLookupName(okrugName)}`;
 
 const buildPesOkrugPoCountKey = (branchName, poName, okrugName) =>
-  `${normalizePesBranchKey(branchName)}|||${normalizeLookupName(poName)}|||${normalizeDistrictLookupName(
+  `${normalizePesBranchKey(branchName)}|||${normalizePesPoKey(poName)}|||${normalizeDistrictLookupName(
     okrugName
   )}`;
 
@@ -163,7 +191,33 @@ const isDashboardActivePes = (item) => {
   return PES_DASHBOARD_ACTIVE_STATUSES.has(status);
 };
 
-export const buildPesDashboardCountMaps = (items = []) => {
+const buildDestinationLookup = (destinations = []) =>
+  (Array.isArray(destinations) ? destinations : []).reduce((acc, destination) => {
+    const id = String(destination?.id || "").trim();
+    if (id) acc.set(id, destination);
+    return acc;
+  }, new Map());
+
+const getPesDashboardLocation = (item, destinationById) => {
+  const destinationId = String(item?.destination?.id || "").trim();
+  const destinationType = String(item?.destination?.type || "").trim();
+  const destination =
+    destinationId && destinationType === "assembly" ? destinationById.get(destinationId) : null;
+
+  return {
+    branch: destination?.branch || item?.branch,
+    po: destination?.po || item?.po,
+    district:
+      destination?.district ||
+      extractDistrictNameFromAddress(destination?.address) ||
+      item?.destination?.district ||
+      item?.district ||
+      extractDistrictNameFromAddress(item?.destination?.address),
+  };
+};
+
+export const buildPesDashboardCountMaps = (items = [], destinations = []) => {
+  const destinationById = buildDestinationLookup(destinations);
   const counts = {
     byBranchKey: new Map(),
     byPoKey: new Map(),
@@ -173,11 +227,9 @@ export const buildPesDashboardCountMaps = (items = []) => {
   };
 
   (Array.isArray(items) ? items : []).filter(isDashboardActivePes).forEach((item) => {
-    const branch = item?.branch;
-    const po = item?.po;
-    const district = item?.district;
+    const { branch, po, district } = getPesDashboardLocation(item, destinationById);
     const branchKey = normalizePesBranchKey(branch);
-    const poKey = normalizeLookupName(po);
+    const poKey = normalizePesPoKey(po);
 
     incrementMap(counts.byBranchKey, branchKey);
     incrementMap(counts.byPoKey, buildPesPoCountKey(branch, po));

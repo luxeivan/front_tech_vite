@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Table } from "antd";
 import { Link } from "react-router-dom";
+import axios from "axios";
 
 import BrandSunLoader from "../../../../ui/BrandSunLoader";
 import useAuth from "../../../../../stores/useAuth";
@@ -97,6 +98,20 @@ const OPERATIONAL_PO_COLUMN_WIDTHS = {
 
 const PES_DASHBOARD_POLL_MS = 10000;
 
+function getBackendBase() {
+  const a = String(import.meta.env.VITE_URL_BACKEND_SERVICES || "").trim();
+  const b = String(import.meta.env.VITE_URL_BACKEND || "").trim();
+  return (a || b).replace(/\/$/, "");
+}
+
+const fetchPesAssemblyDestinations = async () => {
+  const base = getBackendBase();
+  const { data } = await axios.get(`${base}/services/pes/module/destinations`, {
+    params: { destinationType: "assembly" },
+  });
+  return Array.isArray(data?.assembly) ? data.assembly : [];
+};
+
 export default function OperationalDistrictsPanel({
   className = "",
   basePath = "/dashboard-oo",
@@ -113,6 +128,7 @@ export default function OperationalDistrictsPanel({
   const pesItems = usePesModuleDataStore((store) => store.items);
   const loadPesItems = usePesModuleDataStore((store) => store.loadItems);
   const [filialRows, setFilialRows] = useState([]);
+  const [pesAssemblyDestinations, setPesAssemblyDestinations] = useState([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -123,6 +139,22 @@ export default function OperationalDistrictsPanel({
       })
       .catch(() => {
         if (!cancelled) setFilialRows([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetchPesAssemblyDestinations()
+      .then((nextRows) => {
+        if (!cancelled) setPesAssemblyDestinations(nextRows);
+      })
+      .catch(() => {
+        if (!cancelled) setPesAssemblyDestinations([]);
       });
 
     return () => {
@@ -148,7 +180,10 @@ export default function OperationalDistrictsPanel({
     };
   }, [loadPesItems, user]);
 
-  const pesCountMaps = useMemo(() => buildPesDashboardCountMaps(pesItems), [pesItems]);
+  const pesCountMaps = useMemo(
+    () => buildPesDashboardCountMaps(pesItems, pesAssemblyDestinations),
+    [pesAssemblyDestinations, pesItems]
+  );
 
   const dataSource = useMemo(() => {
     let branchRows;
