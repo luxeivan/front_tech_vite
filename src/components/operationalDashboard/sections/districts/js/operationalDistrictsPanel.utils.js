@@ -134,9 +134,18 @@ const uniqueNames = (names) => {
   });
 };
 
+const sortRuNames = (names) =>
+  [...names].sort((left, right) => String(left || "").localeCompare(String(right || ""), "ru"));
+
 const normalizeDistrictLookupName = (value) =>
   normalizeLookupName(value)
-    .replace(/\b(?:городской|муниципальный|город|округ|район|г о|го)\b/giu, " ")
+    .replace(/(^|\s)г\s*\.?\s*о\s*\.?(?=\s|$)/giu, " ")
+    .replace(/(^|\s)г\s*\.?(?=\s|$)/giu, " ")
+    .replace(/[.,;:()[\]{}«»"'`]/g, " ")
+    .replace(
+      /(^|[^а-яa-z0-9]+)(?:городской|муниципальный|город|округ|район|го)(?=$|[^а-яa-z0-9]+)/giu,
+      " "
+    )
     .replace(/\s+/g, " ")
     .trim();
 
@@ -333,14 +342,14 @@ const createOkrugRow = (okrugRow) => {
 
 export const buildOperationalBranchRows = (rows, filialRows = [], pesCountMaps = null) => {
   const branchResources = buildBranchResourceMap(filialRows);
-  const sourceBranches = uniqueNames(
+  const sourceBranches = sortRuNames(uniqueNames(
     Array.isArray(filialRows) && filialRows.length
       ? filialRows
           .filter((filialRow) => filialRow?.is_active !== false)
           .map((filialRow) => normalizeBranchName(filialRow?.name))
           .filter(Boolean)
       : OPERATIONAL_BRANCHES
-  );
+  ));
   const branchMap = new Map(
     sourceBranches.map((branch) => [branch, createBranchRow(branch, branchResources)])
   );

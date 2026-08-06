@@ -41,11 +41,6 @@ export default function Header() {
       action: "click_dashboard",
       label: "Дашборд",
     },
-    {
-      path: "/pes",
-      action: "click_pes_module",
-      label: "Модуль ПЭС",
-    },
     ...(canSeeOperationalDashboard
       ? [
           {
@@ -55,6 +50,11 @@ export default function Header() {
           },
         ]
       : []),
+    {
+      path: "/pes",
+      action: "click_pes_module",
+      label: "Модуль ПЭС",
+    },
     ...(canSeeAuditLogs
       ? [
           {
