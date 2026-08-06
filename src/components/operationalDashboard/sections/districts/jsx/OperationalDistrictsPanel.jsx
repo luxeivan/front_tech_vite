@@ -5,8 +5,6 @@ import { Link } from "react-router-dom";
 import BrandSunLoader from "../../../../ui/BrandSunLoader";
 import useOperationalDashboardStore from "../../../../../stores/operationalDashboard/useOperationalDashboardStore";
 import { fetchTnFilialyRows } from "../../../../../utils/tnFilialyApi";
-import { fetchTnOkrugaRelationRows } from "../../../../../utils/tnOkrugaApi";
-import { fetchTnPoRows } from "../../../../../utils/tnPosApi";
 import {
   getOperationalFilialPathForBase,
   getOperationalPoPath,
@@ -101,12 +99,8 @@ export default function OperationalDistrictsPanel({
   const isLoading = useOperationalDashboardStore((store) => store.isLoading);
   const hasLoaded = useOperationalDashboardStore((store) => store.hasLoaded);
   const [filialRows, setFilialRows] = useState([]);
-  const [poRows, setPoRows] = useState([]);
-  const [okrugaRows, setOkrugaRows] = useState([]);
 
   useEffect(() => {
-    if (groupBy !== "filial") return undefined;
-
     let cancelled = false;
 
     fetchTnFilialyRows()
@@ -120,37 +114,19 @@ export default function OperationalDistrictsPanel({
     return () => {
       cancelled = true;
     };
-  }, [groupBy]);
-
-  useEffect(() => {
-    if (groupBy === "filial") return undefined;
-
-    let cancelled = false;
-
-    Promise.allSettled([fetchTnPoRows(), fetchTnOkrugaRelationRows()]).then((results) => {
-      if (cancelled) return;
-
-      const [poResult, okrugaResult] = results;
-      setPoRows(poResult.status === "fulfilled" ? poResult.value : []);
-      setOkrugaRows(okrugaResult.status === "fulfilled" ? okrugaResult.value : []);
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [groupBy]);
+  }, []);
 
   const dataSource = useMemo(() => {
     let branchRows;
     if (groupBy === "okrug") {
-      branchRows = buildOperationalOkrugRows(rows, okrugaRows, filialName, poName, poSlug);
+      branchRows = buildOperationalOkrugRows(rows, filialRows, filialName, poName, poSlug);
     } else if (groupBy === "po") {
-      branchRows = buildOperationalPoRows(rows, poRows, filialName, okrugaRows);
+      branchRows = buildOperationalPoRows(rows, filialRows, filialName);
     } else {
       branchRows = buildOperationalBranchRows(rows, filialRows);
     }
     return [...branchRows, buildOperationalBranchSummary(branchRows)];
-  }, [filialName, filialRows, groupBy, okrugaRows, poName, poRows, poSlug, rows]);
+  }, [filialName, filialRows, groupBy, poName, poSlug, rows]);
 
   const columns = useMemo(
     () =>

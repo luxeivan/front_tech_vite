@@ -10,6 +10,7 @@ const EVENTS_ENDPOINT = SERVICES_URL
   : "";
 const PAGE_SIZE = 100;
 const CACHE_TTL_MS = 5 * 60 * 1000;
+const TN_FILIALIES_STATUS = "draft";
 
 let cachedTnFilialyRows = null;
 let cachedTnFilialyRowsAt = 0;
@@ -27,6 +28,43 @@ const mapStrapiItem = (item) =>
   item?.attributes
     ? { id: item.id, documentId: item.documentId, ...item.attributes }
     : item;
+
+export const unwrapTnFilialyRelation = (relation) => {
+  if (!relation) return null;
+  if (Array.isArray(relation)) return relation.map(mapStrapiItem).filter(Boolean);
+  if (Array.isArray(relation.data)) return relation.data.map(mapStrapiItem).filter(Boolean);
+  if (relation.data) return mapStrapiItem(relation.data);
+  return mapStrapiItem(relation);
+};
+
+const toRelationList = (...relations) =>
+  relations.flatMap((relation) => {
+    const value = unwrapTnFilialyRelation(relation);
+    if (Array.isArray(value)) return value;
+    return value ? [value] : [];
+  });
+
+const getRelationKey = (row) =>
+  String(row?.documentId || row?.id || row?.name || "").trim();
+
+const uniqueRelationsByKey = (rows) => {
+  const seen = new Set();
+  return rows.filter((row) => {
+    const key = getRelationKey(row);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+export const getTnFilialyOkrugaRows = (filialRow) =>
+  uniqueRelationsByKey(toRelationList(filialRow?.tn_okruga, filialRow?.tn_okrugs));
+
+export const getTnFilialyPoRows = (filialRow) =>
+  uniqueRelationsByKey(toRelationList(filialRow?.tn_pos, filialRow?.tn_po));
+
+export const getTnFilialyPoOkrugaRows = (poRow) =>
+  uniqueRelationsByKey(toRelationList(poRow?.tn_okruga, poRow?.tn_okrugs));
 
 export const getTnFilialyWriteId = (row) => row?.documentId || row?.id;
 
@@ -80,9 +118,31 @@ export async function fetchTnFilialyRows(options = {}) {
     do {
       const { data } = await axios.get(TN_FILIALIES_ENDPOINT, {
         params: {
+          status: TN_FILIALIES_STATUS,
           "filters[is_active][$eq]": true,
+          "fields[0]": "name",
+          "fields[1]": "rezim",
+          "fields[2]": "is_active",
+          "fields[3]": "sort_order",
+          "fields[4]": "ovb",
+          "fields[5]": "osn_resours",
           "pagination[page]": page,
           "pagination[pageSize]": PAGE_SIZE,
+          "populate[tn_okruga][fields][0]": "name",
+          "populate[tn_okruga][fields][1]": "source_name",
+          "populate[tn_okruga][fields][2]": "geometry",
+          "populate[tn_okruga][fields][3]": "properties",
+          "populate[tn_okruga][fields][4]": "sort_order",
+          "populate[tn_okruga][fields][5]": "is_active",
+          "populate[tn_pos][fields][0]": "name",
+          "populate[tn_pos][fields][1]": "sort_order",
+          "populate[tn_pos][fields][2]": "is_active",
+          "populate[tn_pos][populate][tn_okruga][fields][0]": "name",
+          "populate[tn_pos][populate][tn_okruga][fields][1]": "source_name",
+          "populate[tn_pos][populate][tn_okruga][fields][2]": "geometry",
+          "populate[tn_pos][populate][tn_okruga][fields][3]": "properties",
+          "populate[tn_pos][populate][tn_okruga][fields][4]": "sort_order",
+          "populate[tn_pos][populate][tn_okruga][fields][5]": "is_active",
           "sort[0]": "sort_order:asc",
         },
         headers: getAuthHeaders(),
@@ -129,3 +189,91 @@ export const buildTnFilialySelectOptions = (rows) =>
       label: formatTnFilialyName(row.name),
       value: getTnFilialyWriteId(row),
     }));
+
+export const buildTnFilialyTopologyOkrugaRows = (
+  filialRows,
+  {
+    filialName = "",
+    poName = "",
+    poSlug = "",
+    normalizeFilialName = (value) => String(value || "").trim().toLowerCase(),
+    normalizePoName = (value) => String(value || "").trim().toLowerCase(),
+    getPoSlug = (value) => String(value || "").trim().toLowerCase(),
+  } = {}
+) => {
+  const normalizedFilialName = normalizeFilialName(filialName);
+  const normalizedPoName = normalizePoName(poName);
+  const normalizedPoSlug = String(poSlug || "").trim();
+  const rowsByKey = new Map();
+
+  const addOkrug = (filialRow, okrugRow, poRowsForOkrug = []) => {
+    if (!okrugRow?.geometry || okrugRow?.is_active === false) return;
+    const okrugKey = getRelationKey(okrugRow);
+    if (!okrugKey) return;
+
+    const existing = rowsByKey.get(okrugKey);
+    const existingPoRows = toRelationList(existing?.tn_pos);
+    const enrichedPoRows = poRowsForOkrug.map((poRow) => ({
+      ...poRow,
+      tn_filialy: poRow?.tn_filialy || filialRow,
+      tn_filialies: uniqueRelationsByKey([...toRelationList(poRow?.tn_filialies), filialRow]),
+    }));
+    const nextPoRows = uniqueRelationsByKey([...existingPoRows, ...enrichedPoRows]);
+
+    rowsByKey.set(okrugKey, {
+      ...okrugRow,
+      tn_filialies: uniqueRelationsByKey([
+        ...toRelationList(existing?.tn_filialies),
+        filialRow,
+      ]),
+      tn_pos: nextPoRows,
+    });
+  };
+
+  (Array.isArray(filialRows) ? filialRows : [])
+    .filter((filialRow) => {
+      if (filialRow?.is_active === false) return false;
+      if (!normalizedFilialName) return true;
+      return normalizeFilialName(filialRow?.name) === normalizedFilialName;
+    })
+    .forEach((filialRow) => {
+      const filialPoRows = getTnFilialyPoRows(filialRow).filter(
+        (poRow) => poRow?.is_active !== false
+      );
+      const selectedPoRows = filialPoRows.filter((poRow) => {
+        if (!normalizedPoName && !normalizedPoSlug) return true;
+        const rowPoName = poRow?.name;
+        return (
+          (normalizedPoName && normalizePoName(rowPoName) === normalizedPoName) ||
+          (normalizedPoSlug && getPoSlug(rowPoName) === normalizedPoSlug)
+        );
+      });
+      const poRowsForDirectOkrug =
+        normalizedPoName || normalizedPoSlug ? selectedPoRows : filialPoRows;
+
+      getTnFilialyOkrugaRows(filialRow).forEach((okrugRow) => {
+        const matchingPoRows = poRowsForDirectOkrug.filter((poRow) =>
+          getTnFilialyPoOkrugaRows(poRow).some(
+            (poOkrugRow) => getRelationKey(poOkrugRow) === getRelationKey(okrugRow)
+          )
+        );
+
+        if (normalizedPoName || normalizedPoSlug) {
+          if (matchingPoRows.length) addOkrug(filialRow, okrugRow, matchingPoRows);
+          return;
+        }
+
+        addOkrug(filialRow, okrugRow, matchingPoRows);
+      });
+
+      selectedPoRows.forEach((poRow) => {
+        getTnFilialyPoOkrugaRows(poRow).forEach((okrugRow) => {
+          addOkrug(filialRow, okrugRow, [poRow]);
+        });
+      });
+    });
+
+  return Array.from(rowsByKey.values()).sort(
+    (left, right) => Number(left?.sort_order || 0) - Number(right?.sort_order || 0)
+  );
+};

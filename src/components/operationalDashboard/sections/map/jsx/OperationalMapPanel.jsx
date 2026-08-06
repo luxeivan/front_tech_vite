@@ -36,9 +36,6 @@ import {
 } from "../js/operationalMapPanel.config";
 import {
   buildTnOkrugaFeatureCollection,
-  fetchTnOkrugaRows,
-  getTnOkrugaFilialRows,
-  getTnOkrugaPoRows,
 } from "../../../../../utils/tnOkrugaApi";
 import {
   getOperationalFilialPathForBase,
@@ -47,6 +44,8 @@ import {
   normalizeOperationalFilialName,
 } from "../../../../../utils/operationalFilialRoutes";
 import {
+  buildTnFilialyTopologyOkrugaRows,
+  fetchTnFilialyRows,
   TN_FILIALY_REZIM_UPDATED_EVENT,
   TN_FILIALY_REZIM_UPDATED_STORAGE_KEY,
 } from "../../../../../utils/tnFilialyApi";
@@ -200,7 +199,7 @@ const MODE_BOUNDARY_STYLE = (feature) =>
 const MAP_FALLBACK_CENTER = [38.25, 55.58];
 const MAP_FALLBACK_ZOOM = 8;
 const MAP_FIT_PADDING = [10, 6, 8, 6];
-const TN_OKRUGA_MAP_CACHE_KEY = "operationalDashboard.tnOkrugaRows.filialModes.v4";
+const TN_OKRUGA_MAP_CACHE_KEY = "operationalDashboard.tnFilialyTopologyRows.legacy.v2";
 const PES_MARKER_AREA_POINTS = [
   [-0.24, -0.16],
   [0.24, 0.16],
@@ -263,15 +262,58 @@ const getModeStrokeColor = (mode) => {
   return OPERATIONAL_MAP_MODE_STROKE_COLORS[normalizedMode] || null;
 };
 
-const getFeatureFilialName = (feature) =>
-  String(feature?.get?.("filial_name") || "").trim();
+const toFeatureNameList = (value) => {
+  if (Array.isArray(value)) return value.map((item) => String(item || "").trim()).filter(Boolean);
+  const name = String(value || "").trim();
+  return name ? [name] : [];
+};
 
-const getFeaturePoName = (feature) =>
-  String(feature?.get?.("po_name") || "").trim();
+const getFeatureFilialNames = (feature) => {
+  const names = toFeatureNameList(feature?.get?.("filial_names"));
+  return names.length ? names : toFeatureNameList(feature?.get?.("filial_name"));
+};
+
+const getFeaturePoNames = (feature) => {
+  const visibleNames = feature?.get?.("visible_po_names");
+  if (Array.isArray(visibleNames)) return toFeatureNameList(visibleNames);
+
+  const names = toFeatureNameList(feature?.get?.("po_names"));
+  return names.length ? names : toFeatureNameList(feature?.get?.("po_name"));
+};
+
+const getFeatureFilialName = (feature) => getFeatureFilialNames(feature)[0] || "";
+
+const getFeaturePoName = (feature) => getFeaturePoNames(feature)[0] || "";
 
 const getFeatureAreaName = (feature, areaGroup) => {
   if (areaGroup === "po") return getFeaturePoName(feature);
   return getFeatureFilialName(feature);
+};
+
+const getFeaturePoRelations = (feature) => {
+  const relations = feature?.get?.("po_relations");
+  return Array.isArray(relations) ? relations : [];
+};
+
+const assignVisiblePoNames = (features, activeFilialName) => {
+  const normalizedFilialName = normalizeOperationalFilialName(activeFilialName);
+
+  features.forEach((feature) => {
+    if (!normalizedFilialName) {
+      feature.set("visible_po_names", getFeaturePoNames(feature));
+      return;
+    }
+
+    const visiblePoNames = getFeaturePoRelations(feature)
+      .filter(
+        (relation) =>
+          normalizeOperationalFilialName(relation?.filial_name) === normalizedFilialName
+      )
+      .map((relation) => relation?.name)
+      .filter(Boolean);
+
+    feature.set("visible_po_names", [...new Set(visiblePoNames)]);
+  });
 };
 
 const getFeatureLabelName = (feature, labelGroup) => {
@@ -287,6 +329,12 @@ const getFeatureHoverName = (feature, hoverGroup) => {
   return getFeatureFilialName(feature);
 };
 
+const getFeatureHoverNames = (feature, hoverGroup) => {
+  if (hoverGroup === "po") return getFeaturePoNames(feature);
+  if (hoverGroup === "none") return [];
+  return getFeatureFilialNames(feature);
+};
+
 const normalizePesFilialName = (value) =>
   normalizeOperationalMapAreaName(normalizeBranchName(value));
 
@@ -299,10 +347,11 @@ const isActivePesMarkerItem = (item) =>
 
 const isFeatureInHoverGroup = (feature, hoverGroup, hoverName) => {
   if (!hoverName) return false;
-  const featureHoverName = getFeatureHoverName(feature, hoverGroup);
-  return (
-    featureHoverName === hoverName ||
-    normalizeOperationalMapAreaName(featureHoverName) === normalizeOperationalMapAreaName(hoverName)
+  const normalizedHoverName = normalizeOperationalMapAreaName(hoverName);
+  return getFeatureHoverNames(feature, hoverGroup).some(
+    (featureHoverName) =>
+      featureHoverName === hoverName ||
+      normalizeOperationalMapAreaName(featureHoverName) === normalizedHoverName
   );
 };
 
@@ -592,39 +641,6 @@ const wrapMapLabel = (value, compact = false) => {
   return lines.join("\n");
 };
 
-const getRowsByFilialName = (rows, filialName) => {
-  const normalizedFilialName = normalizeOperationalFilialName(filialName);
-  if (!normalizedFilialName) return rows;
-
-  return (Array.isArray(rows) ? rows : []).filter(
-    (row) => {
-      return getTnOkrugaFilialRows(row).some(
-        (relation) =>
-          normalizeOperationalFilialName(
-            relation?.name || relation?.attributes?.name || relation?.data?.attributes?.name
-          ) === normalizedFilialName
-      );
-    }
-  );
-};
-
-const getRowsByPoName = (rows, poName, poSlug) => {
-  const normalizedPoName = normalizeOperationalFilialName(poName);
-  const normalizedPoSlug = String(poSlug || "").trim();
-  if (!normalizedPoName && !normalizedPoSlug) return rows;
-
-  return (Array.isArray(rows) ? rows : []).filter((row) =>
-    getTnOkrugaPoRows(row).some((relation) => {
-      const relationName =
-        relation?.name || relation?.attributes?.name || relation?.data?.attributes?.name;
-      return (
-        (normalizedPoName && normalizeOperationalFilialName(relationName) === normalizedPoName) ||
-        (normalizedPoSlug && getOperationalPoSlug(relationName) === normalizedPoSlug)
-      );
-    })
-  );
-};
-
 const readCachedTnOkrugaRows = () => {
   try {
     const rawRows = window.localStorage.getItem(TN_OKRUGA_MAP_CACHE_KEY);
@@ -697,26 +713,27 @@ const buildBoundaryFeature = (features, properties = {}) => {
   return feature;
 };
 
-const getBoundaryGroupName = (feature, group) => {
-  if (group === "po") return getFeaturePoName(feature);
-  return getFeatureFilialName(feature);
+const getBoundaryGroupNames = (feature, group) => {
+  if (group === "po") return getFeaturePoNames(feature);
+  return getFeatureFilialNames(feature);
 };
 
 const buildGroupBoundaryFeatures = (features, group, getProperties) => {
   const groups = new Map();
 
   features.forEach((feature) => {
-    const groupName = getBoundaryGroupName(feature, group);
-    if (!groupName) return;
+    getBoundaryGroupNames(feature, group).forEach((groupName) => {
+      if (!groupName) return;
 
-    const key = normalizeOperationalMapAreaName(groupName);
-    if (!groups.has(key)) {
-      groups.set(key, {
-        name: groupName,
-        features: [],
-      });
-    }
-    groups.get(key).features.push(feature);
+      const key = normalizeOperationalMapAreaName(groupName);
+      if (!groups.has(key)) {
+        groups.set(key, {
+          name: groupName,
+          features: [],
+        });
+      }
+      groups.get(key).features.push(feature);
+    });
   });
 
   return Array.from(groups.values())
@@ -730,25 +747,39 @@ const assignAreaLabels = (features, labelGroup) => {
 
   const groups = new Map();
   features.forEach((feature) => {
-    const areaName = getFeatureAreaName(feature, labelGroup);
-    const areaKey = normalizeOperationalMapAreaName(areaName);
-    if (!areaKey) return;
+    const areaNames =
+      labelGroup === "po" ? getFeaturePoNames(feature) : [getFeatureAreaName(feature, labelGroup)];
+    areaNames.forEach((areaName) => {
+      const areaKey = normalizeOperationalMapAreaName(areaName);
+      if (!areaKey) return;
 
-    if (!groups.has(areaKey)) {
-      groups.set(areaKey, {
-        name: areaName,
-        features: [],
-      });
-    }
-    groups.get(areaKey).features.push(feature);
+      if (!groups.has(areaKey)) {
+        groups.set(areaKey, {
+          name: areaName,
+          features: [],
+        });
+      }
+      groups.get(areaKey).features.push(feature);
+    });
   });
 
-  groups.forEach((group) => {
-    const labelFeature = [...group.features].sort(
-      (left, right) => getFeatureExtentArea(right) - getFeatureExtentArea(left)
-    )[0];
-    labelFeature?.set("area_label", group.name);
-  });
+  const usedLabelFeatures = new Set();
+  Array.from(groups.values())
+    .sort((left, right) => left.features.length - right.features.length)
+    .forEach((group) => {
+      const labelFeature = [...group.features].sort(
+        (left, right) => {
+          const leftUsed = usedLabelFeatures.has(left) ? 1 : 0;
+          const rightUsed = usedLabelFeatures.has(right) ? 1 : 0;
+          if (leftUsed !== rightUsed) return leftUsed - rightUsed;
+          return getFeatureExtentArea(right) - getFeatureExtentArea(left);
+        }
+      )[0];
+      if (!labelFeature) return;
+      usedLabelFeatures.add(labelFeature);
+      const currentLabel = String(labelFeature.get("area_label") || "").trim();
+      labelFeature.set("area_label", currentLabel ? `${currentLabel}\n${group.name}` : group.name);
+    });
 };
 
 const getDistrictStyle = (
@@ -1086,6 +1117,7 @@ export default function OperationalMapPanel({
         featureProjection: "EPSG:3857",
       });
       districtSourceRef.current.clear();
+      assignVisiblePoNames(features, filialName);
       assignAreaLabels(features, fillGroup);
       districtSourceRef.current.addFeatures(features);
       filialHoverSource.clear();
@@ -1136,9 +1168,15 @@ export default function OperationalMapPanel({
     };
 
     const applyDistrictRows = (rows, options) => {
-      const filialRows = getRowsByFilialName(rows, filialName);
-      const filteredRows = getRowsByPoName(filialRows, poName, poSlug);
-      applyFeatureCollection(buildTnOkrugaFeatureCollection(filteredRows), options);
+      const topologyOkrugaRows = buildTnFilialyTopologyOkrugaRows(rows, {
+        filialName,
+        poName,
+        poSlug,
+        normalizeFilialName: normalizeOperationalFilialName,
+        normalizePoName: normalizeOperationalFilialName,
+        getPoSlug: getOperationalPoSlug,
+      });
+      applyFeatureCollection(buildTnOkrugaFeatureCollection(topologyOkrugaRows), options);
     };
 
     const loadFallbackFeatures = async () => {
@@ -1157,7 +1195,7 @@ export default function OperationalMapPanel({
 
     const loadDistrictFeatures = async ({ fit = false, force = false } = {}) => {
       try {
-        const rows = await fetchTnOkrugaRows({ force });
+        const rows = await fetchTnFilialyRows({ force });
         if (cancelled || !mapRef.current || !districtSourceRef.current) return;
         writeCachedTnOkrugaRows(rows);
         applyDistrictRows(rows, { fit });

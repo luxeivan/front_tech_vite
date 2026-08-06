@@ -15,11 +15,11 @@ import {
   OPERATIONAL_BRANCH_UNKNOWN_VALUE,
   OPERATIONAL_BRANCHES,
 } from "./operationalDistrictsPanel.config";
-import { unwrapFirstTnPoRelation } from "../../../../../utils/tnPosApi";
 import {
-  unwrapFirstTnOkrugaRelation,
-  unwrapTnOkrugaRelation,
-} from "../../../../../utils/tnOkrugaApi";
+  getTnFilialyOkrugaRows,
+  getTnFilialyPoOkrugaRows,
+  getTnFilialyPoRows,
+} from "../../../../../utils/tnFilialyApi";
 
 const EMPTY_NUMERIC_VALUES = {
   lep: 0,
@@ -103,11 +103,6 @@ const getFilialMainResource = (row) =>
 
 const getFilialOvb = (row) => row?.ovb;
 
-const getPoMainResource = (row) =>
-  row?.osn_resours ?? row?.osn_resours_count ?? row?.osn_resource ?? row?.mainResource;
-
-const getPoOvb = (row) => row?.ovb;
-
 const hasValue = (value) => value !== null && value !== undefined && value !== "";
 
 const getOperationalPoByRow = (row) => {
@@ -117,6 +112,16 @@ const getOperationalPoByRow = (row) => {
 
 const isSameNormalizedName = (left, right) =>
   normalizeLookupName(left) === normalizeLookupName(right);
+
+const uniqueNames = (names) => {
+  const seen = new Set();
+  return names.filter((name) => {
+    const key = normalizeLookupName(name);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
 
 const normalizeDistrictLookupName = (value) =>
   normalizeLookupName(value)
@@ -142,47 +147,21 @@ const isRowInPo = (row, poName, poSlug = "") => {
   );
 };
 
-const getPoFilialName = (poRow) => {
-  const filial = unwrapFirstTnPoRelation(poRow?.tn_filialy, poRow?.tn_filialies);
-  return filial?.name || null;
+const getFilialRowByName = (filialRows, filialName) => {
+  const normalizedBranchName = normalizeBranchName(filialName);
+  return (Array.isArray(filialRows) ? filialRows : []).find((filialRow) =>
+    isSameNormalizedName(normalizeBranchName(filialRow?.name), normalizedBranchName)
+  );
 };
 
-const getOkrugFilialName = (okrugRow) => {
-  const filial = unwrapFirstTnOkrugaRelation(okrugRow?.tn_filialy, okrugRow?.tn_filialies);
-  return filial?.name || null;
-};
-
-const getOkrugPoRows = (okrugRow) => {
-  const po = unwrapTnOkrugaRelation(okrugRow?.tn_po || okrugRow?.tn_pos);
-  if (Array.isArray(po)) return po;
-  return po ? [po] : [];
-};
-
-const isOkrugInPo = (okrugRow, poName, poSlug = "") => {
+const isPoRowSelected = (poRow, poName, poSlug = "") => {
   const normalizedPoName = normalizeLookupName(poName);
   const normalizedPoSlug = String(poSlug || "").trim();
   if (!normalizedPoName && !normalizedPoSlug) return true;
 
-  return getOkrugPoRows(okrugRow).some((poRow) => {
-    const relationName = poRow?.name;
-    return (
-      (normalizedPoName && normalizeLookupName(relationName) === normalizedPoName) ||
-      (normalizedPoSlug && getOperationalPoSlug(relationName) === normalizedPoSlug)
-    );
-  });
-};
-
-const isOkrugInBranch = (okrugRow, filialName) => {
-  const normalizedBranchName = normalizeBranchName(filialName);
-  if (!normalizedBranchName) return true;
-
-  const directFilialName = getOkrugFilialName(okrugRow);
-  if (isSameNormalizedName(normalizeBranchName(directFilialName), normalizedBranchName)) {
-    return true;
-  }
-
-  return getOkrugPoRows(okrugRow).some((poRow) =>
-    isSameNormalizedName(normalizeBranchName(getPoFilialName(poRow)), normalizedBranchName)
+  return (
+    (normalizedPoName && normalizeLookupName(poRow?.name) === normalizedPoName) ||
+    (normalizedPoSlug && getOperationalPoSlug(poRow?.name) === normalizedPoSlug)
   );
 };
 
@@ -202,22 +181,6 @@ const buildBranchResourceMap = (filialRows) =>
     return acc;
   }, new Map());
 
-const buildPoResourceMap = (poRows) =>
-  (Array.isArray(poRows) ? poRows : []).reduce((acc, row) => {
-    const poName = row?.name;
-    if (!poName) return acc;
-
-    const mainResource = getPoMainResource(row);
-    const ovb = getPoOvb(row);
-
-    acc.set(normalizeLookupName(poName), {
-      mainResource: hasValue(mainResource) ? mainResource : OPERATIONAL_BRANCH_UNKNOWN_VALUE,
-      ovb: hasValue(ovb) ? ovb : OPERATIONAL_BRANCH_UNKNOWN_VALUE,
-    });
-
-    return acc;
-  }, new Map());
-
 const createBranchRow = (branch, branchResources) => ({
   key: branch,
   branch,
@@ -227,16 +190,15 @@ const createBranchRow = (branch, branchResources) => ({
   ovb: branchResources?.get(branch)?.ovb ?? OPERATIONAL_BRANCH_UNKNOWN_VALUE,
 });
 
-const createPoRow = (poRow, poResources) => {
+const createPoRow = (poRow) => {
   const poName = poRow?.name || OPERATIONAL_BRANCH_UNKNOWN_VALUE;
-  const resources = poResources?.get(normalizeLookupName(poName));
 
   return {
     key: poRow?.documentId || poRow?.id || poName,
     branch: poName,
     ...EMPTY_NUMERIC_VALUES,
-    mainResource: resources?.mainResource ?? OPERATIONAL_BRANCH_UNKNOWN_VALUE,
-    ovb: resources?.ovb ?? OPERATIONAL_BRANCH_UNKNOWN_VALUE,
+    mainResource: OPERATIONAL_BRANCH_UNKNOWN_VALUE,
+    ovb: OPERATIONAL_BRANCH_UNKNOWN_VALUE,
   };
 };
 
@@ -253,8 +215,16 @@ const createOkrugRow = (okrugRow) => {
 
 export const buildOperationalBranchRows = (rows, filialRows = []) => {
   const branchResources = buildBranchResourceMap(filialRows);
+  const sourceBranches = uniqueNames(
+    Array.isArray(filialRows) && filialRows.length
+      ? filialRows
+          .filter((filialRow) => filialRow?.is_active !== false)
+          .map((filialRow) => normalizeBranchName(filialRow?.name))
+          .filter(Boolean)
+      : OPERATIONAL_BRANCHES
+  );
   const branchMap = new Map(
-    OPERATIONAL_BRANCHES.map((branch) => [branch, createBranchRow(branch, branchResources)])
+    sourceBranches.map((branch) => [branch, createBranchRow(branch, branchResources)])
   );
 
   (Array.isArray(rows) ? rows : [])
@@ -266,15 +236,14 @@ export const buildOperationalBranchRows = (rows, filialRows = []) => {
       addRowToTotals(branchMap.get(branch), row);
     });
 
-  const ordered = OPERATIONAL_BRANCHES.map((branch) => branchMap.get(branch)).filter(Boolean);
+  const ordered = sourceBranches.map((branch) => branchMap.get(branch)).filter(Boolean);
   return ordered;
 };
 
-export const buildOperationalPoRows = (rows, poRows = [], filialName = "", okrugaRows = []) => {
-  const normalizedBranchName = normalizeBranchName(filialName);
-  const poResources = buildPoResourceMap(poRows);
-  const filteredPoRows = (Array.isArray(poRows) ? poRows : []).filter((poRow) =>
-    isSameNormalizedName(normalizeBranchName(getPoFilialName(poRow)), normalizedBranchName)
+export const buildOperationalPoRows = (rows, filialRows = [], filialName = "") => {
+  const filialRow = getFilialRowByName(filialRows, filialName);
+  const filteredPoRows = getTnFilialyPoRows(filialRow).filter(
+    (poRow) => poRow?.is_active !== false
   );
   const poMap = new Map();
 
@@ -284,17 +253,10 @@ export const buildOperationalPoRows = (rows, poRows = [], filialName = "", okrug
     const poName = poRow?.name;
     const poKey = normalizeLookupName(poName);
     if (!poKey || poMap.has(poKey)) return;
-    poMap.set(poKey, createPoRow(poRow, poResources));
+    poMap.set(poKey, createPoRow(poRow));
   };
 
   filteredPoRows.forEach(addPoReferenceRow);
-
-  (Array.isArray(okrugaRows) ? okrugaRows : [])
-    .filter((okrugRow) =>
-      isSameNormalizedName(normalizeBranchName(getOkrugFilialName(okrugRow)), normalizedBranchName)
-    )
-    .flatMap(getOkrugPoRows)
-    .forEach(addPoReferenceRow);
 
   (Array.isArray(rows) ? rows : [])
     .filter((row) => isOperationalDashboardRow(row) && isOpenTN(row) && isRowInBranch(row, filialName))
@@ -321,22 +283,24 @@ export const buildOperationalPoRows = (rows, poRows = [], filialName = "", okrug
 
 export const buildOperationalOkrugRows = (
   rows,
-  okrugaRows = [],
+  filialRows = [],
   filialName = "",
   poName = "",
   poSlug = ""
 ) => {
-  const normalizedBranchName = normalizeBranchName(filialName);
+  const filialRow = getFilialRowByName(filialRows, filialName);
+  const selectedPoRows = getTnFilialyPoRows(filialRow).filter(
+    (poRow) => poRow?.is_active !== false && isPoRowSelected(poRow, poName, poSlug)
+  );
+  const referenceOkrugaRows =
+    poName || poSlug
+      ? selectedPoRows.flatMap(getTnFilialyPoOkrugaRows)
+      : getTnFilialyOkrugaRows(filialRow);
   const okrugMap = new Map();
   const okrugNameByKey = new Map();
 
-  (Array.isArray(okrugaRows) ? okrugaRows : [])
-    .filter(
-      (okrugRow) =>
-        okrugRow?.is_active !== false &&
-        isOkrugInBranch(okrugRow, normalizedBranchName) &&
-        isOkrugInPo(okrugRow, poName, poSlug)
-    )
+  referenceOkrugaRows
+    .filter((okrugRow) => okrugRow?.is_active !== false)
     .forEach((okrugRow) => {
       const row = createOkrugRow(okrugRow);
       const keys = [

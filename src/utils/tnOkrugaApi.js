@@ -168,8 +168,16 @@ export const buildTnOkrugaFeatureCollection = (rows) => ({
   features: (Array.isArray(rows) ? rows : [])
     .filter((row) => row?.geometry)
     .map((row) => {
-      const filial = getTnOkrugaFilialRows(row)[0] || null;
-      const po = getTnOkrugaPoRows(row)[0] || null;
+      const filialRows = getTnOkrugaFilialRows(row);
+      const poRows = getTnOkrugaPoRows(row);
+      const poRelations = poRows
+        .map((item) => ({
+          name: item?.name || "",
+          filial_name: getTnPoFilialRow(item)?.name || "",
+        }))
+        .filter((item) => item.name);
+      const filial = filialRows[0] || null;
+      const po = poRows[0] || null;
 
       return {
         type: "Feature",
@@ -180,8 +188,11 @@ export const buildTnOkrugaFeatureCollection = (rows) => ({
           name: row.name,
           source_name: row.source_name,
           filial_name: filial?.name || null,
+          filial_names: filialRows.map((item) => item?.name).filter(Boolean),
           filial_rezim: filial?.rezim || null,
           po_name: po?.name || null,
+          po_names: poRows.map((item) => item?.name).filter(Boolean),
+          po_relations: poRelations,
           rezim: filial?.rezim || row.rezim,
           sort_order: row.sort_order,
         },

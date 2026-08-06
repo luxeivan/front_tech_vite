@@ -14,23 +14,26 @@ import {
   getOperationalPoSlug,
 } from "../../utils/operationalFilialRoutes";
 import {
-  fetchTnOkrugaRows,
-  getTnOkrugaPoRows,
-} from "../../utils/tnOkrugaApi";
+  fetchTnFilialyRows,
+  getTnFilialyPoRows,
+} from "../../utils/tnFilialyApi";
 import "../../components/operationalDashboard/css/OperationalDashboard.css";
 import "./OperationalFilialPage.css";
 
-const getPoNameBySlug = (okrugaRows, poSlug) => {
+const normalizeFilialName = (value) =>
+  String(value || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLocaleLowerCase("ru-RU")
+    .replace(/ё/g, "е");
+
+const getPoNameBySlug = (filialRows, filialName, poSlug) => {
   if (!poSlug) return "";
-  const seen = new Set();
-  const poRows = (Array.isArray(okrugaRows) ? okrugaRows : [])
-    .flatMap((row) => getTnOkrugaPoRows(row))
-    .filter((row) => {
-      const name = String(row?.name || "").trim();
-      if (!name || seen.has(name)) return false;
-      seen.add(name);
-      return true;
-    });
+  const normalizedFilialName = normalizeFilialName(filialName);
+  const filialRow = (Array.isArray(filialRows) ? filialRows : []).find(
+    (row) => normalizeFilialName(row?.name) === normalizedFilialName
+  );
+  const poRows = getTnFilialyPoRows(filialRow);
 
   return poRows.find((row) => getOperationalPoSlug(row?.name) === poSlug)?.name || "";
 };
@@ -46,8 +49,11 @@ export default function OperationalFilialPage({
   const hasLoaded = useOperationalDashboardStore((store) => store.hasLoaded);
   const filialRoute = getOperationalFilialRouteBySlug(filialSlug);
   const filialName = filialRoute?.name || "Филиал";
-  const [okrugaRows, setOkrugaRows] = useState([]);
-  const poName = useMemo(() => getPoNameBySlug(okrugaRows, poSlug), [okrugaRows, poSlug]);
+  const [filialRows, setFilialRows] = useState([]);
+  const poName = useMemo(
+    () => getPoNameBySlug(filialRows, filialName, poSlug),
+    [filialName, filialRows, poSlug]
+  );
   const poTitle = poName || (poSlug ? "ПО" : "");
   const isPoLevel = Boolean(poSlug);
   const filialPath = `${basePath}/${filialSlug}`;
@@ -62,12 +68,12 @@ export default function OperationalFilialPage({
   useEffect(() => {
     if (!poSlug) return undefined;
     let disposed = false;
-    fetchTnOkrugaRows()
+    fetchTnFilialyRows()
       .then((rows) => {
-        if (!disposed) setOkrugaRows(Array.isArray(rows) ? rows : []);
+        if (!disposed) setFilialRows(Array.isArray(rows) ? rows : []);
       })
       .catch(() => {
-        if (!disposed) setOkrugaRows([]);
+        if (!disposed) setFilialRows([]);
       });
     return () => {
       disposed = true;
