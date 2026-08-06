@@ -37,6 +37,13 @@ const EMPTY_NUMERIC_VALUES = {
   pes: 0,
 };
 
+const PES_DASHBOARD_ACTIVE_STATUSES = new Set([
+  "command_sent",
+  "delay",
+  "en_route",
+  "connected",
+]);
+
 export const normalizeBranchName = (value) => {
   const normalized = String(value || "")
     .replace(/\s*(?:филиал|фил\.?)\s*$/giu, "")
@@ -95,7 +102,6 @@ const addRowToTotals = (totals, row) => {
   totals.brigades += toNumber(pick(row, "BRIGADECOUNT"));
   totals.staff += toNumber(pick(row, "EMPLOYEECOUNT"));
   totals.vehicles += toNumber(pick(row, "SPECIALTECHNIQUECOUNT"));
-  totals.pes += toNumber(pick(row, "PES_COUNT"));
 };
 
 const getFilialMainResource = (row) =>
@@ -128,6 +134,66 @@ const normalizeDistrictLookupName = (value) =>
     .replace(/\b(?:городской|муниципальный|город|округ|район|г о|го)\b/giu, " ")
     .replace(/\s+/g, " ")
     .trim();
+
+const normalizePesBranchKey = (value) => normalizeLookupName(normalizeBranchName(value));
+
+const buildPesPoCountKey = (branchName, poName) =>
+  `${normalizePesBranchKey(branchName)}|||${normalizeLookupName(poName)}`;
+
+const buildPesOkrugBranchCountKey = (branchName, okrugName) =>
+  `${normalizePesBranchKey(branchName)}|||${normalizeDistrictLookupName(okrugName)}`;
+
+const buildPesOkrugPoCountKey = (branchName, poName, okrugName) =>
+  `${normalizePesBranchKey(branchName)}|||${normalizeLookupName(poName)}|||${normalizeDistrictLookupName(
+    okrugName
+  )}`;
+
+const hasEmptyPesKeyPart = (key) =>
+  !key || (key.includes("|||") && key.split("|||").some((part) => !part));
+
+const incrementMap = (map, key) => {
+  if (hasEmptyPesKeyPart(key)) return;
+  map.set(key, (map.get(key) || 0) + 1);
+};
+
+const isDashboardActivePes = (item) => {
+  const status = String(item?.effectiveStatus || item?.status || "")
+    .trim()
+    .toLowerCase();
+  return PES_DASHBOARD_ACTIVE_STATUSES.has(status);
+};
+
+export const buildPesDashboardCountMaps = (items = []) => {
+  const counts = {
+    byBranchKey: new Map(),
+    byPoKey: new Map(),
+    byOkrugBranchKey: new Map(),
+    byOkrugPoKey: new Map(),
+    poNamesByBranchKey: new Map(),
+  };
+
+  (Array.isArray(items) ? items : []).filter(isDashboardActivePes).forEach((item) => {
+    const branch = item?.branch;
+    const po = item?.po;
+    const district = item?.district;
+    const branchKey = normalizePesBranchKey(branch);
+    const poKey = normalizeLookupName(po);
+
+    incrementMap(counts.byBranchKey, branchKey);
+    incrementMap(counts.byPoKey, buildPesPoCountKey(branch, po));
+    incrementMap(counts.byOkrugBranchKey, buildPesOkrugBranchCountKey(branch, district));
+    incrementMap(counts.byOkrugPoKey, buildPesOkrugPoCountKey(branch, po, district));
+
+    if (branchKey && poKey && po) {
+      if (!counts.poNamesByBranchKey.has(branchKey)) {
+        counts.poNamesByBranchKey.set(branchKey, new Map());
+      }
+      counts.poNamesByBranchKey.get(branchKey).set(poKey, po);
+    }
+  });
+
+  return counts;
+};
 
 const isRowInBranch = (row, branchName) => {
   const branch = normalizeBranchName(branchName);
@@ -213,7 +279,7 @@ const createOkrugRow = (okrugRow) => {
   };
 };
 
-export const buildOperationalBranchRows = (rows, filialRows = []) => {
+export const buildOperationalBranchRows = (rows, filialRows = [], pesCountMaps = null) => {
   const branchResources = buildBranchResourceMap(filialRows);
   const sourceBranches = uniqueNames(
     Array.isArray(filialRows) && filialRows.length
@@ -237,10 +303,13 @@ export const buildOperationalBranchRows = (rows, filialRows = []) => {
     });
 
   const ordered = sourceBranches.map((branch) => branchMap.get(branch)).filter(Boolean);
+  ordered.forEach((row) => {
+    row.pes = toNumber(pesCountMaps?.byBranchKey?.get(normalizePesBranchKey(row.branch)));
+  });
   return ordered;
 };
 
-export const buildOperationalPoRows = (rows, filialRows = [], filialName = "") => {
+export const buildOperationalPoRows = (rows, filialRows = [], filialName = "", pesCountMaps = null) => {
   const filialRow = getFilialRowByName(filialRows, filialName);
   const filteredPoRows = getTnFilialyPoRows(filialRow).filter(
     (poRow) => poRow?.is_active !== false
@@ -257,6 +326,19 @@ export const buildOperationalPoRows = (rows, filialRows = [], filialName = "") =
   };
 
   filteredPoRows.forEach(addPoReferenceRow);
+
+  pesCountMaps?.poNamesByBranchKey
+    ?.get(normalizePesBranchKey(filialName))
+    ?.forEach((poDisplayName, poKey) => {
+      if (!poKey || poMap.has(poKey)) return;
+      poMap.set(poKey, {
+        key: `pes-${poKey}`,
+        branch: poDisplayName,
+        ...EMPTY_NUMERIC_VALUES,
+        mainResource: OPERATIONAL_BRANCH_UNKNOWN_VALUE,
+        ovb: OPERATIONAL_BRANCH_UNKNOWN_VALUE,
+      });
+    });
 
   (Array.isArray(rows) ? rows : [])
     .filter((row) => isOperationalDashboardRow(row) && isOpenTN(row) && isRowInBranch(row, filialName))
@@ -278,7 +360,10 @@ export const buildOperationalPoRows = (rows, filialRows = [], filialName = "") =
       addRowToTotals(poMap.get(poKey), row);
     });
 
-  return Array.from(poMap.values());
+  return Array.from(poMap.values()).map((row) => ({
+    ...row,
+    pes: toNumber(pesCountMaps?.byPoKey?.get(buildPesPoCountKey(filialName, row.branch))),
+  }));
 };
 
 export const buildOperationalOkrugRows = (
@@ -286,7 +371,8 @@ export const buildOperationalOkrugRows = (
   filialRows = [],
   filialName = "",
   poName = "",
-  poSlug = ""
+  poSlug = "",
+  pesCountMaps = null
 ) => {
   const filialRow = getFilialRowByName(filialRows, filialName);
   const selectedPoRows = getTnFilialyPoRows(filialRow).filter(
@@ -330,7 +416,30 @@ export const buildOperationalOkrugRows = (
       addRowToTotals(okrugMap.get(okrugName), row);
     });
 
-  return Array.from(okrugMap.values());
+  const selectedPoNames = uniqueNames(selectedPoRows.map((poRow) => poRow?.name).filter(Boolean));
+
+  return Array.from(okrugMap.values()).map((row) => {
+    const okrugName = row.branch;
+    const pes =
+      selectedPoNames.length > 0
+        ? selectedPoNames.reduce(
+            (sum, selectedPoName) =>
+              sum +
+              toNumber(
+                pesCountMaps?.byOkrugPoKey?.get(
+                  buildPesOkrugPoCountKey(filialName, selectedPoName, okrugName)
+                )
+              ),
+            0
+          )
+        : toNumber(
+            pesCountMaps?.byOkrugBranchKey?.get(
+              buildPesOkrugBranchCountKey(filialName, okrugName)
+            )
+          );
+
+    return { ...row, pes };
+  });
 };
 
 export const buildOperationalBranchSummary = (rows) => {

@@ -3,7 +3,9 @@ import { Table } from "antd";
 import { Link } from "react-router-dom";
 
 import BrandSunLoader from "../../../../ui/BrandSunLoader";
+import useAuth from "../../../../../stores/useAuth";
 import useOperationalDashboardStore from "../../../../../stores/operationalDashboard/useOperationalDashboardStore";
+import usePesModuleDataStore from "../../../../../stores/pes/usePesModuleDataStore";
 import { fetchTnFilialyRows } from "../../../../../utils/tnFilialyApi";
 import {
   getOperationalFilialPathForBase,
@@ -11,6 +13,7 @@ import {
 } from "../../../../../utils/operationalFilialRoutes";
 import { OPERATIONAL_BRANCH_COLUMNS } from "../js/operationalDistrictsPanel.config";
 import {
+  buildPesDashboardCountMaps,
   buildOperationalBranchRows,
   buildOperationalBranchSummary,
   buildOperationalOkrugRows,
@@ -92,6 +95,8 @@ const OPERATIONAL_PO_COLUMN_WIDTHS = {
   ovb: 32,
 };
 
+const PES_DASHBOARD_POLL_MS = 10000;
+
 export default function OperationalDistrictsPanel({
   className = "",
   basePath = "/dashboard-oo",
@@ -101,9 +106,12 @@ export default function OperationalDistrictsPanel({
   poSlug = "",
   onBranchHover,
 }) {
+  const user = useAuth((store) => store.user);
   const rows = useOperationalDashboardStore((store) => store.rows);
   const isLoading = useOperationalDashboardStore((store) => store.isLoading);
   const hasLoaded = useOperationalDashboardStore((store) => store.hasLoaded);
+  const pesItems = usePesModuleDataStore((store) => store.items);
+  const loadPesItems = usePesModuleDataStore((store) => store.loadItems);
   const [filialRows, setFilialRows] = useState([]);
 
   useEffect(() => {
@@ -122,17 +130,44 @@ export default function OperationalDistrictsPanel({
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    let timerId = null;
+
+    const load = async () => {
+      if (cancelled) return;
+      await loadPesItems(user, { silent: true });
+    };
+
+    load();
+    timerId = window.setInterval(load, PES_DASHBOARD_POLL_MS);
+
+    return () => {
+      cancelled = true;
+      if (timerId) window.clearInterval(timerId);
+    };
+  }, [loadPesItems, user]);
+
+  const pesCountMaps = useMemo(() => buildPesDashboardCountMaps(pesItems), [pesItems]);
+
   const dataSource = useMemo(() => {
     let branchRows;
     if (groupBy === "okrug") {
-      branchRows = buildOperationalOkrugRows(rows, filialRows, filialName, poName, poSlug);
+      branchRows = buildOperationalOkrugRows(
+        rows,
+        filialRows,
+        filialName,
+        poName,
+        poSlug,
+        pesCountMaps
+      );
     } else if (groupBy === "po") {
-      branchRows = buildOperationalPoRows(rows, filialRows, filialName);
+      branchRows = buildOperationalPoRows(rows, filialRows, filialName, pesCountMaps);
     } else {
-      branchRows = buildOperationalBranchRows(rows, filialRows);
+      branchRows = buildOperationalBranchRows(rows, filialRows, pesCountMaps);
     }
     return [...branchRows, buildOperationalBranchSummary(branchRows)];
-  }, [filialName, filialRows, groupBy, poName, poSlug, rows]);
+  }, [filialName, filialRows, groupBy, pesCountMaps, poName, poSlug, rows]);
 
   const getHoverHandlers = (record) =>
     typeof onBranchHover === "function" && record?.key !== "summary"
