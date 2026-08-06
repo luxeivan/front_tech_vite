@@ -112,15 +112,15 @@ function App() {
             path="/dashboard-oo"
             element={
               <Protected>
-                <OperationalDashboardPage />
+                <OperationalDashboardTestMapPage basePath="/dashboard-oo" />
               </Protected>
             }
           />
-          <Route
+          {/* <Route
             path="/dashboard-oo-test-map"
             element={
               <Protected>
-                <OperationalDashboardTestMapPage />
+                <OperationalDashboardPage />
               </Protected>
             }
           />
@@ -128,7 +128,7 @@ function App() {
             path="/dashboard-oo-test-map/:filialSlug"
             element={
               <Protected>
-                <OperationalFilialTestMapPage />
+                <OperationalFilialPage basePath="/dashboard-oo-test-map" />
               </Protected>
             }
           />
@@ -136,15 +136,15 @@ function App() {
             path="/dashboard-oo-test-map/:filialSlug/:poSlug"
             element={
               <Protected>
-                <OperationalFilialTestMapPage />
+                <OperationalFilialPage basePath="/dashboard-oo-test-map" />
               </Protected>
             }
-          />
+          /> */}
           <Route
             path="/dashboard-oo/:filialSlug"
             element={
               <Protected>
-                <OperationalFilialPage />
+                <OperationalFilialTestMapPage basePath="/dashboard-oo" />
               </Protected>
             }
           />
@@ -152,7 +152,7 @@ function App() {
             path="/dashboard-oo/:filialSlug/:poSlug"
             element={
               <Protected>
-                <OperationalFilialPage />
+                <OperationalFilialTestMapPage basePath="/dashboard-oo" />
               </Protected>
             }
           />
