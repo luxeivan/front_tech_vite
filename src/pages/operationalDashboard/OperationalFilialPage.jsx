@@ -15,7 +15,7 @@ import {
 } from "../../utils/operationalFilialRoutes";
 import {
   fetchTnFilialyRows,
-  getTnFilialyPoRows,
+  getTnFilialyAreaPoRows,
 } from "../../utils/tnFilialyApi";
 import "../../components/operationalDashboard/css/OperationalDashboard.css";
 import "./OperationalFilialPage.css";
@@ -33,7 +33,7 @@ const getPoNameBySlug = (filialRows, filialName, poSlug) => {
   const filialRow = (Array.isArray(filialRows) ? filialRows : []).find(
     (row) => normalizeFilialName(row?.name) === normalizedFilialName
   );
-  const poRows = getTnFilialyPoRows(filialRow);
+  const poRows = getTnFilialyAreaPoRows(filialRow);
 
   return poRows.find((row) => getOperationalPoSlug(row?.name) === poSlug)?.name || "";
 };

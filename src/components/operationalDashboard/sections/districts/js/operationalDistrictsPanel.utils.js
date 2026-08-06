@@ -16,9 +16,9 @@ import {
   OPERATIONAL_BRANCHES,
 } from "./operationalDistrictsPanel.config";
 import {
+  getTnFilialyAreaPoRows,
   getTnFilialyOkrugaRows,
   getTnFilialyPoOkrugaRows,
-  getTnFilialyPoRows,
 } from "../../../../../utils/tnFilialyApi";
 
 const EMPTY_NUMERIC_VALUES = {
@@ -372,9 +372,7 @@ export const buildOperationalBranchRows = (rows, filialRows = [], pesCountMaps =
 
 export const buildOperationalPoRows = (rows, filialRows = [], filialName = "", pesCountMaps = null) => {
   const filialRow = getFilialRowByName(filialRows, filialName);
-  const filteredPoRows = getTnFilialyPoRows(filialRow).filter(
-    (poRow) => poRow?.is_active !== false
-  );
+  const filteredPoRows = getTnFilialyAreaPoRows(filialRow);
   const poMap = new Map();
 
   const addPoReferenceRow = (poRow) => {
@@ -436,7 +434,7 @@ export const buildOperationalOkrugRows = (
   pesCountMaps = null
 ) => {
   const filialRow = getFilialRowByName(filialRows, filialName);
-  const selectedPoRows = getTnFilialyPoRows(filialRow).filter(
+  const selectedPoRows = getTnFilialyAreaPoRows(filialRow).filter(
     (poRow) => poRow?.is_active !== false && isPoRowSelected(poRow, poName, poSlug)
   );
   const referenceOkrugaRows =

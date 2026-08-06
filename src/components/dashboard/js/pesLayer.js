@@ -290,6 +290,7 @@ export const buildPesPopupHtml = ({
  * @param {string} [params.iconSvgRaw] - SVG для иконки ПЭС
  * @param {number} [params.scaleMultiplier] - базовый множитель масштаба иконки
  * @param {boolean} [params.recolorAllFills] - перекрашивать все fill в SVG
+ * @param {boolean} [params.showLabels] - показывать постоянные подписи рядом с иконками
  */
 export const createPesLayer = ({
   getZoom,
@@ -302,6 +303,7 @@ export const createPesLayer = ({
   iconSvgRaw,
   scaleMultiplier = PES_ICON_SCALE_MULT,
   recolorAllFills = false,
+  showLabels = true,
 }) => {
   const source = new VectorSource();
   const buildIconDataUrl = (fillColor) =>
@@ -377,7 +379,7 @@ export const createPesLayer = ({
       const connected = moduleStatus === "connected";
       const moving =
         Number.isFinite(speed) && speed > PES_MOVING_SPEED_THRESHOLD;
-      const showLabel = z >= 12;
+      const showLabel = showLabels && z >= 12;
       const iconSrc =
         iconSrcByStatus[moduleStatus] ||
         (moving ? iconSrcMoving : iconSrcIdle);

@@ -59,6 +59,46 @@
   white-space: nowrap;
 }
 
+@media (width: 3840px) and (height: 2160px) {
+  .header {
+    padding: 16px 30px;
+    gap: 18px;
+  }
+
+  .leftSide {
+    flex-basis: 1280px;
+    gap: 34px !important;
+  }
+
+  .navWrap {
+    gap: 14px !important;
+    row-gap: 12px;
+  }
+
+  .logo :global(img) {
+    width: 500px !important;
+    height: auto !important;
+  }
+
+  .navWrap :global(.ant-btn),
+  .logoutBtn {
+    height: 54px;
+    padding-inline: 26px;
+    border-radius: 8px;
+    font-size: 22px;
+    font-weight: 600;
+  }
+
+  .rightSide {
+    gap: 18px !important;
+  }
+
+  .userName {
+    max-width: 520px;
+    font-size: 26px;
+  }
+}
+
 @media (max-width: 1200px) {
   .header {
     flex-wrap: nowrap;

@@ -26,6 +26,16 @@
   margin: 0;
 }
 
+@media (width: 3840px) and (height: 2160px) {
+  .footer {
+    padding: 12px 24px !important;
+  }
+
+  .row {
+    font-size: 20px;
+  }
+}
+
 @media (max-width: 640px) {
   .footer {
     padding: 5px 8px !important;

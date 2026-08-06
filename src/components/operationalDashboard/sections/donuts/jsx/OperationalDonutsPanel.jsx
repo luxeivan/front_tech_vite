@@ -69,6 +69,23 @@ const useTabletLandscape = () => {
   return isTabletLandscape;
 };
 
+const useWallDisplay = () => {
+  const getValue = () =>
+    typeof window !== "undefined" &&
+    window.innerWidth === 3840 &&
+    window.innerHeight === 2160;
+
+  const [isWallDisplay, setIsWallDisplay] = useState(getValue);
+
+  useEffect(() => {
+    const handleResize = () => setIsWallDisplay(getValue());
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  return isWallDisplay;
+};
+
 const getDurationChartData = (data) =>
   ensureDonutData(
     DURATION_DONUT_CONFIG.segments
@@ -156,25 +173,52 @@ const getPieConfig = ({
   statistic: false,
 });
 
-function DurationDonut({ data, groupBy = "filial", compact = false }) {
+function DurationDonut({ data, groupBy = "filial", compact = false, isWallDisplay = false }) {
   const chartData = getDurationChartData(data);
   const total = Number(data?.total || 0);
   const hasValues = total > 0;
   const isFilialView = groupBy === "filial";
+  const chartHeight = isWallDisplay
+    ? compact
+      ? 380
+      : isFilialView
+        ? 430
+        : 500
+    : compact
+      ? 218
+      : isFilialView
+        ? 238
+        : 270;
   const config = getPieConfig({
     data: chartData,
     total,
-    height: compact ? 218 : isFilialView ? 238 : 270,
+    height: chartHeight,
     innerRadius: compact ? 0.66 : 0.62,
-    radius: compact ? 0.76 : isFilialView ? 0.68 : 0.72,
-    labelPadding: compact
-      ? [8, 56, 8, 56]
-      : isFilialView
-        ? [14, 108, 14, 108]
-        : [20, 118, 20, 118],
+    radius: isWallDisplay
+      ? compact
+        ? 0.72
+        : isFilialView
+          ? 0.66
+          : 0.68
+      : compact
+        ? 0.76
+        : isFilialView
+          ? 0.68
+          : 0.72,
+    labelPadding: isWallDisplay
+      ? compact
+        ? [16, 118, 16, 118]
+        : isFilialView
+          ? [26, 204, 26, 204]
+          : [34, 224, 34, 224]
+      : compact
+        ? [8, 56, 8, 56]
+        : isFilialView
+          ? [14, 108, 14, 108]
+          : [20, 118, 20, 118],
     labelPosition: "spider",
-    labelFontSize: compact ? 9 : 11,
-    labelOffset: compact ? 8 : 14,
+    labelFontSize: isWallDisplay ? (compact ? 16 : 20) : compact ? 9 : 11,
+    labelOffset: isWallDisplay ? (compact ? 16 : 24) : compact ? 8 : 14,
     labelText: hasValues
       ? (datum) =>
           !datum.isEmpty && datum.value > 0
@@ -201,26 +245,63 @@ function DurationDonut({ data, groupBy = "filial", compact = false }) {
   );
 }
 
-function PopulationDonut({ data, groupBy = "filial", compact = false }) {
+function PopulationDonut({ data, groupBy = "filial", compact = false, isWallDisplay = false }) {
   const chartData = getPopulationChartData(data);
   const total = Number(data?.total || 0);
   const hasValues = total > 0;
   const isFilialView = groupBy === "filial";
+  const chartHeight = isWallDisplay
+    ? compact
+      ? 380
+      : isFilialView
+        ? 430
+        : 500
+    : compact
+      ? 218
+      : isFilialView
+        ? 238
+        : 270;
   const config = getPieConfig({
     data: chartData,
     total,
-    height: compact ? 218 : isFilialView ? 238 : 270,
+    height: chartHeight,
     innerRadius: compact ? 0.66 : isFilialView ? 0.62 : 0.56,
-    radius: compact ? 0.76 : isFilialView ? 0.68 : 0.66,
-    labelPadding: compact
-      ? [8, 72, 8, 72]
-      : isFilialView
-        ? [14, 140, 14, 140]
-        : [18, 160, 54, 160],
+    radius: isWallDisplay
+      ? compact
+        ? 0.72
+        : isFilialView
+          ? 0.64
+          : 0.62
+      : compact
+        ? 0.76
+        : isFilialView
+          ? 0.68
+          : 0.66,
+    labelPadding: isWallDisplay
+      ? compact
+        ? [16, 142, 16, 142]
+        : isFilialView
+          ? [26, 250, 26, 250]
+          : [34, 290, 88, 290]
+      : compact
+        ? [8, 72, 8, 72]
+        : isFilialView
+          ? [14, 140, 14, 140]
+          : [18, 160, 54, 160],
     labelPosition: "spider",
-    labelHeight: isFilialView ? compact ? 28 : 34 : 36,
-    labelFontSize: compact ? 9 : 11,
-    labelOffset: compact ? 8 : 14,
+    labelHeight: isWallDisplay
+      ? isFilialView
+        ? compact
+          ? 50
+          : 62
+        : 66
+      : isFilialView
+        ? compact
+          ? 28
+          : 34
+        : 36,
+    labelFontSize: isWallDisplay ? (compact ? 16 : 20) : compact ? 9 : 11,
+    labelOffset: isWallDisplay ? (compact ? 16 : 24) : compact ? 8 : 14,
     labelText: hasValues
       ? (datum) =>
           !datum.isEmpty && datum.value > 0
@@ -260,6 +341,7 @@ export default function OperationalDonutsPanel({
   const error = useOperationalDashboardStore((store) => store.error);
   const [now, setNow] = useState(() => dayjs());
   const isTabletLandscape = useTabletLandscape();
+  const isWallDisplay = useWallDisplay();
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(dayjs()), 60 * 1000);
@@ -301,11 +383,13 @@ export default function OperationalDonutsPanel({
                 data={durationData}
                 groupBy={groupBy}
                 compact={isTabletLandscape}
+                isWallDisplay={isWallDisplay}
               />
               <PopulationDonut
                 data={populationData}
                 groupBy={groupBy}
                 compact={isTabletLandscape}
+                isWallDisplay={isWallDisplay}
               />
             </div>
           </Spin>

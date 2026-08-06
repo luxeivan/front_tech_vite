@@ -207,6 +207,65 @@
   }
 }
 
+@media (width: 3840px) and (height: 2160px) {
+  .operational-filial-page__header {
+    grid-template-columns: minmax(700px, 1fr) minmax(0, auto) minmax(700px, 1fr);
+    gap: 30px;
+    margin-bottom: 18px;
+  }
+
+  .operational-filial-page__nav {
+    gap: 10px;
+    padding-top: 58px;
+  }
+
+  .operational-navigation-steps .ant-steps-item:not(:last-child) {
+    margin-inline-end: 92px;
+  }
+
+  .operational-navigation-steps .ant-steps-item:not(:last-child)::after {
+    right: -72px;
+    width: 60px;
+    height: 4px;
+  }
+
+  .operational-navigation-steps .ant-steps-item:not(:last-child)::before {
+    right: -74px;
+    width: 16px;
+    height: 16px;
+    border-top-width: 4px;
+    border-right-width: 4px;
+  }
+
+  .operational-navigation-steps .ant-steps-item-container {
+    min-height: 34px;
+  }
+
+  .operational-filial-page .operational-navigation-steps.ant-steps .ant-steps-item-title,
+  .operational-navigation-steps__link {
+    font-size: 22px !important;
+    text-underline-offset: 6px;
+  }
+
+  .operational-filial-page .operational-navigation-steps.ant-steps .ant-steps-item-process .ant-steps-item-title {
+    text-decoration-thickness: 2px;
+    text-underline-offset: 6px;
+  }
+
+  .operational-filial-page__topline.operational-map-panel__topline {
+    --weather-card-width: 560px;
+  }
+
+  .operational-filial-page__grid {
+    grid-template-rows: minmax(610px, 0.72fr) minmax(300px, 0.46fr) minmax(590px, 1fr);
+    min-height: calc(100vh - 292px);
+  }
+
+  .operational-filial-page__grid > .operational-districts-panel--po {
+    margin-top: 58px;
+  }
+}
+
 @media (min-width: 901px) and (max-width: 1200px) and (orientation: landscape) {
   .operational-filial-page__header {
     grid-template-columns: 1fr;

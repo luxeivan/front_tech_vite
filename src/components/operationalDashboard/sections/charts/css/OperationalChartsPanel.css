@@ -117,6 +117,58 @@
   white-space: nowrap;
 }
 
+@media (width: 3840px) and (height: 2160px) {
+  .operational-dashboard__panel--charts .operational-dashboard__panel-body {
+    padding: 18px 26px 16px;
+  }
+
+  .operational-charts-panel__header {
+    gap: 18px;
+  }
+
+  .operational-charts-panel__title {
+    margin-bottom: 8px;
+    font-size: 48px;
+  }
+
+  .operational-charts-panel__meta {
+    font-size: 18px;
+  }
+
+  .operational-charts-panel__summary {
+    width: min(1280px, 62%);
+    min-height: 92px;
+    gap: 96px;
+    padding-right: 120px;
+  }
+
+  .operational-charts-panel__summary-values {
+    gap: 90px;
+  }
+
+  .operational-charts-panel__summary-item {
+    column-gap: 14px;
+  }
+
+  .operational-charts-panel__summary-item span:not(.operational-charts-panel__legend-dot) {
+    font-size: 24px;
+  }
+
+  .operational-charts-panel__summary-item strong {
+    margin-top: 6px;
+    font-size: 52px;
+  }
+
+  .operational-charts-panel__legend-dot {
+    width: 24px;
+    height: 16px;
+  }
+
+  .operational-charts-panel__summary-percent {
+    font-size: 78px;
+  }
+}
+
 @media (max-width: 1280px) {
   .operational-charts-panel__summary {
     width: min(640px, 64%);

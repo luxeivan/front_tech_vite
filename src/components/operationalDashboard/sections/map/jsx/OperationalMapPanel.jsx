@@ -795,6 +795,7 @@ const getDistrictStyle = (
   {
     districtDetailMode = false,
     fillGroup = "filial",
+    isWallDisplay = false,
   } = {}
 ) => {
   const areaName = getFeatureAreaName(feature, fillGroup);
@@ -812,7 +813,13 @@ const getDistrictStyle = (
     fill: new Fill({ color: fillColor }),
     stroke: new Stroke({
       color: strokeColor,
-      width: districtDetailMode ? 1.8 : OPERATIONAL_MAP_DISTRICT_STROKE_WIDTH,
+      width: isWallDisplay
+        ? districtDetailMode
+          ? 3.4
+          : OPERATIONAL_MAP_DISTRICT_STROKE_WIDTH * 1.8
+        : districtDetailMode
+          ? 1.8
+          : OPERATIONAL_MAP_DISTRICT_STROKE_WIDTH,
     }),
   });
 };
@@ -821,7 +828,8 @@ const getDistrictLabelStyle = (
   feature,
   compactLabels = false,
   labelGroup = "district",
-  districtDetailMode = false
+  districtDetailMode = false,
+  isWallDisplay = false
 ) => {
   const label = wrapMapLabel(getFeatureLabelName(feature, labelGroup), compactLabels);
   if (!label) return null;
@@ -832,8 +840,16 @@ const getDistrictLabelStyle = (
       text: label,
       overflow: true,
       fill: new Fill({ color: "#1575bc" }),
-      stroke: new Stroke({ color: "#ffffff", width: 4 }),
-      font: `700 ${compactLabels ? 10 : 12}px Arial, sans-serif`,
+      stroke: new Stroke({ color: "#ffffff", width: isWallDisplay ? 7 : 4 }),
+      font: `700 ${
+        isWallDisplay
+          ? compactLabels
+            ? 18
+            : 22
+          : compactLabels
+            ? 10
+            : 12
+      }px Arial, sans-serif`,
     }),
   });
 };
@@ -841,6 +857,11 @@ const getDistrictLabelStyle = (
 const getIsCompactMapViewport = () =>
   typeof window !== "undefined" &&
   window.matchMedia("(max-width: 768px)").matches;
+
+const getIsWallDisplayMapViewport = () =>
+  typeof window !== "undefined" &&
+  window.innerWidth === 3840 &&
+  window.innerHeight === 2160;
 
 function OperationalWeatherCard() {
   const [weather, setWeather] = useState(null);
@@ -994,6 +1015,7 @@ export default function OperationalMapPanel({
   const [mapFeaturesVersion, setMapFeaturesVersion] = useState(0);
   const [hoveredArea, setHoveredArea] = useState(null);
   const [isCompactViewport, setIsCompactViewport] = useState(getIsCompactMapViewport);
+  const [isWallDisplayViewport, setIsWallDisplayViewport] = useState(getIsWallDisplayMapViewport);
   const panelClassName = [
     "operational-dashboard__panel",
     "operational-dashboard__panel--map",
@@ -1045,6 +1067,15 @@ export default function OperationalMapPanel({
     handleChange();
     mediaQuery.addEventListener?.("change", handleChange);
     return () => mediaQuery.removeEventListener?.("change", handleChange);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    const handleResize = () => setIsWallDisplayViewport(getIsWallDisplayMapViewport());
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   useEffect(() => {
@@ -1349,6 +1380,7 @@ export default function OperationalMapPanel({
         districtDetailMode,
         fillGroup,
         showDistrictLabels,
+        isWallDisplay: isWallDisplayViewport,
       })
     );
     layer.changed();
@@ -1357,7 +1389,13 @@ export default function OperationalMapPanel({
       labelLayer.setStyle(
         showDistrictLabels
           ? (feature) =>
-              getDistrictLabelStyle(feature, isCompactViewport, fillGroup, districtDetailMode)
+              getDistrictLabelStyle(
+                feature,
+                isCompactViewport,
+                fillGroup,
+                districtDetailMode,
+                isWallDisplayViewport
+              )
           : null
       );
       labelLayer.changed();
@@ -1367,6 +1405,7 @@ export default function OperationalMapPanel({
     districtDetailMode,
     fillGroup,
     isCompactViewport,
+    isWallDisplayViewport,
     mapFeaturesVersion,
     showDistrictLabels,
   ]);

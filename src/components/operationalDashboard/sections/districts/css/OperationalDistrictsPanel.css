@@ -351,6 +351,96 @@
   }
 }
 
+@media (width: 3840px) and (height: 2160px) {
+  .operational-dashboard__panel--districts .operational-dashboard__panel-body {
+    padding: 16px;
+  }
+
+  .operational-districts-panel {
+    --operational-branches-table-font-size: 22px;
+    --operational-branches-table-header-font-size: 19px;
+  }
+
+  .operational-districts-panel__table .ant-table-content > table {
+    min-width: var(--operational-branches-table-min-width, 1740px);
+  }
+
+  .operational-districts-panel__header-title--compact {
+    font-size: 16px;
+  }
+
+  .operational-districts-panel__table .ant-table-thead > tr > th {
+    line-height: 1.08;
+  }
+
+  .operational-districts-panel__table .ant-table-cell {
+    padding: 12px 4px;
+  }
+
+  .operational-districts-panel__table .operational-districts-panel__branch-cell {
+    padding-left: 22px;
+  }
+
+  .operational-districts-panel--filial {
+    --operational-branches-table-font-size: 18px;
+    --operational-branches-table-header-font-size: 15px;
+    --operational-branches-table-min-width: 0;
+  }
+
+  .operational-districts-panel--filial
+    .operational-districts-panel__table
+    .ant-table-cell {
+    padding: 11px 4px;
+  }
+
+  .operational-districts-panel--filial
+    .operational-districts-panel__table
+    .ant-table-thead
+    > tr
+    > th {
+    height: 70px;
+  }
+
+  .operational-districts-panel--filial
+    .operational-districts-panel__table
+    .ant-table-tbody
+    > tr
+    > td {
+    height: 94px;
+  }
+
+  .operational-districts-panel--po {
+    --operational-branches-table-font-size: 18px;
+    --operational-branches-table-header-font-size: 15px;
+  }
+
+  .operational-districts-panel--po .operational-dashboard__panel-body {
+    padding: 18px 12px 12px;
+  }
+
+  .operational-districts-panel--po
+    .operational-districts-panel__table
+    .ant-table-cell {
+    padding: 9px 4px;
+  }
+
+  .operational-districts-panel--po
+    .operational-districts-panel__table
+    .ant-table-thead
+    > tr
+    > th {
+    height: 78px;
+  }
+
+  .operational-districts-panel--po
+    .operational-districts-panel__table
+    .ant-table-tbody
+    > tr
+    > td {
+    height: 64px;
+  }
+}
+
 @media (max-width: 768px) {
   .operational-dashboard__panel--districts .operational-dashboard__panel-body {
     padding: 8px;

@@ -306,6 +306,123 @@
   border-radius: 1px;
 }
 
+@media (width: 3840px) and (height: 2160px) {
+  .operational-map-panel__filial-tooltip {
+    max-width: 520px;
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-size: 24px;
+    box-shadow: 0 16px 36px rgba(42, 83, 133, 0.2);
+    transform: translate(22px, 22px);
+  }
+
+  .operational-map-panel__topline {
+    --weather-card-width: 560px;
+
+    top: 24px;
+    right: 30px;
+    gap: 8px;
+  }
+
+  .operational-map-panel__time strong,
+  .operational-map-panel__time span {
+    font-size: 30px;
+  }
+
+  .operational-map-panel__weather {
+    min-width: 468px;
+    min-height: 136px;
+    gap: 10px;
+    padding: 16px 22px 18px;
+    border-radius: 10px;
+  }
+
+  .operational-map-panel__weather-content {
+    grid-template-columns: minmax(160px, auto) 1fr;
+    gap: 16px;
+  }
+
+  .operational-map-panel__weather-main {
+    gap: 14px;
+  }
+
+  .operational-map-panel__weather-icon {
+    width: 62px;
+    height: 60px;
+    font-size: 50px;
+  }
+
+  .operational-map-panel__weather-main strong {
+    font-size: 46px;
+  }
+
+  .operational-map-panel__weather-main span:not(.operational-map-panel__weather-icon) {
+    font-size: 18px;
+  }
+
+  .operational-map-panel__weather-parts {
+    grid-template-columns: repeat(4, minmax(52px, 1fr));
+    gap: 8px;
+  }
+
+  .operational-map-panel__weather-part b {
+    font-size: 14px;
+  }
+
+  .operational-map-panel__weather-part i {
+    font-size: 24px;
+  }
+
+  .operational-map-panel__weather-part em {
+    font-size: 16px;
+  }
+
+  .operational-map-panel__weather-details {
+    gap: 5px 14px;
+    font-size: 16px;
+  }
+
+  .operational-map-panel__legend {
+    right: 34px;
+    bottom: 28px;
+    gap: 14px 28px;
+  }
+
+  .operational-map-panel__mode-legend {
+    left: 34px;
+    bottom: 28px;
+    gap: 8px;
+  }
+
+  .operational-map-panel__mode-legend h4,
+  .operational-map-panel__legend h4 {
+    font-size: 22px;
+  }
+
+  .operational-map-panel__mode-legend span,
+  .operational-map-panel__legend span {
+    gap: 12px;
+    font-size: 20px;
+  }
+
+  .operational-map-panel__mode-legend i {
+    width: 84px;
+    height: 24px;
+    border-width: 4px;
+  }
+
+  .operational-map-panel__legend i {
+    width: 68px;
+    height: 20px;
+    border-width: 2px;
+  }
+
+  .operational-map-panel--filial .operational-map-panel__surface {
+    gap: 16px 34px;
+    padding: 20px 30px 24px;
+  }
+}
+
 @media (min-width: 1281px) and (max-width: 1540px) {
   .operational-map-panel__topline {
     --weather-card-width: 236px;

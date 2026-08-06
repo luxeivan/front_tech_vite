@@ -37,6 +37,23 @@ const useTabletLandscape = () => {
   return isTabletLandscape;
 };
 
+const useWallDisplay = () => {
+  const getValue = () =>
+    typeof window !== "undefined" &&
+    window.innerWidth === 3840 &&
+    window.innerHeight === 2160;
+
+  const [isWallDisplay, setIsWallDisplay] = useState(getValue);
+
+  useEffect(() => {
+    const handleResize = () => setIsWallDisplay(getValue());
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  return isWallDisplay;
+};
+
 const formatStatsDate = (value) => {
   if (!value) return null;
   const date = new Date(value);
@@ -73,6 +90,7 @@ export default function OperationalChartsPanel() {
   const rowsCurrentYear = useOperationalDashboardStore((store) => store.rowsCurrentYear);
   const statsMeta = useOperationalDashboardStore((store) => store.statsMeta);
   const isTabletLandscape = useTabletLandscape();
+  const isWallDisplay = useWallDisplay();
 
   const chartData = useMemo(
     () => buildBranchTechViolationChartData(rowsCurrentYear, statsMeta),
@@ -88,8 +106,12 @@ export default function OperationalChartsPanel() {
     yField: "value",
     colorField: "year",
     group: true,
-    height: isTabletLandscape ? 188 : 210,
-    padding: isTabletLandscape ? TABLET_LANDSCAPE_CHART_PADDING : CHART_PADDING,
+    height: isWallDisplay ? 420 : isTabletLandscape ? 188 : 210,
+    padding: isWallDisplay
+      ? [42, 26, 72, 26]
+      : isTabletLandscape
+        ? TABLET_LANDSCAPE_CHART_PADDING
+        : CHART_PADDING,
     legend: false,
     tooltip: false,
     scale: {
@@ -98,7 +120,7 @@ export default function OperationalChartsPanel() {
       },
     },
     style: {
-      maxWidth: isTabletLandscape ? 14 : 18,
+      maxWidth: isWallDisplay ? 34 : isTabletLandscape ? 14 : 18,
     },
     label: {
       text: "value",
@@ -109,15 +131,15 @@ export default function OperationalChartsPanel() {
         textAlign: "center",
         textBaseline: "bottom",
         dx: 0,
-        dy: -6,
-        fontSize: isTabletLandscape ? 9 : 11,
+        dy: isWallDisplay ? -12 : -6,
+        fontSize: isWallDisplay ? 20 : isTabletLandscape ? 9 : 11,
         fontWeight: 700,
       },
     },
     axis: {
       x: {
         title: false,
-        labelFontSize: isTabletLandscape ? 8 : 10,
+        labelFontSize: isWallDisplay ? 18 : isTabletLandscape ? 8 : 10,
         labelFill: "#0072c6",
         labelFillOpacity: 1,
         labelOpacity: 1,

@@ -74,6 +74,35 @@ export const formatTnFilialyName = (name) =>
     .replace(/\s+/g, " ")
     .trim();
 
+const isTnFilialyVirtualPoRow = (row) => Boolean(row?.__is_direct_okrug_po);
+
+const createDirectOkrugPoRow = (okrugRow, filialRow) => {
+  const name = okrugRow?.name || okrugRow?.source_name || "";
+  if (!name) return null;
+
+  return {
+    id: `direct-okrug-${okrugRow?.documentId || okrugRow?.id || name}`,
+    documentId: `direct-okrug-${okrugRow?.documentId || okrugRow?.id || name}`,
+    name,
+    sort_order: okrugRow?.sort_order,
+    is_active: okrugRow?.is_active,
+    tn_okruga: [okrugRow],
+    tn_filialy: filialRow,
+    tn_filialies: [filialRow],
+    __is_direct_okrug_po: true,
+  };
+};
+
+export const getTnFilialyAreaPoRows = (filialRow) => {
+  const poRows = getTnFilialyPoRows(filialRow).filter((poRow) => poRow?.is_active !== false);
+  if (poRows.length) return poRows;
+
+  return getTnFilialyOkrugaRows(filialRow)
+    .filter((okrugRow) => okrugRow?.is_active !== false)
+    .map((okrugRow) => createDirectOkrugPoRow(okrugRow, filialRow))
+    .filter(Boolean);
+};
+
 export const notifyTnFilialyRezimUpdated = (payload = {}) => {
   if (typeof window === "undefined") return;
 
@@ -237,9 +266,7 @@ export const buildTnFilialyTopologyOkrugaRows = (
       return normalizeFilialName(filialRow?.name) === normalizedFilialName;
     })
     .forEach((filialRow) => {
-      const filialPoRows = getTnFilialyPoRows(filialRow).filter(
-        (poRow) => poRow?.is_active !== false
-      );
+      const filialPoRows = getTnFilialyAreaPoRows(filialRow);
       const selectedPoRows = filialPoRows.filter((poRow) => {
         if (!normalizedPoName && !normalizedPoSlug) return true;
         const rowPoName = poRow?.name;
@@ -267,6 +294,7 @@ export const buildTnFilialyTopologyOkrugaRows = (
       });
 
       selectedPoRows.forEach((poRow) => {
+        if (isTnFilialyVirtualPoRow(poRow)) return;
         getTnFilialyPoOkrugaRows(poRow).forEach((okrugRow) => {
           addOkrug(filialRow, okrugRow, [poRow]);
         });
