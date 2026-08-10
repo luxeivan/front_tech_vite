@@ -183,3 +183,26 @@ export const getOperationalChart2025Values = (statsMeta) => {
     })
   );
 };
+
+const calculatePeriodValue = (data, start, end) =>
+  MONTH_KEYS.reduce(
+    (sum, key, monthIndex) =>
+      sum + calculateMonthShare(data?.[key], SOURCE_YEAR, monthIndex, start, end),
+    0
+  );
+
+export const getOperationalChart2025PoValues = (branchName, statsMeta) => {
+  const sourceBranch = OPERATIONAL_CHART_2025_SOURCE.find(
+    (item) => item?.branch === branchName
+  );
+  const productionOffices = Array.isArray(sourceBranch?.productionOffices)
+    ? sourceBranch.productionOffices
+    : [];
+  const { start, end } = getSourceYearWindow(statsMeta);
+
+  return Object.fromEntries(
+    productionOffices
+      .filter((item) => item?.name)
+      .map((item) => [item.name, Math.round(calculatePeriodValue(item.data, start, end))])
+  );
+};

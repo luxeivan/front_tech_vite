@@ -15,7 +15,16 @@ import {
   OPERATIONAL_CHART_CURRENT_YEAR,
   OPERATIONAL_CHART_PREVIOUS_YEAR,
 } from "./operationalChartsPanel.config";
-import { getOperationalChart2025Values } from "./operationalChartsPanel2025.data";
+import {
+  getOperationalChart2025PoValues,
+  getOperationalChart2025Values,
+} from "./operationalChartsPanel2025.data";
+import {
+  getOperationalPoSlug,
+} from "../../../../../utils/operationalFilialRoutes";
+import {
+  getTnFilialyAreaPoRows,
+} from "../../../../../utils/tnFilialyApi";
 
 const branchLabel = (branch) => OPERATIONAL_CHART_BRANCH_LABELS[branch] || branch;
 
@@ -25,6 +34,46 @@ const normalizeChartLookupName = (value) =>
     .replace(/\s+/g, " ")
     .trim()
     .toLowerCase();
+
+const getPoNameByOldFields = (row) => {
+  const poName = pick(row, "SC_PO") || pick(row, "SCNAME");
+  return typeof poName === "string" ? poName.trim() : poName;
+};
+
+const isSameChartName = (left, right) =>
+  normalizeChartLookupName(left) === normalizeChartLookupName(right);
+
+const getFilialRow = (filialRows, filialName) =>
+  (Array.isArray(filialRows) ? filialRows : []).find((row) =>
+    isSameChartName(normalizeBranchName(row?.name), normalizeBranchName(filialName))
+  );
+
+const sortRu = (rows) =>
+  [...rows].sort((left, right) =>
+    String(left?.name || "").localeCompare(String(right?.name || ""), "ru")
+  );
+
+const getPoChartRows = (filialRows, filialName, rowsCurrentYearByPo) => {
+  const filialRow = getFilialRow(filialRows, filialName);
+  const topologyPoRows = getTnFilialyAreaPoRows(filialRow)
+    .filter((row) => row?.is_active !== false && row?.name)
+    .map((row) => ({ name: row.name, slug: getOperationalPoSlug(row.name) }));
+  const seen = new Set(topologyPoRows.map((row) => row.slug));
+  const normalizedFilialName = normalizeBranchName(filialName);
+
+  (Array.isArray(rowsCurrentYearByPo) ? rowsCurrentYearByPo : []).forEach((row) => {
+    const branch = getOperationalChartBranchByOldFields(row);
+    if (!isSameChartName(branch, normalizedFilialName)) return;
+
+    const poName = getPoNameByOldFields(row);
+    const slug = getOperationalPoSlug(poName);
+    if (!poName || !slug || seen.has(slug)) return;
+    seen.add(slug);
+    topologyPoRows.push({ name: poName, slug });
+  });
+
+  return sortRu(topologyPoRows);
+};
 
 const CHART_DISPCENTER_BRANCH_BY_NORMALIZED_NAME = new Map(
   Object.entries(OPERATIONAL_DISPCENTER_TO_BRANCH).map(([dispcenter, branch]) => [
@@ -71,6 +120,49 @@ export const buildBranchTechViolationChartData = (rowsCurrentYear, statsMeta) =>
       branch: branchLabel(branch),
       year: String(OPERATIONAL_CHART_CURRENT_YEAR),
       value: counts.get(branch) || 0,
+    },
+  ]);
+};
+
+export const buildPoTechViolationChartData = ({
+  filialName = "",
+  filialRows = [],
+  rowsCurrentYearByPo = [],
+  statsMeta = null,
+} = {}) => {
+  const normalizedFilialName = normalizeBranchName(filialName);
+  const poRows = getPoChartRows(filialRows, normalizedFilialName, rowsCurrentYearByPo);
+  const counts = new Map(poRows.map((row) => [row.slug, 0]));
+
+  (Array.isArray(rowsCurrentYearByPo) ? rowsCurrentYearByPo : []).forEach((row) => {
+    const rawCount = pick(row, "__count");
+    const precomputedCount = rawCount == null ? null : Number(rawCount);
+    const branch = getOperationalChartBranchByOldFields(row);
+    const poSlug = getOperationalPoSlug(getPoNameByOldFields(row));
+
+    if (!poSlug || !isSameChartName(branch, normalizedFilialName)) return;
+    if (!Number.isFinite(precomputedCount) && (!isDashboardBaseType(row) || !isNotDeletedTN(row))) {
+      return;
+    }
+
+    counts.set(
+      poSlug,
+      (counts.get(poSlug) || 0) + (Number.isFinite(precomputedCount) ? precomputedCount : 1)
+    );
+  });
+
+  const previousYearValues = getOperationalChart2025PoValues(normalizedFilialName, statsMeta);
+
+  return poRows.flatMap((poRow) => [
+    {
+      branch: poRow.name,
+      year: String(OPERATIONAL_CHART_PREVIOUS_YEAR),
+      value: previousYearValues[poRow.name] || 0,
+    },
+    {
+      branch: poRow.name,
+      year: String(OPERATIONAL_CHART_CURRENT_YEAR),
+      value: counts.get(poRow.slug) || 0,
     },
   ]);
 };

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Column } from "@ant-design/plots";
 import { Alert } from "antd";
 
@@ -11,6 +11,7 @@ import {
 } from "../js/operationalChartsPanel.config";
 import {
   buildBranchTechViolationChartData,
+  buildPoTechViolationChartData,
   getBranchChartTotals,
 } from "../js/operationalChartsPanel.utils";
 import "../css/OperationalChartsPanel.css";
@@ -82,23 +83,58 @@ const getNextRefreshText = (value) => {
   return restMinutes ? `через ${hours} ч ${restMinutes} мин` : `через ${hours} ч`;
 };
 
-export default function OperationalChartsPanel() {
+export default function OperationalChartsPanel({
+  className = "",
+  filialName = "",
+  filialRows = [],
+}) {
   const isStatsLoading = useOperationalDashboardStore((store) => store.isStatsLoading);
   const statsError = useOperationalDashboardStore((store) => store.statsError);
   const hasLoaded = useOperationalDashboardStore((store) => store.hasLoaded);
   const hasStatsLoaded = useOperationalDashboardStore((store) => store.hasStatsLoaded);
   const rowsCurrentYear = useOperationalDashboardStore((store) => store.rowsCurrentYear);
+  const rowsCurrentYearByPo = useOperationalDashboardStore((store) => store.rowsCurrentYearByPo);
   const statsMeta = useOperationalDashboardStore((store) => store.statsMeta);
+  const reloadStats = useOperationalDashboardStore((store) => store.reloadStats);
   const isTabletLandscape = useTabletLandscape();
   const isWallDisplay = useWallDisplay();
+  const isPoChart = Boolean(filialName);
+  const requestedPoStatsRefreshRef = useRef(false);
+  const hasPoStats =
+    (Array.isArray(rowsCurrentYearByPo) && rowsCurrentYearByPo.length > 0) ||
+    statsMeta?.hasPoRows === true;
+
+  useEffect(() => {
+    if (!isPoChart || !hasLoaded || !hasStatsLoaded || isStatsLoading || hasPoStats) return;
+    if (requestedPoStatsRefreshRef.current) return;
+
+    requestedPoStatsRefreshRef.current = true;
+    reloadStats({ forceRefresh: true });
+  }, [
+    hasLoaded,
+    hasPoStats,
+    hasStatsLoaded,
+    isPoChart,
+    isStatsLoading,
+    reloadStats,
+  ]);
 
   const chartData = useMemo(
-    () => buildBranchTechViolationChartData(rowsCurrentYear, statsMeta),
-    [rowsCurrentYear, statsMeta]
+    () =>
+      isPoChart
+        ? buildPoTechViolationChartData({
+            filialName,
+            filialRows,
+            rowsCurrentYearByPo,
+            statsMeta,
+          })
+        : buildBranchTechViolationChartData(rowsCurrentYear, statsMeta),
+    [filialName, filialRows, isPoChart, rowsCurrentYear, rowsCurrentYearByPo, statsMeta]
   );
   const totals = useMemo(() => getBranchChartTotals(chartData), [chartData]);
   const statsDate = formatStatsDate(statsMeta?.calculatedAt);
   const nextRefresh = getNextRefreshText(statsMeta?.nextCalculatedAt);
+  const shouldShowLoader = hasLoaded && !isPoChart && (isStatsLoading || !hasStatsLoaded);
 
   const config = {
     data: chartData,
@@ -158,7 +194,14 @@ export default function OperationalChartsPanel() {
   };
 
   return (
-    <div className="operational-dashboard__panel operational-dashboard__panel--charts operational-charts-panel">
+    <div
+      className={[
+        "operational-dashboard__panel",
+        "operational-dashboard__panel--charts",
+        "operational-charts-panel",
+        className,
+      ].filter(Boolean).join(" ")}
+    >
       <div className="operational-dashboard__panel-body">
         <div className="operational-charts-panel__content">
           <div className="operational-charts-panel__header">
@@ -171,13 +214,13 @@ export default function OperationalChartsPanel() {
               </div>
             ) : null} */}
           </div>
-          {statsError ? (
+          {statsError && !isPoChart ? (
             <Alert type="warning" showIcon message={statsError} />
-          ) : hasLoaded && (isStatsLoading || !hasStatsLoaded) ? (
+          ) : shouldShowLoader ? (
             <div className="operational-charts-panel__loading">
               <BrandSunLoader size={46} text="Загружаем статистику" />
             </div>
-          ) : hasLoaded && hasStatsLoaded ? (
+          ) : hasLoaded && (hasStatsLoaded || isPoChart) ? (
             <>
               <div className="operational-charts-panel__chart">
                 <Column {...config} />

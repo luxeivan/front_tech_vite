@@ -7,6 +7,7 @@ import OperationalMapPanel, {
 } from "../../components/operationalDashboard/sections/map/jsx/OperationalMapPanel";
 import OperationalDonutsPanel from "../../components/operationalDashboard/sections/donuts/jsx/OperationalDonutsPanel";
 import OperationalDistrictsPanel from "../../components/operationalDashboard/sections/districts/jsx/OperationalDistrictsPanel";
+import OperationalChartsPanel from "../../components/operationalDashboard/sections/charts/jsx/OperationalChartsPanel";
 import BrandSunLoader from "../../components/ui/BrandSunLoader";
 import useOperationalDashboardStore from "../../stores/operationalDashboard/useOperationalDashboardStore";
 import {
@@ -45,8 +46,10 @@ export default function OperationalFilialPage({
 }) {
   const { filialSlug, poSlug } = useParams();
   const loadData = useOperationalDashboardStore((store) => store.loadData);
+  const reloadStats = useOperationalDashboardStore((store) => store.reloadStats);
   const isLoading = useOperationalDashboardStore((store) => store.isLoading);
   const hasLoaded = useOperationalDashboardStore((store) => store.hasLoaded);
+  const hasStatsLoaded = useOperationalDashboardStore((store) => store.hasStatsLoaded);
   const filialRoute = getOperationalFilialRouteBySlug(filialSlug);
   const filialName = filialRoute?.name || "Филиал";
   const [filialRows, setFilialRows] = useState([]);
@@ -62,12 +65,16 @@ export default function OperationalFilialPage({
 
   useEffect(() => {
     if (!hasLoaded) {
-      loadData({ includeStats: false });
+      loadData({ includeStats: !isPoLevel });
     }
-  }, [hasLoaded, loadData]);
+  }, [hasLoaded, isPoLevel, loadData]);
 
   useEffect(() => {
-    if (!poSlug) return undefined;
+    if (isPoLevel || !hasLoaded || hasStatsLoaded) return;
+    reloadStats();
+  }, [hasLoaded, hasStatsLoaded, isPoLevel, reloadStats]);
+
+  useEffect(() => {
     let disposed = false;
     fetchTnFilialyRows()
       .then((rows) => {
@@ -79,7 +86,7 @@ export default function OperationalFilialPage({
     return () => {
       disposed = true;
     };
-  }, [poSlug]);
+  }, []);
 
   return (
     <section
@@ -144,9 +151,17 @@ export default function OperationalFilialPage({
           groupBy={isPoLevel ? "okrug" : "po"}
           onBranchHover={isPoLevel ? undefined : setHoveredAreaName}
         />
-        <div className="operational-dashboard__panel operational-dashboard__panel--charts operational-filial-page__panel">
-          <div className="operational-dashboard__panel-body" />
-        </div>
+        {isPoLevel ? (
+          <div className="operational-dashboard__panel operational-dashboard__panel--charts operational-filial-page__panel">
+            <div className="operational-dashboard__panel-body" />
+          </div>
+        ) : (
+          <OperationalChartsPanel
+            className="operational-filial-page__panel"
+            filialName={filialName}
+            filialRows={filialRows}
+          />
+        )}
       </div>
     </section>
   );

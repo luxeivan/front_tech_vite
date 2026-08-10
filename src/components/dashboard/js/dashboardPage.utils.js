@@ -215,28 +215,32 @@ export async function fetchOperationalDashboardInitialRows({ axios, jwt }) {
   return rows;
 }
 
-export async function fetchOperationalDashboardCurrentYearRows({ axios, jwt }) {
+export async function fetchOperationalDashboardCurrentYearRows({ axios, jwt, forceRefresh = false }) {
   if (!jwt) throw new Error("Нет JWT: авторизуйтесь");
 
   const startedAt = perfNow();
   const headers = { Authorization: `Bearer ${jwt}` };
+  const endpoint = `${URL_SERVICES}/services/operational-dashboard/current-year-counts`;
 
-  const response = await axios.get(
-    `${URL_SERVICES}/services/operational-dashboard/current-year-counts`,
-    { headers }
-  );
+  const response = forceRefresh
+    ? await axios.post(`${endpoint}/refresh`, null, { headers })
+    : await axios.get(endpoint, { headers });
   const rows = Array.isArray(response?.data?.rows) ? response.data.rows : [];
+  const poRows = Array.isArray(response?.data?.poRows) ? response.data.poRows : [];
 
   if (response?.data?.ok && rows.length) {
     logDashboardPerf("operational/current-year-service: complete", {
       rows: rows.reduce((sum, row) => sum + Number(row.__count || 0), 0),
+      poRows: poRows.reduce((sum, row) => sum + Number(row.__count || 0), 0),
       cached: Boolean(response.data.cached),
+      forceRefresh,
       calculatedAt: response.data?.meta?.calculatedAt,
       nextCalculatedAt: response.data?.meta?.nextCalculatedAt,
       ms: Math.round(perfNow() - startedAt),
     });
     return {
       rows,
+      poRows,
       meta: response.data?.meta || null,
     };
   }

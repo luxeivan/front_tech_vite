@@ -20,6 +20,7 @@ const useOperationalDashboardStore = create((set) => ({
   rows: [],
   rows7d: [],
   rowsCurrentYear: [],
+  rowsCurrentYearByPo: [],
   statsMeta: null,
 
   setLoading: (isLoading) => set({ isLoading }),
@@ -57,6 +58,7 @@ const useOperationalDashboardStore = create((set) => ({
           ...(includeStats
             ? {
                 rowsCurrentYear: [],
+                rowsCurrentYearByPo: [],
                 statsMeta: null,
                 hasStatsLoaded: true,
               }
@@ -78,6 +80,7 @@ const useOperationalDashboardStore = create((set) => ({
           const stats = await fetchOperationalDashboardCurrentYearRows({ axios, jwt });
           set({
             rowsCurrentYear: stats.rows,
+            rowsCurrentYearByPo: stats.poRows,
             statsMeta: stats.meta,
             hasStatsLoaded: true,
             lastUpdatedAt: new Date().toISOString(),
@@ -85,6 +88,7 @@ const useOperationalDashboardStore = create((set) => ({
         } catch (error) {
           set({
             statsError: error?.message || "Ошибка загрузки статистики",
+            rowsCurrentYearByPo: [],
             statsMeta: null,
             hasStatsLoaded: true,
           });
@@ -100,16 +104,21 @@ const useOperationalDashboardStore = create((set) => ({
     return loadPromise;
   },
 
-  reloadStats: async () => {
+  reloadStats: async (options = {}) => {
     if (statsPromise) return statsPromise;
 
     statsPromise = (async () => {
       try {
         set({ isStatsLoading: true, statsError: null, hasStatsLoaded: false });
         const jwt = localStorage.getItem("jwt");
-        const stats = await fetchOperationalDashboardCurrentYearRows({ axios, jwt });
+        const stats = await fetchOperationalDashboardCurrentYearRows({
+          axios,
+          jwt,
+          forceRefresh: Boolean(options.forceRefresh),
+        });
         set({
           rowsCurrentYear: stats.rows,
+          rowsCurrentYearByPo: stats.poRows,
           statsMeta: stats.meta,
           hasStatsLoaded: true,
           lastUpdatedAt: new Date().toISOString(),
@@ -117,6 +126,7 @@ const useOperationalDashboardStore = create((set) => ({
       } catch (error) {
         set({
           statsError: error?.message || "Ошибка загрузки статистики",
+          rowsCurrentYearByPo: [],
           statsMeta: null,
           hasStatsLoaded: true,
         });
