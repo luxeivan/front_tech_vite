@@ -9,6 +9,7 @@ import Fill from "ol/style/Fill";
 import Stroke from "ol/style/Stroke";
 
 import pesIconSvgRaw from "../../../assets/PES.svg?raw";
+import { formatPowerKw, statusLabel } from "../../pes/js/pesModuleMeta";
 
 const PES_ICON_SCALE_MULT = 0.04;
 
@@ -24,6 +25,12 @@ const PES_ICON_COLOR_REPAIR = "#bfbfbf";
 const PES_ICON_COLOR_MOVING = PES_ICON_COLOR_EN_ROUTE;
 const PES_ICON_COLOR_IDLE = PES_ICON_COLOR_READY;
 const PES_HALO_COLOR_CONNECTED = "#722ed1";
+const PES_ACTIVE_DESTINATION_STATUSES = new Set([
+  "command_sent",
+  "delay",
+  "en_route",
+  "connected",
+]);
 const PES_ALLOWLIST_COLLECTION =
   import.meta.env.VITE_PES_MAP_ALLOWLIST_COLLECTION || "pes-map-allowlists";
 const PES_ALLOWLIST_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -169,11 +176,6 @@ export const PES_STATUS_LEGEND = [
   },
 ];
 
-const PES_STATUS_LABEL_BY_STATUS = PES_STATUS_LEGEND.reduce((acc, item) => {
-  acc[item.status] = item.label;
-  return acc;
-}, {});
-
 const normalizePesNumber = (value) => {
   const raw = String(value == null ? "" : value);
   if (!raw.trim()) return "";
@@ -212,8 +214,11 @@ async function fetchPesModuleStatusMap(signal) {
     if (!number) return;
     map.set(number, {
       status: item?.effectiveStatus || item?.status || "ready",
+      effectiveStatus: item?.effectiveStatus || item?.status || "ready",
       branch: item?.branch || "",
       po: item?.po || "",
+      powerKw: item?.powerKw,
+      destination: item?.destination || null,
     });
   });
 
@@ -242,38 +247,43 @@ export async function getPesModuleInfoByNumber(pesNumber, signal) {
   return statusMap.get(normalized) || null;
 }
 
-const formatTime = (ms) => {
-  const n = Number(ms);
-  if (!Number.isFinite(n) || n <= 0) return "—";
-  try {
-    return new Date(n).toLocaleString();
-  } catch {
-    return String(n);
-  }
-};
+const escapeHtml = (value) =>
+  String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 
-const pesStatusLabel = (status) => {
-  return PES_STATUS_LABEL_BY_STATUS[status] || "—";
-};
+const getDestinationLabel = (destination) =>
+  destination?.address || destination?.title || destination?.name || "";
 
 export const buildPesPopupHtml = ({
   name,
-  model,
-  speed,
-  time,
-  lat,
-  lon,
   moduleStatus,
+  branch,
+  po,
+  powerKw,
+  destination,
+  loading = false,
 }) => {
-  const sp = Number.isFinite(Number(speed)) ? Number(speed) : 0;
-  const latS = Number.isFinite(lat) ? lat.toFixed(6) : "—";
-  const lonS = Number.isFinite(lon) ? lon.toFixed(6) : "—";
-  return `<div><b>${name || "ПЭС"}</b>
-    <br/>Статус: ${pesStatusLabel(moduleStatus)}
-    <br/>Модель: ${model || "—"}
-    <br/>Скорость: ${sp}
-    <br/>Время: ${formatTime(time)}
-    <br/>Коорд.: ${latS}, ${lonS}
+  const status = String(moduleStatus || "")
+    .trim()
+    .toLowerCase();
+  const destinationLabel = getDestinationLabel(destination);
+  const formattedPower = formatPowerKw(powerKw);
+  const powerLabel = formattedPower === "—" ? formattedPower : `${formattedPower} кВт`;
+  const destinationLine =
+    destinationLabel && PES_ACTIVE_DESTINATION_STATUSES.has(status)
+      ? `<br/>Объект подключения: ${escapeHtml(destinationLabel)}`
+      : "";
+  const loadingLine = loading ? "<br/>Загрузка данных ПЭС..." : "";
+
+  return `<div><b>${escapeHtml(name || "ПЭС")}</b>
+    <br/>Филиал: ${escapeHtml(branch || "—")}
+    <br/>ПО: ${escapeHtml(po || "—")}
+    <br/>Установленная мощность: ${escapeHtml(powerLabel)}
+    <br/>Текущий статус: ${escapeHtml(statusLabel(moduleStatus))}${destinationLine}${loadingLine}
   </div>`;
 };
 
@@ -516,17 +526,18 @@ export const startPesPolling = ({
           moduleStatus,
           moduleBranch: moduleInfo?.branch || "",
           modulePo: moduleInfo?.po || "",
+          modulePowerKw: moduleInfo?.powerKw,
+          moduleDestination: moduleInfo?.destination || null,
         });
         feature.set(
           "_popupHtml",
           buildPesPopupHtml({
             name,
-            model,
-            speed,
-            time,
-            lat,
-            lon,
             moduleStatus,
+            branch: moduleInfo?.branch || "",
+            po: moduleInfo?.po || "",
+            powerKw: moduleInfo?.powerKw,
+            destination: moduleInfo?.destination || null,
           }),
         );
 

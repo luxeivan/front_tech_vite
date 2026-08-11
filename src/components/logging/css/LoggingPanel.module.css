@@ -23,6 +23,22 @@
   width: 100%;
 }
 
+.loaderBox,
+.selectLoader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.loaderBox {
+  padding: 16px;
+}
+
+.selectLoader {
+  padding: 12px 8px;
+}
+
 .tnFilterRow {
   display: flex;
   gap: 8px;

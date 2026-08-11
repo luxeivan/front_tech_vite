@@ -19,6 +19,7 @@ import dayjs from "dayjs";
 import "dayjs/locale/ru";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchAuditEvents, fetchAuditUsers } from "../js/fetchAuditLogs";
+import BrandSunLoader from "../../ui/BrandSunLoader";
 import styles from "../css/LoggingPanel.module.css";
 
 const { RangePicker } = DatePicker;
@@ -45,6 +46,7 @@ const PAGE_OPTIONS = [
   { label: "Аварийные отключения", value: "/" },
   { label: "Плановые отключения", value: "/planned" },
   { label: "Дашборд", value: "/dashboard" },
+  { label: "Дашборд ОО", value: "/dashboard-oo" },
   { label: "Модуль ПЭС", value: "/pes" },
   { label: "Журнал действий", value: "/logging" },
 ];
@@ -53,6 +55,7 @@ const PAGE_LABEL_MAP = {
   "/": "Аварийные отключения",
   "/planned": "Плановые отключения",
   "/dashboard": "Дашборд",
+  "/dashboard-oo": "Дашборд ОО",
   "/pes": "Модуль ПЭС",
   "/logging": "Журнал действий",
 };
@@ -60,6 +63,9 @@ const PAGE_LABEL_MAP = {
 function prettyPage(pathValue) {
   const value = String(pathValue || "").trim();
   if (!value) return "—";
+  if (value.startsWith("/dashboard-oo")) return PAGE_LABEL_MAP["/dashboard-oo"];
+  if (value.startsWith("/planned")) return PAGE_LABEL_MAP["/planned"];
+  if (value.startsWith("/pes") || value.startsWith("/services/pes")) return PAGE_LABEL_MAP["/pes"];
   return PAGE_LABEL_MAP[value] || value;
 }
 
@@ -142,11 +148,22 @@ function createDefaultFilters() {
     statusEvent: "",
     tnType: "guid",
     tnValue: "",
+    pesNumber: "",
   };
+}
+
+function isTnPage(page) {
+  return page === "/" || page === "/planned";
+}
+
+function isPesPage(page) {
+  return page === "/pes";
 }
 
 function buildRequestFilters(filters, pagination) {
   const [from, to] = Array.isArray(filters.period) ? filters.period : [];
+  const shouldFilterTn = isTnPage(filters.page);
+  const shouldFilterPes = isPesPage(filters.page);
   return {
     page: pagination.page,
     pageSize: pagination.pageSize,
@@ -155,8 +172,9 @@ function buildRequestFilters(filters, pagination) {
     from: from && dayjs.isDayjs(from) ? from.toISOString() : "",
     to: to && dayjs.isDayjs(to) ? to.toISOString() : "",
     statusEvent: String(filters.statusEvent || "").trim(),
-    tnType: String(filters.tnType || "").trim(),
-    tnValue: String(filters.tnValue || "").trim(),
+    tnType: shouldFilterTn ? String(filters.tnType || "").trim() : "",
+    tnValue: shouldFilterTn ? String(filters.tnValue || "").trim() : "",
+    search: shouldFilterPes ? String(filters.pesNumber || "").trim() : "",
   };
 }
 
@@ -177,13 +195,16 @@ function normalizeUserOptions(rows) {
 
     const email =
       typeof item === "string" ? "" : String(item?.email || "").trim();
+    const displayName =
+      typeof item === "string" ? username : String(item?.displayName || item?.label || username).trim();
 
     options.push({
       value: username,
-      search: `${username} ${email}`.toLowerCase(),
+      search: `${displayName} ${username} ${email}`.toLowerCase(),
       label: (
         <div className={styles.userOption}>
-          <div>{username}</div>
+          <div>{displayName}</div>
+          {displayName !== username ? <div className={styles.userEmail}>{username}</div> : null}
           {email ? <div className={styles.userEmail}>{email}</div> : null}
         </div>
       ),
@@ -214,26 +235,42 @@ export default function LoggingPanel() {
     return window.innerWidth;
   });
   const isFirstAutoApplyRef = useRef(true);
+  const userSearchTimerRef = useRef(null);
+  const userSearchSeqRef = useRef(0);
 
   const loadUsers = useCallback(
     async (query = "") => {
+      const seq = userSearchSeqRef.current + 1;
+      userSearchSeqRef.current = seq;
       const jwt = localStorage.getItem("jwt") || "";
       const params = {
-        query,
+        query: String(query || "").trim(),
         limit: 50,
       };
       setUserLoading(true);
       try {
         const resp = await fetchAuditUsers(params, jwt);
+        if (seq !== userSearchSeqRef.current) return;
         const list = Array.isArray(resp?.data) ? resp.data : [];
         setUserOptions(normalizeUserOptions(list));
       } catch {
+        if (seq !== userSearchSeqRef.current) return;
         setUserOptions([]);
       } finally {
-        setUserLoading(false);
+        if (seq === userSearchSeqRef.current) setUserLoading(false);
       }
     },
     []
+  );
+
+  const scheduleLoadUsers = useCallback(
+    (query = "") => {
+      window.clearTimeout(userSearchTimerRef.current);
+      userSearchTimerRef.current = window.setTimeout(() => {
+        loadUsers(query);
+      }, 250);
+    },
+    [loadUsers]
   );
 
   const load = useCallback(
@@ -281,6 +318,7 @@ export default function LoggingPanel() {
   useEffect(() => {
     load(filters, pagination);
     loadUsers("");
+    return () => window.clearTimeout(userSearchTimerRef.current);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -352,6 +390,25 @@ export default function LoggingPanel() {
     setFilters(next);
     await loadUsers("");
   };
+
+  const handlePageChange = (page) => {
+    updateFilters((s) => ({
+      ...s,
+      page,
+      tnValue: isTnPage(page) ? s.tnValue : "",
+      pesNumber: isPesPage(page) ? s.pesNumber : "",
+    }));
+  };
+
+  const tableLoading = loading
+    ? {
+        indicator: (
+          <div className={styles.loaderBox}>
+            <BrandSunLoader size={42} text="Загружаем журнал" />
+          </div>
+        ),
+      }
+    : false;
 
   const columns = useMemo(
     () => [
@@ -469,30 +526,55 @@ export default function LoggingPanel() {
               placeholder="Выберите пользователя"
               value={filters.username || undefined}
               options={userOptions}
-              loading={userLoading}
               filterOption={false}
               onFocus={() => loadUsers(filters.username)}
-              onSearch={(v) => loadUsers(v)}
+              onSearch={scheduleLoadUsers}
               onChange={(v) => updateFilters((s) => ({ ...s, username: v || "" }))}
+              suffixIcon={userLoading ? <BrandSunLoader size={18} /> : undefined}
+              notFoundContent={
+                userLoading ? (
+                  <div className={styles.selectLoader}>
+                    <BrandSunLoader size={28} text="Ищем" />
+                  </div>
+                ) : (
+                  "Нет данных"
+                )
+              }
             />
           </Col>
 
-          <Col xs={24} md={12} lg={7}>
-            <div className={styles.fieldLabel}>Фильтр по ТН</div>
-            <div className={styles.tnFilterRow}>
-              <Segmented
-                value={filters.tnType}
-                options={TN_TYPE_OPTIONS}
-                onChange={(v) => updateFilters((s) => ({ ...s, tnType: String(v) }))}
-              />
+          {isTnPage(filters.page) && (
+            <Col xs={24} md={12} lg={7}>
+              <div className={styles.fieldLabel}>Фильтр по ТН</div>
+              <div className={styles.tnFilterRow}>
+                <Segmented
+                  value={filters.tnType}
+                  options={TN_TYPE_OPTIONS}
+                  onChange={(v) => updateFilters((s) => ({ ...s, tnType: String(v) }))}
+                />
+                <Input
+                  className={styles.fullWidth}
+                  placeholder={
+                    filters.tnType === "number" ? "Введите номер ТН" : "Введите GUID ТН"
+                  }
+                  value={filters.tnValue}
+                  onChange={(e) => updateFilters((s) => ({ ...s, tnValue: e.target.value }))}
+                />
+              </div>
+            </Col>
+          )}
+
+          {isPesPage(filters.page) && (
+            <Col xs={24} md={12} lg={7}>
+              <div className={styles.fieldLabel}>Номер ПЭС</div>
               <Input
                 className={styles.fullWidth}
-                placeholder={filters.tnType === "number" ? "Введите номер ТН" : "Введите GUID ТН"}
-                value={filters.tnValue}
-                onChange={(e) => updateFilters((s) => ({ ...s, tnValue: e.target.value }))}
+                placeholder="Введите номер ПЭС"
+                value={filters.pesNumber}
+                onChange={(e) => updateFilters((s) => ({ ...s, pesNumber: e.target.value }))}
               />
-            </div>
-          </Col>
+            </Col>
+          )}
 
           <Col xs={24} md={8}>
             <div className={styles.fieldLabel}>Раздел</div>
@@ -500,7 +582,7 @@ export default function LoggingPanel() {
               className={styles.fullWidth}
               value={filters.page}
               options={PAGE_OPTIONS}
-              onChange={(v) => updateFilters((s) => ({ ...s, page: v }))}
+              onChange={handlePageChange}
             />
           </Col>
 
@@ -523,7 +605,7 @@ export default function LoggingPanel() {
                   `${row?.created_at || "na"}-${row?.username || "na"}-${row?.action || "na"}-${row?.entity_id || "na"}`
               )
             }
-            loading={loading}
+            loading={tableLoading}
             columns={columns}
             dataSource={rows}
             pagination={false}

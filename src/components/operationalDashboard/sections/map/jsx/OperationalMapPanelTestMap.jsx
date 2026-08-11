@@ -1061,24 +1061,16 @@ export default function OperationalMapPanel({
 
     const renderPesPopup = (feature, moduleInfo = null, { loading = false } = {}) => {
       const moduleStatus =
-        moduleInfo?.status || feature.get("moduleStatus") || "";
-      const html = buildPesPopupHtml({
+        moduleInfo?.effectiveStatus || moduleInfo?.status || feature.get("moduleStatus") || "";
+      pesPopupContentEl.innerHTML = buildPesPopupHtml({
         name: feature.get("name"),
-        model: feature.get("model"),
-        speed: feature.get("speed"),
-        time: feature.get("time"),
-        lat: Number(feature.get("lat")),
-        lon: Number(feature.get("lon")),
         moduleStatus,
+        branch: moduleInfo?.branch || feature.get("moduleBranch") || "",
+        po: moduleInfo?.po || feature.get("modulePo") || "",
+        powerKw: moduleInfo?.powerKw ?? feature.get("modulePowerKw"),
+        destination: moduleInfo?.destination || feature.get("moduleDestination") || null,
+        loading,
       });
-      const branch = moduleInfo?.branch || feature.get("moduleBranch") || "";
-      const po = moduleInfo?.po || feature.get("modulePo") || "";
-      const details = [
-        branch ? `<br/>Филиал: ${branch}` : "",
-        po ? `<br/>ПО: ${po}` : "",
-        loading ? "<br/>Загрузка данных ПЭС..." : "",
-      ].join("");
-      pesPopupContentEl.innerHTML = html.replace("</div>", `${details}</div>`);
     };
 
     const showPesPopup = async (feature, coordinate) => {
@@ -1103,9 +1095,11 @@ export default function OperationalMapPanel({
         if (pesPopupAbortController.signal.aborted) return;
         if (moduleInfo) {
           feature.setProperties({
-            moduleStatus: moduleInfo.status || "",
+            moduleStatus: moduleInfo.effectiveStatus || moduleInfo.status || "",
             moduleBranch: moduleInfo.branch || "",
             modulePo: moduleInfo.po || "",
+            modulePowerKw: moduleInfo.powerKw,
+            moduleDestination: moduleInfo.destination || null,
           });
           livePesLayer.changed();
         }
