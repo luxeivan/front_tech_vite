@@ -181,8 +181,8 @@ export default function OperationalDistrictsPanel({
   }, [loadPesItems, user]);
 
   const pesCountMaps = useMemo(
-    () => buildPesDashboardCountMaps(pesItems, pesAssemblyDestinations),
-    [pesAssemblyDestinations, pesItems]
+    () => buildPesDashboardCountMaps(pesItems, pesAssemblyDestinations, filialRows),
+    [filialRows, pesAssemblyDestinations, pesItems]
   );
 
   const dataSource = useMemo(() => {

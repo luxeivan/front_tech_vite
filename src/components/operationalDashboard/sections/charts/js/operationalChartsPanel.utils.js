@@ -40,6 +40,14 @@ const getPoNameByOldFields = (row) => {
   return typeof poName === "string" ? poName.trim() : poName;
 };
 
+const OPERATIONAL_CHART_PO_ALIASES = {
+  Домодедовский: {
+    "видновский участок": "Дзержинское ПО",
+    "лыткаринский участок": "Дзержинское ПО",
+    "домодедовский филиал": "Домодедовское ПО",
+  },
+};
+
 const isSameChartName = (left, right) =>
   normalizeChartLookupName(left) === normalizeChartLookupName(right);
 
@@ -58,21 +66,25 @@ const getPoChartRows = (filialRows, filialName, rowsCurrentYearByPo) => {
   const topologyPoRows = getTnFilialyAreaPoRows(filialRow)
     .filter((row) => row?.is_active !== false && row?.name)
     .map((row) => ({ name: row.name, slug: getOperationalPoSlug(row.name) }));
-  const seen = new Set(topologyPoRows.map((row) => row.slug));
-  const normalizedFilialName = normalizeBranchName(filialName);
-
-  (Array.isArray(rowsCurrentYearByPo) ? rowsCurrentYearByPo : []).forEach((row) => {
-    const branch = getOperationalChartBranchByOldFields(row);
-    if (!isSameChartName(branch, normalizedFilialName)) return;
-
-    const poName = getPoNameByOldFields(row);
-    const slug = getOperationalPoSlug(poName);
-    if (!poName || !slug || seen.has(slug)) return;
-    seen.add(slug);
-    topologyPoRows.push({ name: poName, slug });
-  });
 
   return sortRu(topologyPoRows);
+};
+
+const getPoAliasName = (branch, poName) => {
+  const branchAliases = OPERATIONAL_CHART_PO_ALIASES[branch];
+  if (!branchAliases) return "";
+  return branchAliases[normalizeChartLookupName(poName)] || "";
+};
+
+const getPoSlugForChartRow = (row, branch, topologyPoRows) => {
+  const poName = getPoNameByOldFields(row);
+  const poSlug = getOperationalPoSlug(poName);
+  const topologySlugs = new Set(topologyPoRows.map((item) => item.slug).filter(Boolean));
+  if (topologySlugs.has(poSlug)) return poSlug;
+
+  const aliasName = getPoAliasName(branch, poName);
+  const aliasSlug = getOperationalPoSlug(aliasName);
+  return topologySlugs.has(aliasSlug) ? aliasSlug : "";
 };
 
 const CHART_DISPCENTER_BRANCH_BY_NORMALIZED_NAME = new Map(
@@ -138,9 +150,10 @@ export const buildPoTechViolationChartData = ({
     const rawCount = pick(row, "__count");
     const precomputedCount = rawCount == null ? null : Number(rawCount);
     const branch = getOperationalChartBranchByOldFields(row);
-    const poSlug = getOperationalPoSlug(getPoNameByOldFields(row));
 
-    if (!poSlug || !isSameChartName(branch, normalizedFilialName)) return;
+    if (!isSameChartName(branch, normalizedFilialName)) return;
+    const poSlug = getPoSlugForChartRow(row, normalizedFilialName, poRows);
+    if (!poSlug) return;
     if (!Number.isFinite(precomputedCount) && (!isDashboardBaseType(row) || !isNotDeletedTN(row))) {
       return;
     }
@@ -152,12 +165,18 @@ export const buildPoTechViolationChartData = ({
   });
 
   const previousYearValues = getOperationalChart2025PoValues(normalizedFilialName, statsMeta);
+  const previousYearValuesBySlug = Object.fromEntries(
+    Object.entries(previousYearValues).map(([poName, value]) => [
+      getOperationalPoSlug(poName),
+      value,
+    ])
+  );
 
   return poRows.flatMap((poRow) => [
     {
       branch: poRow.name,
       year: String(OPERATIONAL_CHART_PREVIOUS_YEAR),
-      value: previousYearValues[poRow.name] || 0,
+      value: previousYearValuesBySlug[poRow.slug] || 0,
     },
     {
       branch: poRow.name,

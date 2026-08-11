@@ -207,15 +207,47 @@ const buildDestinationLookup = (destinations = []) =>
     return acc;
   }, new Map());
 
-const getPesDashboardLocation = (item, destinationById) => {
+const buildKnownPesPoKeysByBranch = (filialRows = []) =>
+  (Array.isArray(filialRows) ? filialRows : []).reduce((acc, filialRow) => {
+    const branchKey = normalizePesBranchKey(filialRow?.name);
+    if (!branchKey) return acc;
+
+    const poKeys = new Set(
+      getTnFilialyAreaPoRows(filialRow)
+        .filter((poRow) => poRow?.is_active !== false)
+        .map((poRow) => normalizePesPoKey(poRow?.name))
+        .filter(Boolean)
+    );
+
+    if (poKeys.size) acc.set(branchKey, poKeys);
+    return acc;
+  }, new Map());
+
+const getKnownPesPoName = (branchName, primaryPoName, fallbackPoName, knownPoKeysByBranch) => {
+  const branchKey = normalizePesBranchKey(branchName);
+  const knownPoKeys = knownPoKeysByBranch?.get(branchKey);
+  if (!knownPoKeys?.size) return primaryPoName || fallbackPoName;
+
+  const primaryPoKey = normalizePesPoKey(primaryPoName);
+  if (primaryPoKey && knownPoKeys.has(primaryPoKey)) return primaryPoName;
+
+  const fallbackPoKey = normalizePesPoKey(fallbackPoName);
+  if (fallbackPoKey && knownPoKeys.has(fallbackPoKey)) return fallbackPoName;
+
+  return primaryPoName || fallbackPoName;
+};
+
+const getPesDashboardLocation = (item, destinationById, knownPoKeysByBranch = null) => {
   const destinationId = String(item?.destination?.id || "").trim();
   const destinationType = String(item?.destination?.type || "").trim();
   const destination =
     destinationId && destinationType === "assembly" ? destinationById.get(destinationId) : null;
+  const branch = destination?.branch || item?.branch;
+  const po = getKnownPesPoName(branch, destination?.po, item?.po, knownPoKeysByBranch);
 
   return {
-    branch: destination?.branch || item?.branch,
-    po: destination?.po || item?.po,
+    branch,
+    po,
     district:
       destination?.district ||
       extractDistrictNameFromAddress(destination?.address) ||
@@ -225,8 +257,9 @@ const getPesDashboardLocation = (item, destinationById) => {
   };
 };
 
-export const buildPesDashboardCountMaps = (items = [], destinations = []) => {
+export const buildPesDashboardCountMaps = (items = [], destinations = [], filialRows = []) => {
   const destinationById = buildDestinationLookup(destinations);
+  const knownPoKeysByBranch = buildKnownPesPoKeysByBranch(filialRows);
   const counts = {
     byBranchKey: new Map(),
     byPoKey: new Map(),
@@ -236,7 +269,11 @@ export const buildPesDashboardCountMaps = (items = [], destinations = []) => {
   };
 
   (Array.isArray(items) ? items : []).filter(isDashboardActivePes).forEach((item) => {
-    const { branch, po, district } = getPesDashboardLocation(item, destinationById);
+    const { branch, po, district } = getPesDashboardLocation(
+      item,
+      destinationById,
+      knownPoKeysByBranch
+    );
     const branchKey = normalizePesBranchKey(branch);
     const poKey = normalizePesPoKey(po);
 
@@ -385,19 +422,6 @@ export const buildOperationalPoRows = (rows, filialRows = [], filialName = "", p
   };
 
   filteredPoRows.forEach(addPoReferenceRow);
-
-  pesCountMaps?.poNamesByBranchKey
-    ?.get(normalizePesBranchKey(filialName))
-    ?.forEach((poDisplayName, poKey) => {
-      if (!poKey || poMap.has(poKey)) return;
-      poMap.set(poKey, {
-        key: `pes-${poKey}`,
-        branch: poDisplayName,
-        ...EMPTY_NUMERIC_VALUES,
-        mainResource: OPERATIONAL_BRANCH_UNKNOWN_VALUE,
-        ovb: OPERATIONAL_BRANCH_UNKNOWN_VALUE,
-      });
-    });
 
   (Array.isArray(rows) ? rows : [])
     .filter((row) => isOperationalDashboardRow(row) && isOpenTN(row) && isRowInBranch(row, filialName))
