@@ -118,9 +118,15 @@ export default function DistrictModeModal({ open, onClose }) {
         return next;
       });
 
+      const eventFilials = buildAuditFilials(
+        [...filialModeRows, updatedRow].filter(Boolean),
+        [filialId]
+      );
+
       notifyTnFilialyRezimUpdated({
         action: nextMode === DISTRICT_MODE_EMPTY ? "reset" : "set",
         filialIds: [filialId],
+        filials: eventFilials,
         rezim: nextMode,
       });
 
@@ -132,10 +138,7 @@ export default function DistrictModeModal({ open, onClose }) {
           entity_id: key,
           details: {
             filial_ids: [key],
-            filials: buildAuditFilials(
-              [...filialModeRows, updatedRow].filter(Boolean),
-              [filialId]
-            ),
+            filials: eventFilials,
             mode: nextMode,
             mode_label: getModeLabel(nextMode),
             previous_mode: currentMode,
