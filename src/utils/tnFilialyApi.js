@@ -8,6 +8,9 @@ const TN_FILIALIES_ENDPOINT = `${BACKEND_URL}/api/tn-filialies`;
 const EVENTS_ENDPOINT = SERVICES_URL
   ? `${String(SERVICES_URL).replace(/\/$/, "")}/services/event`
   : "";
+const BACKEND_EVENTS_ENDPOINT = BACKEND_URL
+  ? `${String(BACKEND_URL).replace(/\/$/, "")}/services/event`
+  : "";
 const PAGE_SIZE = 100;
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const TN_FILIALIES_STATUS = "draft";
@@ -109,29 +112,40 @@ export const getTnFilialyAreaPoRows = (filialRow) => {
 export const notifyTnFilialyRezimUpdated = (payload = {}) => {
   if (typeof window === "undefined") return;
 
-  const value = String(Date.now());
-  window.dispatchEvent(new CustomEvent(TN_FILIALY_REZIM_UPDATED_EVENT));
+  const eventPayload = {
+    type: TN_FILIALY_REZIM_UPDATED_EVENT,
+    ...payload,
+    timestamp: Date.now(),
+  };
+
+  window.dispatchEvent(
+    new CustomEvent(TN_FILIALY_REZIM_UPDATED_EVENT, {
+      detail: eventPayload,
+    })
+  );
 
   try {
-    window.localStorage.setItem(TN_FILIALY_REZIM_UPDATED_STORAGE_KEY, value);
+    window.localStorage.setItem(
+      TN_FILIALY_REZIM_UPDATED_STORAGE_KEY,
+      JSON.stringify(eventPayload)
+    );
   } catch {
     // События достаточно для текущей вкладки; localStorage нужен только для соседних вкладок.
   }
 
-  if (!EVENTS_ENDPOINT) return;
+  const eventEndpoints = Array.from(
+    new Set([EVENTS_ENDPOINT, BACKEND_EVENTS_ENDPOINT].filter(Boolean))
+  );
 
-  axios
-    .post(EVENTS_ENDPOINT, {
-      type: TN_FILIALY_REZIM_UPDATED_EVENT,
-      ...payload,
-      timestamp: Date.now(),
-    })
-    .catch((error) => {
+  eventEndpoints.forEach((endpoint) => {
+    axios.post(endpoint, eventPayload).catch((error) => {
       console.warn(
         "[tn-filialy] Не удалось отправить событие обновления режима",
+        endpoint,
         error?.message || error
       );
     });
+  });
 };
 
 export async function fetchTnFilialyRows(options = {}) {

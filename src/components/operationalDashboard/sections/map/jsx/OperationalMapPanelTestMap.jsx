@@ -964,17 +964,7 @@ export default function OperationalMapPanel({
     const format = new GeoJSON();
     const disposeRgisBaseLayerClip = applyRgisBaseLayerClip(rgisBaseLayer, map, districtSource);
 
-    const applyFeatureCollection = (featureCollection, { fit = false } = {}) => {
-      if (cancelled || !mapRef.current || !districtSourceRef.current) return;
-      const features = format.readFeatures(featureCollection, {
-        dataProjection: "EPSG:4326",
-        featureProjection: "EPSG:3857",
-      });
-      districtSourceRef.current.clear();
-      assignVisiblePoNames(features, filialName);
-      assignAreaLabels(features, fillGroup);
-      districtSourceRef.current.addFeatures(features);
-      if (features.length) setIsMapReady(true);
+    const refreshBoundaryLayers = (features = districtSourceRef.current?.getFeatures() || []) => {
       filialHoverSource.clear();
       modeBoundarySource.clear();
       const areaBoundaryFeatures =
@@ -990,7 +980,7 @@ export default function OperationalMapPanel({
             )
           : [];
       const modeBoundaryFeatures = buildGroupBoundaryFeatures(
-        districtSourceRef.current.getFeatures(),
+        features,
         "filial",
         (groupName, groupFeatures) => {
           const modeStrokeColor = groupFeatures
@@ -1004,6 +994,20 @@ export default function OperationalMapPanel({
         }
       ).filter((feature) => feature.get("strokeColor"));
       modeBoundarySource.addFeatures([...areaBoundaryFeatures, ...modeBoundaryFeatures]);
+    };
+
+    const applyFeatureCollection = (featureCollection, { fit = false } = {}) => {
+      if (cancelled || !mapRef.current || !districtSourceRef.current) return;
+      const features = format.readFeatures(featureCollection, {
+        dataProjection: "EPSG:4326",
+        featureProjection: "EPSG:3857",
+      });
+      districtSourceRef.current.clear();
+      assignVisiblePoNames(features, filialName);
+      assignAreaLabels(features, fillGroup);
+      districtSourceRef.current.addFeatures(features);
+      if (features.length) setIsMapReady(true);
+      refreshBoundaryLayers(features);
       districtLayerRef.current?.changed();
       districtLabelLayerRef.current?.changed();
       rgisBaseLayer.changed();
@@ -1155,16 +1159,68 @@ export default function OperationalMapPanel({
       }
     };
 
+    const getFilialModeEventPayload = (event) => {
+      if (event?.detail) return event.detail?.payload || event.detail;
+      if (!event?.newValue) return null;
+      try {
+        const payload = JSON.parse(event.newValue);
+        return payload?.payload || payload;
+      } catch {
+        return null;
+      }
+    };
+
+    const applyFilialModePayload = (payload) => {
+      const rezim = payload?.rezim;
+      const filialIds = new Set((payload?.filialIds || []).map((id) => String(id)));
+      const filialNames = new Set(
+        (payload?.filials || [])
+          .map((item) => normalizeOperationalMapAreaName(item?.name))
+          .filter(Boolean)
+      );
+
+      if (!rezim || (!filialIds.size && !filialNames.size)) return false;
+
+      const features = districtSourceRef.current?.getFeatures() || [];
+      let changed = false;
+      features.forEach((feature) => {
+        const featureFilialIds = toFeatureNameList(feature.get("filial_ids"));
+        const featureFilialNames = toFeatureNameList(feature.get("filial_names")).map(
+          normalizeOperationalMapAreaName
+        );
+        const hasTargetId = featureFilialIds.some((id) => filialIds.has(String(id)));
+        const hasTargetName = featureFilialNames.some((name) => filialNames.has(name));
+        if (!hasTargetId && !hasTargetName) return;
+
+        feature.set("rezim", rezim);
+        feature.set("filial_rezim", rezim);
+        changed = true;
+      });
+
+      if (!changed) return false;
+
+      refreshBoundaryLayers(features);
+      districtLayerRef.current?.changed();
+      districtLabelLayerRef.current?.changed();
+      rgisBaseLayer.changed();
+      setMapFeaturesVersion((version) => version + 1);
+      return true;
+    };
+
     const cachedRows = readCachedTnOkrugaRows();
     if (cachedRows.length) {
       applyDistrictRows(cachedRows, { fit: true });
     }
     loadFallbackFeatures();
     loadDistrictFeatures({ fit: !cachedRows.length });
-    const handleFilialModeUpdated = () => loadDistrictFeatures({ force: true });
+    const handleFilialModeUpdated = (event) => {
+      const applied = applyFilialModePayload(getFilialModeEventPayload(event));
+      loadDistrictFeatures({ force: true });
+      return applied;
+    };
     const handleFilialModeStorageUpdated = (event) => {
       if (event.key === TN_FILIALY_REZIM_UPDATED_STORAGE_KEY) {
-        loadDistrictFeatures({ force: true });
+        handleFilialModeUpdated(event);
       }
     };
     window.addEventListener(TN_FILIALY_REZIM_UPDATED_EVENT, handleFilialModeUpdated);

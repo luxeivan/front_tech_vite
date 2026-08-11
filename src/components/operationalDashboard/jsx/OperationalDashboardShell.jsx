@@ -68,7 +68,11 @@ export default function OperationalDashboardShell({
         if (payload?.message === "Подключено к SSE") return;
 
         if (isFilialModeEvent(payload)) {
-          window.dispatchEvent(new CustomEvent(TN_FILIALY_REZIM_UPDATED_EVENT));
+          window.dispatchEvent(
+            new CustomEvent(TN_FILIALY_REZIM_UPDATED_EVENT, {
+              detail: payload?.payload || payload,
+            })
+          );
         }
 
         scheduleRowsRefresh();

@@ -187,6 +187,11 @@ export const buildTnOkrugaFeatureCollection = (rows) => ({
           district: row.source_name || row.name,
           name: row.name,
           source_name: row.source_name,
+          filial_id: filial?.documentId || filial?.id || null,
+          filial_ids: filialRows
+            .map((item) => item?.documentId || item?.id)
+            .filter(Boolean)
+            .map(String),
           filial_name: filial?.name || null,
           filial_names: filialRows.map((item) => item?.name).filter(Boolean),
           filial_rezim: filial?.rezim || null,
