@@ -1,49 +1,22 @@
-import {
-  Button,
-  Flex,
-  Modal,
-  Select,
-  Segmented,
-  Space,
-  Spin,
-  Tag,
-  Typography,
-  message,
-} from "antd";
+import { Button, Modal, message } from "antd";
 import React from "react";
+import BrandSunLoader from "../../ui/BrandSunLoader";
 import useAuth from "../../../stores/useAuth";
 import { logAuditEvent } from "../../../utils/auditLogger";
 import {
-  buildTnFilialySelectOptions,
-  fetchTnFilialyRows,
+  fetchTnFilialyModeRows,
   formatTnFilialyName,
   getTnFilialyWriteId,
   notifyTnFilialyRezimUpdated,
   updateTnFilialyRezim,
 } from "../../../utils/tnFilialyApi";
+import "../css/DistrictModeModal.css";
 
 const DISTRICT_MODE_EMPTY = "bez_rezhima";
-const DISTRICT_MODE_OPTIONS = [
-  { label: "Без режима", value: DISTRICT_MODE_EMPTY },
-  { label: "РПГ", value: "rpg" },
-  { label: "ОРР", value: "orr" },
-];
 const DISTRICT_MODE_LABELS = {
   [DISTRICT_MODE_EMPTY]: "Без режима",
   rpg: "РПГ",
   orr: "ОРР",
-};
-const DISTRICT_MODE_TAG_STYLES = {
-  rpg: {
-    backgroundColor: "#fffbe6",
-    borderColor: "#fadb14",
-    color: "#ad8b00",
-  },
-  orr: {
-    backgroundColor: "#fff1f0",
-    borderColor: "#ff4d4f",
-    color: "#cf1322",
-  },
 };
 
 const buildFilialModesFromRows = (rows) =>
@@ -76,13 +49,9 @@ const buildAuditFilials = (rows, filialIds) => {
 export default function DistrictModeModal({ open, onClose }) {
   const user = useAuth((store) => store.user);
   const [messageApi, contextHolder] = message.useMessage();
-  const [filialModeOptions, setFilialModeOptions] = React.useState([]);
   const [filialModeRows, setFilialModeRows] = React.useState([]);
   const [filialModeLoading, setFilialModeLoading] = React.useState(false);
-  const [filialModeSaving, setFilialModeSaving] = React.useState(false);
-  const [resettingFilialIds, setResettingFilialIds] = React.useState(new Set());
-  const [selectedFilialsForMode, setSelectedFilialsForMode] = React.useState([]);
-  const [selectedFilialMode, setSelectedFilialMode] = React.useState(DISTRICT_MODE_EMPTY);
+  const [savingFilialIds, setSavingFilialIds] = React.useState(new Set());
   const [filialModes, setFilialModes] = React.useState({});
 
   React.useEffect(() => {
@@ -91,17 +60,15 @@ export default function DistrictModeModal({ open, onClose }) {
     let cancelled = false;
     setFilialModeLoading(true);
 
-    fetchTnFilialyRows()
+    fetchTnFilialyModeRows()
       .then((rows) => {
         if (cancelled) return;
         setFilialModeRows(rows);
-        setFilialModeOptions(buildTnFilialySelectOptions(rows));
         setFilialModes(buildFilialModesFromRows(rows));
       })
       .catch(() => {
         if (cancelled) return;
         setFilialModeRows([]);
-        setFilialModeOptions([]);
         setFilialModes({});
         messageApi.error("Не удалось загрузить филиалы");
       })
@@ -114,105 +81,25 @@ export default function DistrictModeModal({ open, onClose }) {
     };
   }, [messageApi, open]);
 
-  const applyFilialMode = async () => {
-    if (!selectedFilialsForMode.length || filialModeSaving) return;
-
-    setFilialModeSaving(true);
-
-    try {
-      const results = await Promise.allSettled(
-        selectedFilialsForMode.map((filialId) =>
-          updateTnFilialyRezim(filialId, selectedFilialMode).then((row) => ({
-            filialId,
-            row,
-          }))
-        )
+  const visibleFilialRows = React.useMemo(() => {
+    return filialModeRows
+      .filter((row) => row?.name && getTnFilialyWriteId(row))
+      .slice()
+      .sort((a, b) =>
+        formatTnFilialyName(a.name).localeCompare(formatTnFilialyName(b.name), "ru")
       );
-      const appliedUpdates = results
-        .filter((result) => result.status === "fulfilled")
-        .map((result) => result.value)
-        .filter(({ row }) => row);
-      const failedCount = results.length - appliedUpdates.length;
-      const appliedFilialIds = appliedUpdates.map(({ filialId }) => filialId);
+  }, [filialModeRows]);
 
-      if (!appliedUpdates.length) {
-        messageApi.error("Не удалось сохранить режимы");
-        return;
-      }
-
-      setFilialModeRows((prev) => {
-        const updatedById = new Map(
-          appliedUpdates.map(({ row }) => [String(getTnFilialyWriteId(row)), row])
-        );
-
-        return prev.map((row) => {
-          const writeId = getTnFilialyWriteId(row);
-          return updatedById.get(String(writeId)) || row;
-        });
-      });
-
-      setFilialModes((prev) => {
-        const next = { ...prev };
-        appliedFilialIds.forEach((filialId) => {
-          const key = String(filialId);
-          if (selectedFilialMode === DISTRICT_MODE_EMPTY) {
-            delete next[key];
-          } else {
-            next[key] = selectedFilialMode;
-          }
-        });
-        return next;
-      });
-
-      notifyTnFilialyRezimUpdated({
-        action: selectedFilialMode === DISTRICT_MODE_EMPTY ? "reset" : "set",
-        filialIds: appliedFilialIds,
-        rezim: selectedFilialMode,
-      });
-      await logAuditEvent(
-        {
-          action:
-            selectedFilialMode === DISTRICT_MODE_EMPTY
-              ? "filial_mode_reset"
-              : "filial_mode_set",
-          entity: "tn_filialy_rezim",
-          entity_id: appliedFilialIds.map(String).join(","),
-          details: {
-            filial_ids: appliedFilialIds.map(String),
-            filials: buildAuditFilials(
-              [...filialModeRows, ...appliedUpdates.map(({ row }) => row)],
-              appliedFilialIds
-            ),
-            mode: selectedFilialMode,
-            mode_label: getModeLabel(selectedFilialMode),
-            applied_count: appliedFilialIds.length,
-            failed_count: failedCount,
-          },
-        },
-        user
-      );
-      if (failedCount > 0) {
-        messageApi.warning(
-          `Режим сохранён для ${appliedFilialIds.length}, не сохранён для ${failedCount}`
-        );
-      } else {
-        messageApi.success("Режимы сохранены");
-      }
-    } catch {
-      messageApi.error("Не удалось сохранить режимы");
-    } finally {
-      setFilialModeSaving(false);
-    }
-  };
-
-  const resetFilialMode = async (filialId) => {
+  const saveFilialMode = async (filialId, mode) => {
     const key = String(filialId);
-    if (!filialModes[key] || resettingFilialIds.has(key)) return;
+    const currentMode = filialModes[key] || DISTRICT_MODE_EMPTY;
+    const nextMode = currentMode === mode ? DISTRICT_MODE_EMPTY : mode;
+    if (savingFilialIds.has(key)) return;
 
-    setResettingFilialIds((prev) => new Set(prev).add(key));
+    setSavingFilialIds((prev) => new Set(prev).add(key));
 
     try {
-      const updatedRow = await updateTnFilialyRezim(filialId, DISTRICT_MODE_EMPTY);
+      const updatedRow = await updateTnFilialyRezim(filialId, nextMode);
 
       setFilialModeRows((prev) =>
         prev.map((row) => {
@@ -223,21 +110,24 @@ export default function DistrictModeModal({ open, onClose }) {
 
       setFilialModes((prev) => {
         const next = { ...prev };
-        delete next[key];
+        if (nextMode === DISTRICT_MODE_EMPTY) {
+          delete next[key];
+        } else {
+          next[key] = nextMode;
+        }
         return next;
       });
-      setSelectedFilialsForMode((prev) =>
-        prev.filter((selectedId) => String(selectedId) !== key)
-      );
 
       notifyTnFilialyRezimUpdated({
-        action: "reset",
+        action: nextMode === DISTRICT_MODE_EMPTY ? "reset" : "set",
         filialIds: [filialId],
-        rezim: DISTRICT_MODE_EMPTY,
+        rezim: nextMode,
       });
+
       await logAuditEvent(
         {
-          action: "filial_mode_reset",
+          action:
+            nextMode === DISTRICT_MODE_EMPTY ? "filial_mode_reset" : "filial_mode_set",
           entity: "tn_filialy_rezim",
           entity_id: key,
           details: {
@@ -246,21 +136,24 @@ export default function DistrictModeModal({ open, onClose }) {
               [...filialModeRows, updatedRow].filter(Boolean),
               [filialId]
             ),
-            mode: DISTRICT_MODE_EMPTY,
-            mode_label: getModeLabel(DISTRICT_MODE_EMPTY),
-            previous_mode: filialModes[key],
-            previous_mode_label: getModeLabel(filialModes[key]),
+            mode: nextMode,
+            mode_label: getModeLabel(nextMode),
+            previous_mode: currentMode,
+            previous_mode_label: getModeLabel(currentMode),
             applied_count: 1,
             failed_count: 0,
           },
         },
         user
       );
-      messageApi.success("Режим отменён");
-    } catch (error) {
-      messageApi.error("Не удалось сбросить режим");
+
+      messageApi.success(
+        nextMode === DISTRICT_MODE_EMPTY ? "Режим отменён" : "Режим сохранён"
+      );
+    } catch {
+      messageApi.error("Не удалось сохранить режим");
     } finally {
-      setResettingFilialIds((prev) => {
+      setSavingFilialIds((prev) => {
         const next = new Set(prev);
         next.delete(key);
         return next;
@@ -268,104 +161,85 @@ export default function DistrictModeModal({ open, onClose }) {
     }
   };
 
-  const assignedFilialModes = React.useMemo(() => {
-    const rowsByWriteId = new Map(
-      filialModeRows.map((row) => [String(getTnFilialyWriteId(row)), row])
-    );
+  const renderModeButton = (row, mode) => {
+    const writeId = getTnFilialyWriteId(row);
+    const key = String(writeId);
+    const activeMode = filialModes[key];
+    const isActive = activeMode === mode;
+    const isSaving = savingFilialIds.has(key);
+    const modeLabel = getModeLabel(mode);
+    const filialName = formatTnFilialyName(row?.name);
 
-    return Object.entries(filialModes)
-      .map(([filialId, mode]) => ({
-        filialId,
-        mode,
-        name: formatTnFilialyName(rowsByWriteId.get(String(filialId))?.name) || filialId,
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name, "ru"));
-  }, [filialModeRows, filialModes]);
+    return (
+      <Button
+        className={[
+          "district-mode-modal__mode-button",
+          isActive ? `district-mode-modal__mode-button--${mode}` : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+        disabled={!writeId || filialModeLoading || isSaving}
+        title={
+          isActive
+            ? `Снять режим ${modeLabel}: ${filialName}`
+            : `Ввести режим ${modeLabel}: ${filialName}`
+        }
+        onClick={() => saveFilialMode(writeId, mode)}
+      >
+        {isSaving ? <BrandSunLoader size={18} ariaLabel="Сохраняем режим" /> : "Ввести"}
+      </Button>
+    );
+  };
 
   return (
     <>
       {contextHolder}
       <Modal
-        title="Режимы филиалов"
+        title="Выберите филиал"
         open={open}
         onCancel={onClose}
-        footer={[
-          <Button
-            key="apply"
-            type="primary"
-            disabled={!selectedFilialsForMode.length || filialModeLoading}
-            loading={filialModeSaving}
-            onClick={applyFilialMode}
-          >
-            Применить
-          </Button>,
-          <Button key="close" disabled={filialModeSaving} onClick={onClose}>
-            Закрыть
-          </Button>,
-        ]}
+        footer={null}
+        centered
+        width={780}
+        className="district-mode-modal"
       >
-        <Spin spinning={filialModeLoading}>
-          <Flex vertical gap={14}>
-            <Flex vertical gap={6}>
-              <Typography.Text strong>Филиалы</Typography.Text>
-              <Select
-                mode="multiple"
-                allowClear
-                showSearch
-                placeholder="Выберите один или несколько филиалов"
-                loading={filialModeLoading}
-                disabled={filialModeLoading || filialModeSaving}
-                value={selectedFilialsForMode}
-                options={filialModeOptions}
-                onChange={setSelectedFilialsForMode}
-                optionFilterProp="label"
-                maxTagCount="responsive"
-                notFoundContent={
-                  filialModeLoading ? <Spin size="small" /> : "Нет данных"
-                }
-              />
-            </Flex>
+        {filialModeLoading ? (
+          <div className="district-mode-modal__loader">
+            <BrandSunLoader size={56} text="Загружаем филиалы" />
+          </div>
+        ) : (
+          <div className="district-mode-modal__table" role="table">
+            <div
+              className="district-mode-modal__row district-mode-modal__row--header"
+              role="row"
+            >
+              <div role="columnheader">Филиал</div>
+              <div role="columnheader">РПГ</div>
+              <div role="columnheader">ОРР</div>
+            </div>
 
-            <Flex vertical gap={6}>
-              <Typography.Text strong>Режим</Typography.Text>
-              <Segmented
-                block
-                options={DISTRICT_MODE_OPTIONS}
-                value={selectedFilialMode}
-                disabled={filialModeSaving}
-                onChange={setSelectedFilialMode}
-              />
-            </Flex>
+            {visibleFilialRows.map((row) => {
+              const writeId = getTnFilialyWriteId(row);
+              return (
+                <div className="district-mode-modal__row" role="row" key={writeId}>
+                  <div className="district-mode-modal__filial-name" role="cell">
+                    {formatTnFilialyName(row.name)}
+                  </div>
+                  <div className="district-mode-modal__mode-cell" role="cell">
+                    {renderModeButton(row, "rpg")}
+                  </div>
+                  <div className="district-mode-modal__mode-cell" role="cell">
+                    {renderModeButton(row, "orr")}
+                  </div>
+                </div>
+              );
+            })}
 
-            <Flex vertical gap={6}>
-              <Typography.Text strong>Назначенные режимы</Typography.Text>
-              {assignedFilialModes.length ? (
-                <Space wrap>
-                  {assignedFilialModes.map(({ filialId, name, mode }) => (
-                    <Tag
-                      key={filialId}
-                      closable
-                      onClose={(event) => {
-                        event.preventDefault();
-                        resetFilialMode(filialId);
-                      }}
-                      style={{
-                        ...(DISTRICT_MODE_TAG_STYLES[mode] || {}),
-                        opacity: resettingFilialIds.has(String(filialId)) ? 0.55 : 1,
-                      }}
-                    >
-                      {name}: {DISTRICT_MODE_LABELS[mode] || mode}
-                    </Tag>
-                  ))}
-                </Space>
-              ) : (
-                <Typography.Text type="secondary">
-                  Режимы не назначены
-                </Typography.Text>
-              )}
-            </Flex>
-          </Flex>
-        </Spin>
+            {!filialModeLoading && !visibleFilialRows.length ? (
+              <div className="district-mode-modal__empty">Филиалы не найдены</div>
+            ) : null}
+          </div>
+        )}
       </Modal>
     </>
   );

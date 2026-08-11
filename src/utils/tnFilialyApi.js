@@ -15,6 +15,9 @@ const TN_FILIALIES_STATUS = "draft";
 let cachedTnFilialyRows = null;
 let cachedTnFilialyRowsAt = 0;
 let pendingTnFilialyRowsPromise = null;
+let cachedTnFilialyModeRows = null;
+let cachedTnFilialyModeRowsAt = 0;
+let pendingTnFilialyModeRowsPromise = null;
 
 const getAuthHeaders = () => {
   const jwt = localStorage.getItem("jwt");
@@ -194,6 +197,58 @@ export async function fetchTnFilialyRows(options = {}) {
   }
 }
 
+export async function fetchTnFilialyModeRows(options = {}) {
+  const force = Boolean(options?.force);
+  const now = Date.now();
+  if (
+    !force &&
+    cachedTnFilialyModeRows &&
+    now - cachedTnFilialyModeRowsAt < CACHE_TTL_MS
+  ) {
+    return cachedTnFilialyModeRows;
+  }
+  if (!force && pendingTnFilialyModeRowsPromise) {
+    return pendingTnFilialyModeRowsPromise;
+  }
+
+  pendingTnFilialyModeRowsPromise = (async () => {
+    const rows = [];
+    let page = 1;
+    let pageCount = 1;
+
+    do {
+      const { data } = await axios.get(TN_FILIALIES_ENDPOINT, {
+        params: {
+          status: TN_FILIALIES_STATUS,
+          "filters[is_active][$eq]": true,
+          "fields[0]": "name",
+          "fields[1]": "rezim",
+          "fields[2]": "is_active",
+          "fields[3]": "sort_order",
+          "pagination[page]": page,
+          "pagination[pageSize]": PAGE_SIZE,
+          "sort[0]": "sort_order:asc",
+        },
+        headers: getAuthHeaders(),
+      });
+
+      rows.push(...(Array.isArray(data?.data) ? data.data.map(mapStrapiItem) : []));
+      pageCount = Number(data?.meta?.pagination?.pageCount || 1);
+      page += 1;
+    } while (page <= pageCount);
+
+    cachedTnFilialyModeRows = rows;
+    cachedTnFilialyModeRowsAt = Date.now();
+    return rows;
+  })();
+
+  try {
+    return await pendingTnFilialyModeRowsPromise;
+  } finally {
+    pendingTnFilialyModeRowsPromise = null;
+  }
+}
+
 export async function updateTnFilialyRezim(writeId, rezim) {
   const { data } = await axios.put(
     `${TN_FILIALIES_ENDPOINT}/${writeId}`,
@@ -207,6 +262,8 @@ export async function updateTnFilialyRezim(writeId, rezim) {
 
   cachedTnFilialyRows = null;
   cachedTnFilialyRowsAt = 0;
+  cachedTnFilialyModeRows = null;
+  cachedTnFilialyModeRowsAt = 0;
 
   return mapStrapiItem(data?.data);
 }
