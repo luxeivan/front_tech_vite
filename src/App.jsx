@@ -3,6 +3,7 @@ import {
   Routes,
   Route,
   Navigate,
+  useLocation,
 } from "react-router-dom";
 import { useEffect, useState } from "react";
 import useAuth from "./stores/useAuth";
@@ -24,6 +25,38 @@ import LoaderDemoPage from "./pages/loaderDemo/LoaderDemoPage";
 import { hasFeatureAccess } from "./config/viewRoleAccess";
 import PostAuthSplash from "./components/PostAuthSplash/PostAuthSplash";
 import styles from "./AppLayout.module.css";
+
+const DEFAULT_PAGE_TITLE = "Журнал ТН";
+const PAGE_TITLES = [
+  { match: (path) => path === "/", title: "Аварийные отключения" },
+  { match: (path) => path.startsWith("/planned"), title: "Плановые отключения" },
+  { match: (path) => path.startsWith("/dashboard-oo"), title: "Дашборд ОО" },
+  { match: (path) => path.startsWith("/dashboard"), title: "Дашборд" },
+  { match: (path) => path.startsWith("/pes"), title: "Модуль ПЭС" },
+  { match: (path) => path.startsWith("/logging"), title: "Журнал действий" },
+  { match: (path) => path.startsWith("/loader-demo"), title: "Демо лоадера" },
+];
+
+function RouteTitle() {
+  const location = useLocation();
+
+  useEffect(() => {
+    const pageTitle =
+      PAGE_TITLES.find((item) => item.match(location.pathname))?.title ||
+      DEFAULT_PAGE_TITLE;
+    document.title = pageTitle;
+  }, [location.pathname]);
+
+  return null;
+}
+
+function AuthCheckingLoader() {
+  return (
+    <div style={{ padding: 28, display: "flex", justifyContent: "center" }}>
+      <BrandSunLoader size={48} text="Проверяем доступ" />
+    </div>
+  );
+}
 
 function App() {
   const { isAuth, getJwt, getFieldsSetting } =
@@ -60,11 +93,7 @@ function App() {
     // If the user opened a protected page directly, give getJwt() a moment to restore auth
     // instead of redirecting them to "/".
     if (!authChecked && hasJwt) {
-      return (
-        <div style={{ padding: 28, display: "flex", justifyContent: "center" }}>
-          <BrandSunLoader size={48} text="Проверяем доступ" />
-        </div>
-      );
+      return <AuthCheckingLoader />;
     }
     if (!authOk) return <Navigate to="/" replace />;
     return children;
@@ -79,6 +108,7 @@ function App() {
 
   return (
     <BrowserRouter>
+      <RouteTitle />
       <div className={styles.appShell}>
         <Header />
         <main className={styles.main}>
@@ -93,6 +123,8 @@ function App() {
                   ) : (
                     <EmergencyPage />
                   )
+                ) : !authChecked && hasJwt ? (
+                  <AuthCheckingLoader />
                 ) : (
                   <AuthForm />
                 )
