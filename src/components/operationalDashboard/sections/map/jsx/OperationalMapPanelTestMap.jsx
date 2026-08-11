@@ -37,6 +37,7 @@ import {
 } from "../../../../../utils/tnOkrugaApi";
 import {
   buildTnFilialyTopologyOkrugaRows,
+  fetchTnFilialyModeRows,
   fetchTnFilialyRows,
 } from "../../../../../utils/tnFilialyApi";
 import {
@@ -73,6 +74,7 @@ import "../css/OperationalMapPanelTestMap.css";
 const SERVICES_URL =
   import.meta.env.VITE_URL_BACKEND_SERVICES ||
   import.meta.env.VITE_URL_BACKEND;
+const FILIAL_MODE_POLL_MS = 5000;
 const BACKEND_URL = import.meta.env.VITE_URL_BACKEND;
 const OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast";
 
@@ -1207,6 +1209,74 @@ export default function OperationalMapPanel({
       return true;
     };
 
+    const applyFilialModeRows = (rows) => {
+      const modeById = new Map();
+      const modeByName = new Map();
+
+      (Array.isArray(rows) ? rows : []).forEach((row) => {
+        const mode = row?.rezim || "bez_rezhima";
+        const id = row?.documentId || row?.id;
+        const name = normalizeOperationalMapAreaName(row?.name);
+        if (id) modeById.set(String(id), mode);
+        if (name) modeByName.set(name, mode);
+      });
+
+      if (!modeById.size && !modeByName.size) return false;
+
+      const features = districtSourceRef.current?.getFeatures() || [];
+      let changed = false;
+      features.forEach((feature) => {
+        const featureFilialIds = toFeatureNameList(feature.get("filial_ids"));
+        const featureFilialNames = toFeatureNameList(feature.get("filial_names")).map(
+          normalizeOperationalMapAreaName
+        );
+        const modeByFeatureId = featureFilialIds
+          .map((id) => modeById.get(String(id)))
+          .find((mode) => mode !== undefined);
+        const modeByFeatureName = featureFilialNames
+          .map((name) => modeByName.get(name))
+          .find((mode) => mode !== undefined);
+        const nextMode = modeByFeatureId ?? modeByFeatureName;
+        if (nextMode === undefined || feature.get("rezim") === nextMode) return;
+
+        feature.set("rezim", nextMode);
+        feature.set("filial_rezim", nextMode);
+        changed = true;
+      });
+
+      if (!changed) return false;
+
+      refreshBoundaryLayers(features);
+      districtLayerRef.current?.changed();
+      districtLabelLayerRef.current?.changed();
+      rgisBaseLayer.changed();
+      setMapFeaturesVersion((version) => version + 1);
+      return true;
+    };
+
+    let modeRowsRefreshTimer = null;
+    let modeRowsPollingTimer = null;
+    let isModeRowsRefreshPending = false;
+
+    const refreshFilialModeRows = async () => {
+      if (isModeRowsRefreshPending) return;
+      isModeRowsRefreshPending = true;
+      try {
+        const rows = await fetchTnFilialyModeRows({ force: true });
+        if (cancelled || !mapRef.current || !districtSourceRef.current) return;
+        applyFilialModeRows(rows);
+      } catch {
+        // Live-режимы не должны ломать карту, если легкий endpoint временно недоступен.
+      } finally {
+        isModeRowsRefreshPending = false;
+      }
+    };
+
+    const scheduleFilialModeRowsRefresh = (delay = 350) => {
+      window.clearTimeout(modeRowsRefreshTimer);
+      modeRowsRefreshTimer = window.setTimeout(refreshFilialModeRows, delay);
+    };
+
     const cachedRows = readCachedTnOkrugaRows();
     if (cachedRows.length) {
       applyDistrictRows(cachedRows, { fit: true });
@@ -1215,7 +1285,7 @@ export default function OperationalMapPanel({
     loadDistrictFeatures({ fit: !cachedRows.length });
     const handleFilialModeUpdated = (event) => {
       const applied = applyFilialModePayload(getFilialModeEventPayload(event));
-      loadDistrictFeatures({ force: true });
+      scheduleFilialModeRowsRefresh(applied ? 1200 : 150);
       return applied;
     };
     const handleFilialModeStorageUpdated = (event) => {
@@ -1225,6 +1295,10 @@ export default function OperationalMapPanel({
     };
     window.addEventListener(TN_FILIALY_REZIM_UPDATED_EVENT, handleFilialModeUpdated);
     window.addEventListener("storage", handleFilialModeStorageUpdated);
+    modeRowsPollingTimer = window.setInterval(
+      () => scheduleFilialModeRowsRefresh(0),
+      FILIAL_MODE_POLL_MS
+    );
 
     const handlePointerMove = (event) => {
       const pesFeature = getPesFeatureAtPixel(event.pixel);
@@ -1303,6 +1377,8 @@ export default function OperationalMapPanel({
 
     return () => {
       cancelled = true;
+      window.clearTimeout(modeRowsRefreshTimer);
+      window.clearInterval(modeRowsPollingTimer);
       window.removeEventListener(TN_FILIALY_REZIM_UPDATED_EVENT, handleFilialModeUpdated);
       window.removeEventListener("storage", handleFilialModeStorageUpdated);
       pesPopupAbortController?.abort?.();
