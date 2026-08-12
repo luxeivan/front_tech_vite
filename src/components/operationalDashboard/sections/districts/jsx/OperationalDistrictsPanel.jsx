@@ -17,6 +17,7 @@ import {
   buildPesDashboardCountMaps,
   buildOperationalBranchRows,
   buildOperationalBranchSummary,
+  buildOperationalOkrugSummary,
   buildOperationalOkrugRows,
   buildOperationalPoRows,
 } from "../js/operationalDistrictsPanel.utils";
@@ -196,6 +197,7 @@ export default function OperationalDistrictsPanel({
         poSlug,
         pesCountMaps
       );
+      return [...branchRows, buildOperationalOkrugSummary(branchRows)];
     } else if (groupBy === "po") {
       branchRows = buildOperationalPoRows(rows, filialRows, filialName, pesCountMaps);
     } else {

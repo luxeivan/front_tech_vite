@@ -3,7 +3,6 @@ import {
   isNotDeletedTN,
   isOpenTN,
   pick,
-  districtName,
   getTnFilialName,
   getTnPoName,
   toNumber,
@@ -366,16 +365,17 @@ const createPoRow = (poRow) => {
   };
 };
 
-const createOkrugRow = (okrugRow) => {
-  const okrugName = okrugRow?.name || okrugRow?.source_name || OPERATIONAL_BRANCH_UNKNOWN_VALUE;
-  return {
-    key: okrugRow?.documentId || okrugRow?.id || okrugName,
-    branch: okrugName,
-    ...EMPTY_NUMERIC_VALUES,
-    mainResource: OPERATIONAL_BRANCH_UNKNOWN_VALUE,
-    ovb: OPERATIONAL_BRANCH_UNKNOWN_VALUE,
-  };
+const formatOkrugName = (value) => {
+  const name = String(value || "").replace(/\s+/g, " ").trim();
+  if (!name) return OPERATIONAL_BRANCH_UNKNOWN_VALUE;
+  if (/^г\s*\.?\s*о\s*\.?/iu.test(name)) return name;
+  return `г.о. ${name}`;
 };
+
+const cloneOperationalValues = (sourceRow, overrides = {}) => ({
+  ...sourceRow,
+  ...overrides,
+});
 
 export const buildOperationalBranchRows = (rows, filialRows = [], pesCountMaps = null) => {
   const branchResources = buildBranchResourceMap(filialRows);
@@ -461,67 +461,56 @@ export const buildOperationalOkrugRows = (
   const selectedPoRows = getTnFilialyAreaPoRows(filialRow).filter(
     (poRow) => poRow?.is_active !== false && isPoRowSelected(poRow, poName, poSlug)
   );
+  const selectedPoRow = selectedPoRows[0] || null;
+  const selectedPoName = selectedPoRow?.name || poName || OPERATIONAL_BRANCH_UNKNOWN_VALUE;
   const referenceOkrugaRows =
     poName || poSlug
       ? selectedPoRows.flatMap(getTnFilialyPoOkrugaRows)
       : getTnFilialyOkrugaRows(filialRow);
-  const okrugMap = new Map();
-  const okrugNameByKey = new Map();
+  const okrugRows = [];
+  const okrugSeen = new Set();
 
   referenceOkrugaRows
     .filter((okrugRow) => okrugRow?.is_active !== false)
     .forEach((okrugRow) => {
-      const row = createOkrugRow(okrugRow);
-      const keys = [
-        normalizeDistrictLookupName(okrugRow?.name),
-        normalizeDistrictLookupName(okrugRow?.source_name),
-      ].filter(Boolean);
-
-      keys.forEach((key) => {
-        okrugNameByKey.set(key, row.branch);
+      const rawName = okrugRow?.name || okrugRow?.source_name || OPERATIONAL_BRANCH_UNKNOWN_VALUE;
+      const key = normalizeDistrictLookupName(rawName) || normalizeLookupName(rawName);
+      if (!key || okrugSeen.has(key)) return;
+      okrugSeen.add(key);
+      okrugRows.push({
+        key: okrugRow?.documentId || okrugRow?.id || rawName,
+        branch: formatOkrugName(rawName),
       });
-      if (!okrugMap.has(row.branch)) okrugMap.set(row.branch, row);
     });
 
-  (Array.isArray(rows) ? rows : [])
-    .filter(
-      (row) =>
-        isOperationalDashboardRow(row) &&
-        isOpenTN(row) &&
-        isRowInBranch(row, filialName) &&
-        isRowInPo(row, poName, poSlug)
-    )
-    .forEach((row) => {
-      const rowDistrictKey = normalizeDistrictLookupName(districtName(row));
-      const okrugName = okrugNameByKey.get(rowDistrictKey);
-      if (!okrugName) return;
+  const poRows = buildOperationalPoRows(rows, filialRows, filialName, pesCountMaps);
+  const selectedPoDataRow =
+    poRows.find((row) => isPoRowSelected({ name: row.branch }, selectedPoName, poSlug)) ||
+    createPoRow(selectedPoRow || { name: selectedPoName });
+  const poDataRow = {
+    ...selectedPoDataRow,
+    key: `po-${selectedPoDataRow.key || selectedPoName}`,
+    branch: selectedPoName,
+  };
 
-      addRowToTotals(okrugMap.get(okrugName), row);
-    });
+  return [poDataRow, ...okrugRows.map((row) => cloneOperationalValues(poDataRow, row))];
+};
 
-  const selectedPoNames = uniqueNames(selectedPoRows.map((poRow) => poRow?.name).filter(Boolean));
+export const buildOperationalOkrugSummary = (rows) => {
+  const sourceRow = Array.isArray(rows) ? rows[0] : null;
+  if (!sourceRow) {
+    return {
+      key: "summary",
+      branch: "ВСЕГО",
+      ...EMPTY_NUMERIC_VALUES,
+      mainResource: OPERATIONAL_BRANCH_UNKNOWN_VALUE,
+      ovb: OPERATIONAL_BRANCH_UNKNOWN_VALUE,
+    };
+  }
 
-  return Array.from(okrugMap.values()).map((row) => {
-    const okrugName = row.branch;
-    const pes =
-      selectedPoNames.length > 0
-        ? selectedPoNames.reduce(
-            (sum, selectedPoName) =>
-              sum +
-              toNumber(
-                pesCountMaps?.byOkrugPoKey?.get(
-                  buildPesOkrugPoCountKey(filialName, selectedPoName, okrugName)
-                )
-              ),
-            0
-          )
-        : toNumber(
-            pesCountMaps?.byOkrugBranchKey?.get(
-              buildPesOkrugBranchCountKey(filialName, okrugName)
-            )
-          );
-
-    return { ...row, pes };
+  return cloneOperationalValues(sourceRow, {
+    key: "summary",
+    branch: "ВСЕГО",
   });
 };
 

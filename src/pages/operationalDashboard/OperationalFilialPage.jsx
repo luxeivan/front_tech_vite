@@ -53,6 +53,7 @@ export default function OperationalFilialPage({
   const filialRoute = getOperationalFilialRouteBySlug(filialSlug);
   const filialName = filialRoute?.name || "Филиал";
   const [filialRows, setFilialRows] = useState([]);
+  const [filialRowsLoading, setFilialRowsLoading] = useState(true);
   const [hoveredAreaName, setHoveredAreaName] = useState("");
   const poName = useMemo(
     () => getPoNameBySlug(filialRows, filialName, poSlug),
@@ -76,17 +77,38 @@ export default function OperationalFilialPage({
 
   useEffect(() => {
     let disposed = false;
+    setFilialRowsLoading(true);
     fetchTnFilialyRows()
       .then((rows) => {
         if (!disposed) setFilialRows(Array.isArray(rows) ? rows : []);
       })
       .catch(() => {
         if (!disposed) setFilialRows([]);
+      })
+      .finally(() => {
+        if (!disposed) setFilialRowsLoading(false);
       });
     return () => {
       disposed = true;
     };
   }, []);
+
+  const shouldShowInitialLoader = !hasLoaded || filialRowsLoading;
+
+  if (shouldShowInitialLoader) {
+    return (
+      <section
+        className={[
+          "operational-dashboard",
+          "operational-filial-page",
+          isPoLevel ? "operational-filial-page--po" : "",
+          pageClassName,
+        ].filter(Boolean).join(" ")}
+      >
+        <BrandSunLoader fullscreen size={74} text="Загружаем оперативную обстановку" />
+      </section>
+    );
+  }
 
   return (
     <section
@@ -97,9 +119,6 @@ export default function OperationalFilialPage({
         pageClassName,
       ].filter(Boolean).join(" ")}
     >
-      {isLoading && !hasLoaded ? (
-        <BrandSunLoader fullscreen size={74} text="Загружаем оперативную обстановку" />
-      ) : null}
       <header className="operational-filial-page__header">
         <div className="operational-filial-page__nav">
           <Link className="operational-filial-page__back" to={backPath}>
