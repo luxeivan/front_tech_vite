@@ -366,10 +366,14 @@ const createPoRow = (poRow) => {
 };
 
 const formatOkrugName = (value) => {
-  const name = String(value || "").replace(/\s+/g, " ").trim();
+  const name = String(value || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/^г\s*\.?\s*о\s*\.?\s*/iu, "")
+    .replace(/\s*г\s*\.?\s*о\s*\.?$/iu, "")
+    .trim();
   if (!name) return OPERATIONAL_BRANCH_UNKNOWN_VALUE;
-  if (/^г\s*\.?\s*о\s*\.?/iu.test(name)) return name;
-  return `г.о. ${name}`;
+  return `${name} г.о.`;
 };
 
 const cloneOperationalValues = (sourceRow, overrides = {}) => ({
