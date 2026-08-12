@@ -226,7 +226,7 @@ export default function OperationalDistrictsPanel({
           groupBy === "po" && column.dataIndex === "branch"
             ? "Производственное отделение/ сетевой участок"
             : groupBy === "okrug" && column.dataIndex === "branch"
-              ? "Городской округ"
+              ? "Производственное отделение/ сетевой участок"
             : column.title,
         align: "center",
         render: (value, record) => {

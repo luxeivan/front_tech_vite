@@ -94,6 +94,13 @@ const twoLineTitle = (firstLine, secondLine) =>
     createElement("span", null, secondLine)
   );
 
+const stackedTitle = (...lines) =>
+  createElement(
+    "span",
+    { className: "operational-districts-panel__header-title--stacked" },
+    ...lines.map((line) => createElement("span", { key: line }, line))
+  );
+
 export const OPERATIONAL_BRANCH_COLUMNS = [
   {
     title: "Филиал",
@@ -106,11 +113,15 @@ export const OPERATIONAL_BRANCH_COLUMNS = [
   { title: "ЛЭП", dataIndex: "lep", width: 42, ...nowrapHeader },
   { title: "ТП (РП)", dataIndex: "tpRp", width: 50 },
   { title: compactTitle("Население"), dataIndex: "population", width: 60, ...compactHeader },
-  { title: "МКД", dataIndex: "mkd", width: 42, ...nowrapHeader },
+  { title: compactTitle("МКД"), dataIndex: "mkd", width: 42, ...compactHeader },
   { title: "Котел. ЦТП", dataIndex: "boilerCtp", width: 58 },
   { title: "ВЗУ ВНС", dataIndex: "vzuVns", width: 54 },
   { title: "КНС", dataIndex: "kns", width: 40, ...nowrapHeader },
-  { title: "Больницы Поликлиники", dataIndex: "medical", width: 74 },
+  {
+    title: stackedTitle("Больницы", "Поликлини", "ки"),
+    dataIndex: "medical",
+    width: 74,
+  },
   { title: twoLineTitle("Школы", "д.сады"), dataIndex: "schools", width: 68 },
   { title: compactTitle("Бригады"), dataIndex: "brigades", width: 50, ...compactHeader },
   { title: compactTitle("Персонал"), dataIndex: "staff", width: 54, ...compactHeader },
