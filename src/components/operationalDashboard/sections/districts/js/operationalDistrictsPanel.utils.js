@@ -373,7 +373,7 @@ const formatOkrugName = (value) => {
     .replace(/\s*г\s*\.?\s*о\s*\.?$/iu, "")
     .trim();
   if (!name) return OPERATIONAL_BRANCH_UNKNOWN_VALUE;
-  return `${name} г.о.`;
+  return `г.о. ${name}`;
 };
 
 const cloneOperationalValues = (sourceRow, overrides = {}) => ({
