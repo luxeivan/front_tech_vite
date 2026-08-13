@@ -332,6 +332,40 @@ const getFeatureHoverName = (feature, hoverGroup) => {
   return getFeatureFilialName(feature);
 };
 
+const getFeatureHoverLabel = (feature, hoverGroup) => {
+  if (hoverGroup === "po") return getFeaturePoNames(feature).join("\n");
+  return getFeatureHoverName(feature, hoverGroup);
+};
+
+const getPoNameAtPixel = (
+  map,
+  feature,
+  pixel,
+  compactLabels = false,
+  isWallDisplay = false
+) => {
+  const poNames = getFeaturePoNames(feature);
+  if (poNames.length <= 1) return poNames[0] || "";
+
+  const anchor = getGeometryAnchorCoordinate(feature?.getGeometry?.());
+  if (!anchor || !Array.isArray(pixel)) return getFeaturePoName(feature);
+
+  const anchorPixel = map?.getPixelFromCoordinate?.(anchor);
+  if (!Array.isArray(anchorPixel)) return getFeaturePoName(feature);
+
+  const offsets = getPoLabelOffsets(poNames.length, compactLabels, isWallDisplay);
+  return poNames
+    .map((poName, index) => {
+      const [offsetX, offsetY] = offsets[index] || [0, 0];
+      const labelPixel = [anchorPixel[0] + offsetX, anchorPixel[1] + offsetY];
+      return {
+        poName,
+        distance: Math.hypot(pixel[0] - labelPixel[0], pixel[1] - labelPixel[1]),
+      };
+    })
+    .sort((left, right) => left.distance - right.distance)[0]?.poName || getFeaturePoName(feature);
+};
+
 const getFeatureHoverNames = (feature, hoverGroup) => {
   if (hoverGroup === "po") return getFeaturePoNames(feature);
   if (hoverGroup === "none") return [];
@@ -644,6 +678,20 @@ const wrapMapLabel = (value, compact = false) => {
   return lines.join("\n");
 };
 
+const getPoLabelOffsets = (count, compactLabels = false, isWallDisplay = false) => {
+  if (count <= 1) return [[0, 0]];
+
+  const baseX = isWallDisplay ? 56 : compactLabels ? 22 : 34;
+  const baseY = isWallDisplay ? 44 : compactLabels ? 18 : 28;
+  const center = (count - 1) / 2;
+
+  return Array.from({ length: count }, (_, index) => {
+    const row = index - center;
+    const side = index % 2 === 0 ? -1 : 1;
+    return [side * baseX * Math.ceil((index + 1) / 2), row * baseY];
+  });
+};
+
 const readCachedTnOkrugaRows = () => {
   try {
     const rawRows = window.localStorage.getItem(TN_OKRUGA_MAP_CACHE_KEY);
@@ -833,25 +881,54 @@ const getDistrictLabelStyle = (
   districtDetailMode = false,
   isWallDisplay = false
 ) => {
+  if (labelGroup === "po") {
+    const poNames = getFeaturePoNames(feature);
+    const offsets = getPoLabelOffsets(poNames.length, compactLabels, isWallDisplay);
+    const fontSize = isWallDisplay ? 18 : compactLabels ? 10 : 11;
+
+    return poNames
+      .map((poName, index) => {
+        const label = wrapMapLabel(poName, true);
+        if (!label) return null;
+        const [offsetX, offsetY] = offsets[index] || [0, 0];
+
+        return new Style({
+          zIndex: districtDetailMode ? 70 : 50,
+          text: new Text({
+            text: label,
+            offsetX,
+            offsetY,
+            overflow: true,
+            padding: [2, 4, 2, 4],
+            fill: new Fill({ color: "#1575bc" }),
+            stroke: new Stroke({ color: "#ffffff", width: isWallDisplay ? 7 : 3 }),
+            font: `700 ${fontSize}px Arial, sans-serif`,
+          }),
+        });
+      })
+      .filter(Boolean);
+  }
+
   const label = wrapMapLabel(getFeatureLabelName(feature, labelGroup), compactLabels);
   if (!label) return null;
+
+  const fontSize = isWallDisplay
+    ? compactLabels
+      ? 18
+      : 22
+    : compactLabels
+      ? 10
+      : 12;
 
   return new Style({
     zIndex: districtDetailMode ? 70 : 50,
     text: new Text({
       text: label,
       overflow: true,
+      padding: [3, 5, 3, 5],
       fill: new Fill({ color: "#1575bc" }),
       stroke: new Stroke({ color: "#ffffff", width: isWallDisplay ? 7 : 4 }),
-      font: `700 ${
-        isWallDisplay
-          ? compactLabels
-            ? 18
-            : 22
-          : compactLabels
-            ? 10
-            : 12
-      }px Arial, sans-serif`,
+      font: `700 ${fontSize}px Arial, sans-serif`,
     }),
   });
 };
@@ -1387,7 +1464,10 @@ export default function OperationalMapPanel({
 
     const handlePointerMove = (event) => {
       const feature = getDistrictFeatureAtPixel(event.pixel);
-      const hoverName = getFeatureHoverName(feature, hoverGroup);
+      const hoverName =
+        hoverGroup === "po"
+          ? getPoNameAtPixel(map, feature, event.pixel, isCompactViewport, isWallDisplayViewport)
+          : getFeatureHoverName(feature, hoverGroup);
 
       if (!feature || !hoverName) {
         map.getTargetElement().style.cursor = "";
@@ -1400,7 +1480,7 @@ export default function OperationalMapPanel({
       highlightHoverGroup(hoverName);
       const rect = map.getTargetElement().getBoundingClientRect();
       setHoveredArea({
-        name: hoverName,
+        name: getFeatureHoverLabel(feature, hoverGroup),
         x: event.originalEvent.clientX - rect.left,
         y: event.originalEvent.clientY - rect.top,
       });
@@ -1417,7 +1497,10 @@ export default function OperationalMapPanel({
 
       const feature = getDistrictFeatureAtPixel(event.pixel);
       const featureFilialName = getFeatureFilialName(feature);
-      const featurePoName = getFeaturePoName(feature);
+      const featurePoName =
+        hoverGroup === "po" || fillGroup === "po"
+          ? getPoNameAtPixel(map, feature, event.pixel, isCompactViewport, isWallDisplayViewport)
+          : getFeaturePoName(feature);
       const poPath =
         filialName && featurePoName
           ? getOperationalPoPath(filialName, featurePoName, basePath)
@@ -1465,7 +1548,18 @@ export default function OperationalMapPanel({
       pesMarkerSourceRef.current = null;
       pesMarkerLayerRef.current = null;
     };
-  }, [basePath, enableFilialNavigation, filialName, fillGroup, hoverGroup, navigate, poName, poSlug]);
+  }, [
+    basePath,
+    enableFilialNavigation,
+    filialName,
+    fillGroup,
+    hoverGroup,
+    isCompactViewport,
+    isWallDisplayViewport,
+    navigate,
+    poName,
+    poSlug,
+  ]);
 
   useEffect(() => {
     externalHoverNameRef.current = externalHoverName;

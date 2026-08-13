@@ -59,7 +59,7 @@
   line-height: 1.15;
   pointer-events: none;
   transform: translate(12px, 12px);
-  white-space: nowrap;
+  white-space: pre-line;
 }
 
 .operational-map-panel__topline {
