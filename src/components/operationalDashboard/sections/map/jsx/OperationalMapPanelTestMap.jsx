@@ -355,12 +355,38 @@ const getFeaturePoRelations = (feature) => {
   return Array.isArray(relations) ? relations : [];
 };
 
+const normalizePoDisplayKey = (value) =>
+  normalizeOperationalFilialName(value)
+    .replace(/\s+(по|производственное отделение)$/i, "")
+    .trim();
+
+const formatPoDisplayName = (value) => {
+  const name = String(value || "").replace(/\s+/g, " ").trim();
+  if (!name) return "";
+  return /\s+по$/i.test(name) ? name : `${name} ПО`;
+};
+
+const dedupePoDisplayNames = (names) => {
+  const seen = new Set();
+  const result = [];
+
+  toFeatureNameList(names).forEach((name) => {
+    const displayName = formatPoDisplayName(name);
+    const key = normalizePoDisplayKey(displayName);
+    if (!displayName || !key || seen.has(key)) return;
+    seen.add(key);
+    result.push(displayName);
+  });
+
+  return result;
+};
+
 const assignVisiblePoNames = (features, activeFilialName) => {
   const normalizedFilialName = normalizeOperationalFilialName(activeFilialName);
 
   features.forEach((feature) => {
     if (!normalizedFilialName) {
-      feature.set("visible_po_names", getFeaturePoNames(feature));
+      feature.set("visible_po_names", dedupePoDisplayNames(getFeaturePoNames(feature)));
       return;
     }
 
@@ -372,7 +398,7 @@ const assignVisiblePoNames = (features, activeFilialName) => {
       .map((relation) => relation?.name)
       .filter(Boolean);
 
-    feature.set("visible_po_names", [...new Set(visiblePoNames)]);
+    feature.set("visible_po_names", dedupePoDisplayNames(visiblePoNames));
   });
 };
 
@@ -431,7 +457,13 @@ const getPoNameAtPixel = (
   compactLabels = false,
   isWallDisplay = false
 ) => {
-  const poNames = getFeaturePoNames(feature);
+  const labelNames = toFeatureNameList(
+    String(feature?.get?.("area_label") || "")
+      .split("\n")
+      .map((item) => item.trim())
+      .filter(Boolean)
+  );
+  const poNames = labelNames.length ? labelNames : getFeaturePoNames(feature);
   if (poNames.length <= 1) return poNames[0] || "";
 
   const anchor = getGeometryAnchorCoordinate(feature?.getGeometry?.());
@@ -731,7 +763,14 @@ const getDistrictLabelStyle = (
   isWallDisplay = false
 ) => {
   if (labelGroup === "po") {
-    const poNames = getFeaturePoNames(feature);
+    const poNames = toFeatureNameList(
+      String(feature?.get?.("area_label") || "")
+        .split("\n")
+        .map((item) => item.trim())
+        .filter(Boolean)
+    );
+    if (!poNames.length) return null;
+
     const offsets = getPoLabelOffsets(poNames.length, compactLabels, isWallDisplay);
     const fontSize = isWallDisplay ? 18 : compactLabels ? 10 : 11;
 
@@ -1162,7 +1201,7 @@ export default function OperationalMapPanel({
           source: livePesSource,
           endpoint,
           pollMs: PES_POLL_MS_DEFAULT,
-          loadModuleInfo: false,
+          loadModuleInfo: true,
           onError: (error) => console.error("[OperationalMap] PES vehicles error:", error),
         })
       : null;

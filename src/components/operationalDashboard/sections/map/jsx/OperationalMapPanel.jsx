@@ -19,10 +19,14 @@ import Text from "ol/style/Text";
 import GeoJSON from "ol/format/GeoJSON";
 import "ol/ol.css";
 
-import pesKamazIconUrl from "../../../../../assets/pes-kamaz-transparent.png";
+import pesKamazVectorSvgRaw from "../../../../../assets/pes-kamaz-vector.svg?raw";
 import useOperationalDashboardStore from "../../../../../stores/operationalDashboard/useOperationalDashboardStore";
 import usePesModuleDataStore from "../../../../../stores/pes/usePesModuleDataStore";
 import useAuth from "../../../../../stores/useAuth";
+import {
+  PES_STATUS_LEGEND,
+  pesIconDataUrl,
+} from "../../../../dashboard/js/pesLayer";
 import {
   OPERATIONAL_MAP_COLORS,
   OPERATIONAL_MAP_DISTRICT_STROKE_WIDTH,
@@ -232,6 +236,15 @@ const PES_MARKER_ACTIVE_STATUSES = new Set([
   "en_route",
   "connected",
 ]);
+const PES_MARKER_ICON_BY_STATUS = Object.fromEntries(
+  PES_STATUS_LEGEND.map((item) => [
+    item.status,
+    pesIconDataUrl(item.color, {
+      svgRaw: pesKamazVectorSvgRaw,
+      recolorAllFills: true,
+    }),
+  ])
+);
 const PES_MARKER_STYLE_CACHE = new Map();
 const MAP_ZOOM_DELTA =
   Number.isFinite(Number(OPERATIONAL_MAP_SCALE)) && Number(OPERATIONAL_MAP_SCALE) > 0
@@ -596,7 +609,7 @@ const getPesMarkerStyle = (feature) => {
   const scale = compact ? 0.036 : 0.048;
   const style = new Style({
     image: new Icon({
-      src: pesKamazIconUrl,
+      src: PES_MARKER_ICON_BY_STATUS[status] || PES_MARKER_ICON_BY_STATUS.ready,
       scale,
       anchor: [0.5, 0.5],
     }),
