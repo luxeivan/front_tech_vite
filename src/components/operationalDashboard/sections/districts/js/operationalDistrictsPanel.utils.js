@@ -114,6 +114,19 @@ const getFilialMainResource = (row) =>
 const getFilialOvb = (row) => row?.ovb;
 
 const hasValue = (value) => value !== null && value !== undefined && value !== "";
+const hasResourceValue = (value) => hasValue(value) && value !== OPERATIONAL_BRANCH_UNKNOWN_VALUE;
+
+const getResourceFields = (row, fallback = {}) => {
+  const mainResource = getFilialMainResource(row);
+  const ovb = getFilialOvb(row);
+
+  return {
+    mainResource: hasResourceValue(mainResource)
+      ? mainResource
+      : fallback.mainResource ?? OPERATIONAL_BRANCH_UNKNOWN_VALUE,
+    ovb: hasResourceValue(ovb) ? ovb : fallback.ovb ?? OPERATIONAL_BRANCH_UNKNOWN_VALUE,
+  };
+};
 
 const getOperationalPoByRow = (row) => {
   const poName = getTnPoName(row);
@@ -360,8 +373,7 @@ const createPoRow = (poRow) => {
     key: poRow?.documentId || poRow?.id || poName,
     branch: poName,
     ...EMPTY_NUMERIC_VALUES,
-    mainResource: OPERATIONAL_BRANCH_UNKNOWN_VALUE,
-    ovb: OPERATIONAL_BRANCH_UNKNOWN_VALUE,
+    ...getResourceFields(poRow),
   };
 };
 
@@ -484,6 +496,7 @@ export const buildOperationalOkrugRows = (
       okrugRows.push({
         key: okrugRow?.documentId || okrugRow?.id || rawName,
         branch: formatOkrugName(rawName),
+        ...getResourceFields(okrugRow),
       });
     });
 
@@ -497,7 +510,15 @@ export const buildOperationalOkrugRows = (
     branch: selectedPoName,
   };
 
-  return [poDataRow, ...okrugRows.map((row) => cloneOperationalValues(poDataRow, row))];
+  return [
+    poDataRow,
+    ...okrugRows.map((row) =>
+      cloneOperationalValues(poDataRow, {
+        ...row,
+        ...getResourceFields(row, poDataRow),
+      })
+    ),
+  ];
 };
 
 export const buildOperationalOkrugSummary = (rows) => {

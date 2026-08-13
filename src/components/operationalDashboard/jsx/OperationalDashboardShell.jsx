@@ -110,6 +110,7 @@ export default function OperationalDashboardShell({
         <MapPanelComponent
           basePath={mapBasePath}
           externalHoverName={hoveredBranchName}
+          showPesMarkers={false}
           showTopline={false}
         />
         <OperationalDistrictsPanel basePath={mapBasePath} onBranchHover={setHoveredBranchName} />

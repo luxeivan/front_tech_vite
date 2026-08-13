@@ -812,6 +812,7 @@ export default function OperationalMapPanel({
   hoverGroup = "filial",
   districtDetailMode = false,
   showDistrictLabels = false,
+  showPesMarkers = false,
   showTopline = true,
   showMobileTopline = false,
   variant = "",
@@ -1047,7 +1048,7 @@ export default function OperationalMapPanel({
     mapTargetElement.addEventListener("wheel", handleUserZoomIntent, { passive: true });
     mapTargetElement.addEventListener("dblclick", handleUserZoomIntent);
     mapTargetElement.addEventListener("touchstart", handleUserZoomIntent, { passive: true });
-    const endpoint = getPesEndpointFromEnv();
+    const endpoint = showPesMarkers ? getPesEndpointFromEnv() : "";
     const livePesPolling = endpoint
       ? startPesPolling({
           source: livePesSource,
@@ -1395,7 +1396,17 @@ export default function OperationalMapPanel({
       filialHoverSourceRef.current = null;
       modeBoundarySourceRef.current = null;
     };
-  }, [basePath, enableFilialNavigation, filialName, fillGroup, hoverGroup, navigate, poName, poSlug]);
+  }, [
+    basePath,
+    enableFilialNavigation,
+    filialName,
+    fillGroup,
+    hoverGroup,
+    navigate,
+    poName,
+    poSlug,
+    showPesMarkers,
+  ]);
 
   useEffect(() => {
     externalHoverNameRef.current = externalHoverName;
