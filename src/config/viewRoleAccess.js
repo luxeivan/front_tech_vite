@@ -8,7 +8,7 @@ const FEATURE_ROLES = {
   eddsNewSend: ["preview"],
   mesSend: ["preview"],
   plannedModule: ["supergeneral", "standart", "preview"],
-  operationalDashboard: ["supergeneral", "standart", "preview"],
+  operationalDashboard: ["*"],
   districtModeManage: ["standart", "preview"],
   auditLogging: ["preview"],
   journal: ["standart", "preview"],
@@ -17,6 +17,7 @@ const FEATURE_ROLES = {
 
 export function hasFeatureAccess(viewRole, featureKey) {
   const allowedRoles = FEATURE_ROLES[featureKey] || [];
+  if (allowedRoles.includes("*")) return true;
   return allowedRoles.includes(viewRole);
 }
 
