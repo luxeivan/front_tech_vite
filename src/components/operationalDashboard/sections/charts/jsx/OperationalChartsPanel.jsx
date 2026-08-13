@@ -7,7 +7,7 @@ import useOperationalDashboardStore from "../../../../../stores/operationalDashb
 import {
   OPERATIONAL_CHART_CURRENT_YEAR,
   OPERATIONAL_CHART_PREVIOUS_YEAR,
-  OPERATIONAL_CHART_TITLE,
+  OPERATIONAL_CHART_TITLE_PREFIX,
 } from "../js/operationalChartsPanel.config";
 import {
   buildBranchTechViolationChartData,
@@ -132,6 +132,7 @@ export default function OperationalChartsPanel({
     [filialName, filialRows, isPoChart, rowsCurrentYear, rowsCurrentYearByPo, statsMeta]
   );
   const totals = useMemo(() => getBranchChartTotals(chartData), [chartData]);
+  const chartTitle = `${OPERATIONAL_CHART_TITLE_PREFIX} ${statsMeta?.periodLabel || "за 6 месяцев"}`;
   const statsDate = formatStatsDate(statsMeta?.calculatedAt);
   const nextRefresh = getNextRefreshText(statsMeta?.nextCalculatedAt);
   const shouldShowLoader = hasLoaded && !isPoChart && (isStatsLoading || !hasStatsLoaded);
@@ -205,7 +206,7 @@ export default function OperationalChartsPanel({
       <div className="operational-dashboard__panel-body">
         <div className="operational-charts-panel__content">
           <div className="operational-charts-panel__header">
-            <h3 className="operational-charts-panel__title">{OPERATIONAL_CHART_TITLE}</h3>
+            <h3 className="operational-charts-panel__title">{chartTitle}</h3>
             {/* Метка свежести данных пока скрыта, но оставлена для быстрого возврата.
             {statsDate ? (
               <div className="operational-charts-panel__meta">

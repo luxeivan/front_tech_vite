@@ -16,6 +16,9 @@ import {
   OPERATIONAL_CHART_PREVIOUS_YEAR,
 } from "./operationalChartsPanel.config";
 import {
+  OPERATIONAL_CHART_MONTH_LABELS,
+  getOperationalChart2025MonthlyValues,
+  getOperationalChart2025PoMonthlyValues,
   getOperationalChart2025PoValues,
   getOperationalChart2025Values,
 } from "./operationalChartsPanel2025.data";
@@ -27,6 +30,10 @@ import {
 } from "../../../../../utils/tnFilialyApi";
 
 const branchLabel = (branch) => OPERATIONAL_CHART_BRANCH_LABELS[branch] || branch;
+const DEBUG_KOLOMNA_CHART = true;
+const DEBUG_BRANCH_NAME = "Коломенский";
+const loggedKolomnaBranchWindows = new Set();
+const loggedKolomnaPoWindows = new Set();
 
 const normalizeChartLookupName = (value) =>
   String(value || "")
@@ -102,6 +109,129 @@ const getOperationalChartBranchByOldFields = (row) => {
   return CHART_DISPCENTER_BRANCH_BY_NORMALIZED_NAME.get(normalizeChartLookupName(dispcenter)) || null;
 };
 
+const getDebugPeriodKey = (statsMeta) =>
+  [
+    statsMeta?.periodStart || "",
+    statsMeta?.periodEndExclusive || statsMeta?.periodEnd || "",
+    statsMeta?.calculatedAt || "",
+  ].join("|");
+
+const hasReadyStatsPeriod = (statsMeta) =>
+  Boolean(
+    statsMeta?.periodLabel &&
+      statsMeta?.periodStart &&
+      (statsMeta?.periodEndExclusive || statsMeta?.periodEnd)
+  );
+
+const hasMonthlyBreakdown = (row) =>
+  Array.isArray(row?.__months) && row.__months.length >= 12;
+
+const getVisibleMonthCount = (statsMeta) => {
+  const value = Number(statsMeta?.monthCount || statsMeta?.periodMonth || 6);
+  return Number.isInteger(value) && value >= 1 && value <= 12 ? value : 6;
+};
+
+const buildMonthlyCompareRows = ({ values2025, values2026, statsMeta }) => {
+  const monthCount = getVisibleMonthCount(statsMeta);
+  const rows = Array.from({ length: monthCount }, (_, monthIndex) => ({
+    месяц: OPERATIONAL_CHART_MONTH_LABELS[monthIndex],
+    [OPERATIONAL_CHART_PREVIOUS_YEAR]: Number(values2025?.[monthIndex]?.value || 0),
+    [OPERATIONAL_CHART_CURRENT_YEAR]: Number(values2026?.[monthIndex] || 0),
+  }));
+
+  rows.push({
+    месяц: "ИТОГО",
+    [OPERATIONAL_CHART_PREVIOUS_YEAR]: rows.reduce(
+      (sum, row) => sum + Number(row[OPERATIONAL_CHART_PREVIOUS_YEAR] || 0),
+      0
+    ),
+    [OPERATIONAL_CHART_CURRENT_YEAR]: rows.reduce(
+      (sum, row) => sum + Number(row[OPERATIONAL_CHART_CURRENT_YEAR] || 0),
+      0
+    ),
+  });
+
+  return rows;
+};
+
+const logKolomnaBranchCalculation = ({ rowsCurrentYear, counts, previousYearValues, statsMeta }) => {
+  if (!DEBUG_KOLOMNA_CHART) return;
+  if (!hasReadyStatsPeriod(statsMeta)) return;
+
+  const currentYearRow = rowsCurrentYear.find(
+    (row) => isSameChartName(getOperationalChartBranchByOldFields(row), DEBUG_BRANCH_NAME)
+  );
+  if (!hasMonthlyBreakdown(currentYearRow)) return;
+
+  const windowKey = getDebugPeriodKey(statsMeta);
+  if (loggedKolomnaBranchWindows.has(windowKey)) return;
+  loggedKolomnaBranchWindows.add(windowKey);
+
+  const rows = buildMonthlyCompareRows({
+    values2025: getOperationalChart2025MonthlyValues(DEBUG_BRANCH_NAME, statsMeta),
+    values2026: currentYearRow?.__months || [],
+    statsMeta,
+  });
+
+  console.groupCollapsed(
+    `[dashboard-oo] Коломна по месяцам: ${statsMeta?.periodLabel || "период не пересчитан"}`
+  );
+  console.table(rows);
+  console.log("Контроль графика:", {
+    [OPERATIONAL_CHART_PREVIOUS_YEAR]: previousYearValues[DEBUG_BRANCH_NAME] || 0,
+    [OPERATIONAL_CHART_CURRENT_YEAR]: counts.get(DEBUG_BRANCH_NAME) || 0,
+  });
+  console.groupEnd();
+};
+
+const logKolomnaPoCalculation = ({
+  poRows,
+  counts,
+  previousYearValuesBySlug,
+  rowsCurrentYearByPo,
+  statsMeta,
+}) => {
+  if (!DEBUG_KOLOMNA_CHART) return;
+  if (!hasReadyStatsPeriod(statsMeta)) return;
+  if (
+    !rowsCurrentYearByPo.some(
+      (row) =>
+        isSameChartName(getOperationalChartBranchByOldFields(row), DEBUG_BRANCH_NAME) &&
+        hasMonthlyBreakdown(row)
+    )
+  ) {
+    return;
+  }
+
+  const windowKey = getDebugPeriodKey(statsMeta);
+  if (loggedKolomnaPoWindows.has(windowKey)) return;
+  loggedKolomnaPoWindows.add(windowKey);
+
+  console.groupCollapsed(
+    `[dashboard-oo] ПО Коломны по месяцам: ${statsMeta?.periodLabel || "период не пересчитан"}`
+  );
+  poRows.forEach((poRow) => {
+    const currentYearRow = rowsCurrentYearByPo.find(
+      (row) =>
+        isSameChartName(getOperationalChartBranchByOldFields(row), DEBUG_BRANCH_NAME) &&
+        getPoSlugForChartRow(row, DEBUG_BRANCH_NAME, poRows) === poRow.slug
+    );
+    const rows = buildMonthlyCompareRows({
+      values2025: getOperationalChart2025PoMonthlyValues(DEBUG_BRANCH_NAME, poRow.name, statsMeta),
+      values2026: currentYearRow?.__months || [],
+      statsMeta,
+    });
+    console.groupCollapsed(poRow.name);
+    console.table(rows);
+    console.log("Контроль графика:", {
+      [OPERATIONAL_CHART_PREVIOUS_YEAR]: previousYearValuesBySlug[poRow.slug] || 0,
+      [OPERATIONAL_CHART_CURRENT_YEAR]: counts.get(poRow.slug) || 0,
+    });
+    console.groupEnd();
+  });
+  console.groupEnd();
+};
+
 export const buildBranchTechViolationChartData = (rowsCurrentYear, statsMeta) => {
   const counts = new Map(OPERATIONAL_BRANCHES.map((branch) => [branch, 0]));
 
@@ -121,6 +251,12 @@ export const buildBranchTechViolationChartData = (rowsCurrentYear, statsMeta) =>
   });
 
   const previousYearValues = getOperationalChart2025Values(statsMeta);
+  logKolomnaBranchCalculation({
+    rowsCurrentYear: Array.isArray(rowsCurrentYear) ? rowsCurrentYear : [],
+    counts,
+    previousYearValues,
+    statsMeta,
+  });
 
   return OPERATIONAL_BRANCHES.flatMap((branch) => [
     {
@@ -171,6 +307,15 @@ export const buildPoTechViolationChartData = ({
       value,
     ])
   );
+  if (isSameChartName(normalizedFilialName, DEBUG_BRANCH_NAME)) {
+    logKolomnaPoCalculation({
+      poRows,
+      counts,
+      previousYearValuesBySlug,
+      rowsCurrentYearByPo: Array.isArray(rowsCurrentYearByPo) ? rowsCurrentYearByPo : [],
+      statsMeta,
+    });
+  }
 
   return poRows.flatMap((poRow) => [
     {

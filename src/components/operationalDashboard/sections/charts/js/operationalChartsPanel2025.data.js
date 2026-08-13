@@ -32,8 +32,9 @@ const MONTH_LABELS = [
   "ноябрь",
   "декабрь",
 ];
-const DEBUG_KOLOMNA_2025 = true;
+const DEBUG_KOLOMNA_2025 = false;
 const loggedKolomnaWindows = new Set();
+export const OPERATIONAL_CHART_MONTH_LABELS = MONTH_LABELS;
 
 export const OPERATIONAL_CHART_2025_SOURCE = branchesWithPo2025;
 
@@ -105,12 +106,14 @@ const getFallbackPeriodParts = () => {
 const getSourceYearWindow = (statsMeta) => {
   const fallback = getFallbackPeriodParts();
   const start = parseIsoDateParts(statsMeta?.periodStart) || fallback.start;
-  const end = parseIsoDateParts(statsMeta?.periodEnd) || fallback.end;
+  const endExclusive = parseIsoDateParts(statsMeta?.periodEndExclusive);
+  const end = endExclusive || parseIsoDateParts(statsMeta?.periodEnd) || fallback.end;
 
   return {
     start: toUtcDay(clampToSourceYear(start)),
-    // Помесячные данные не дают точного времени суток, поэтому текущий день считаем включительно.
-    end: addDays(toUtcDay(clampToSourceYear(end)), 1),
+    end: endExclusive
+      ? toUtcDay(clampToSourceYear(end))
+      : addDays(toUtcDay(clampToSourceYear(end)), 1),
   };
 };
 
@@ -190,6 +193,34 @@ const calculatePeriodValue = (data, start, end) =>
       sum + calculateMonthShare(data?.[key], SOURCE_YEAR, monthIndex, start, end),
     0
   );
+
+const getVisibleMonthCount = (statsMeta) => {
+  const value = Number(statsMeta?.monthCount || statsMeta?.periodMonth || 6);
+  return Number.isInteger(value) && value >= 1 && value <= 12 ? value : 6;
+};
+
+export const getOperationalChart2025MonthlyValues = (branchName, statsMeta) => {
+  const data = OPERATIONAL_CHART_2025_MONTHLY_VALUES[branchName];
+  const { start, end } = getSourceYearWindow(statsMeta);
+
+  return MONTH_KEYS.map((key, monthIndex) => ({
+    month: MONTH_LABELS[monthIndex],
+    value: Math.round(calculateMonthShare(data?.[key], SOURCE_YEAR, monthIndex, start, end)),
+  })).slice(0, getVisibleMonthCount(statsMeta));
+};
+
+export const getOperationalChart2025PoMonthlyValues = (branchName, poName, statsMeta) => {
+  const sourceBranch = OPERATIONAL_CHART_2025_SOURCE.find(
+    (item) => item?.branch === branchName
+  );
+  const poData = (sourceBranch?.productionOffices || []).find((item) => item?.name === poName)?.data;
+  const { start, end } = getSourceYearWindow(statsMeta);
+
+  return MONTH_KEYS.map((key, monthIndex) => ({
+    month: MONTH_LABELS[monthIndex],
+    value: Math.round(calculateMonthShare(poData?.[key], SOURCE_YEAR, monthIndex, start, end)),
+  })).slice(0, getVisibleMonthCount(statsMeta));
+};
 
 export const getOperationalChart2025PoValues = (branchName, statsMeta) => {
   const sourceBranch = OPERATIONAL_CHART_2025_SOURCE.find(
