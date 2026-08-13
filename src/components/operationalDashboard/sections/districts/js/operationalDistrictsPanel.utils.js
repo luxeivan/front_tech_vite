@@ -18,6 +18,9 @@ import {
   getTnFilialyAreaPoRows,
   getTnFilialyOkrugaRows,
   getTnFilialyPoOkrugaRows,
+  getTnPoOkrugLinkFilialRow,
+  getTnPoOkrugLinkOkrugRow,
+  getTnPoOkrugLinkPoRow,
 } from "../../../../../utils/tnFilialyApi";
 
 const EMPTY_NUMERIC_VALUES = {
@@ -119,6 +122,23 @@ const hasResourceValue = (value) => hasValue(value) && value !== OPERATIONAL_BRA
 const getResourceFields = (row, fallback = {}) => {
   const mainResource = getFilialMainResource(row);
   const ovb = getFilialOvb(row);
+
+  return {
+    mainResource: hasResourceValue(mainResource)
+      ? mainResource
+      : fallback.mainResource ?? OPERATIONAL_BRANCH_UNKNOWN_VALUE,
+    ovb: hasResourceValue(ovb) ? ovb : fallback.ovb ?? OPERATIONAL_BRANCH_UNKNOWN_VALUE,
+  };
+};
+
+const getPoOkrugLinkMainResource = (row) =>
+  row?.osn_resours ?? row?.osn_resours_count ?? row?.osn_resource ?? row?.mainResource;
+
+const getPoOkrugLinkOvb = (row) => row?.ovb;
+
+const getPoOkrugLinkResourceFields = (linkRow, fallback = {}) => {
+  const mainResource = getPoOkrugLinkMainResource(linkRow);
+  const ovb = getPoOkrugLinkOvb(linkRow);
 
   return {
     mainResource: hasResourceValue(mainResource)
@@ -341,6 +361,58 @@ const isPoRowSelected = (poRow, poName, poSlug = "") => {
   );
 };
 
+const isPoOkrugLinkInFilial = (linkRow, filialName) => {
+  if (!filialName) return true;
+  const filialRow = getTnPoOkrugLinkFilialRow(linkRow);
+  return isSameNormalizedName(normalizeBranchName(filialRow?.name), normalizeBranchName(filialName));
+};
+
+const isPoOkrugLinkInPo = (linkRow, poName, poSlug = "") =>
+  isPoRowSelected(getTnPoOkrugLinkPoRow(linkRow), poName, poSlug);
+
+const getPoOkrugLinkPoKey = (linkRow) =>
+  normalizeLookupName(getTnPoOkrugLinkPoRow(linkRow)?.name);
+
+const getPoOkrugLinkOkrugKey = (linkRow) => {
+  const okrugRow = getTnPoOkrugLinkOkrugRow(linkRow);
+  const rawName = okrugRow?.name || okrugRow?.source_name;
+  return normalizeDistrictLookupName(rawName) || normalizeLookupName(rawName);
+};
+
+const getPoOkrugLinksForFilial = (linkRows = [], filialName = "") =>
+  (Array.isArray(linkRows) ? linkRows : []).filter(
+    (linkRow) => linkRow?.is_active !== false && isPoOkrugLinkInFilial(linkRow, filialName)
+  );
+
+const getPoResourceMapFromLinks = (linkRows = [], filialName = "") =>
+  getPoOkrugLinksForFilial(linkRows, filialName).reduce((acc, linkRow) => {
+    const poRow = getTnPoOkrugLinkPoRow(linkRow);
+    const poName = poRow?.name;
+    const poKey = normalizeLookupName(poName);
+    if (!poKey || acc.has(poKey)) return acc;
+
+    acc.set(poKey, {
+      name: poName,
+      ...getPoOkrugLinkResourceFields(linkRow),
+      source: "tn-po-okrug-links",
+    });
+    return acc;
+  }, new Map());
+
+const getPoOkrugLinkResourceMap = (linkRows = [], filialName = "", poName = "", poSlug = "") =>
+  getPoOkrugLinksForFilial(linkRows, filialName)
+    .filter((linkRow) => isPoOkrugLinkInPo(linkRow, poName, poSlug))
+    .reduce((acc, linkRow) => {
+      const key = getPoOkrugLinkOkrugKey(linkRow);
+      if (!key) return acc;
+      acc.set(key, {
+        linkRow,
+        ...getPoOkrugLinkResourceFields(linkRow),
+        source: "tn-po-okrug-links",
+      });
+      return acc;
+    }, new Map());
+
 const buildBranchResourceMap = (filialRows) =>
   (Array.isArray(filialRows) ? filialRows : []).reduce((acc, row) => {
     const branch = normalizeBranchName(row?.name);
@@ -366,14 +438,20 @@ const createBranchRow = (branch, branchResources) => ({
   ovb: branchResources?.get(branch)?.ovb ?? OPERATIONAL_BRANCH_UNKNOWN_VALUE,
 });
 
-const createPoRow = (poRow) => {
+const createPoRow = (poRow, resourceOverride = null) => {
   const poName = poRow?.name || OPERATIONAL_BRANCH_UNKNOWN_VALUE;
+  const resourceFields = resourceOverride
+    ? {
+        mainResource: resourceOverride.mainResource,
+        ovb: resourceOverride.ovb,
+      }
+    : getResourceFields(poRow);
 
   return {
     key: poRow?.documentId || poRow?.id || poName,
     branch: poName,
     ...EMPTY_NUMERIC_VALUES,
-    ...getResourceFields(poRow),
+    ...resourceFields,
   };
 };
 
@@ -423,9 +501,16 @@ export const buildOperationalBranchRows = (rows, filialRows = [], pesCountMaps =
   return ordered;
 };
 
-export const buildOperationalPoRows = (rows, filialRows = [], filialName = "", pesCountMaps = null) => {
+export const buildOperationalPoRows = (
+  rows,
+  filialRows = [],
+  filialName = "",
+  pesCountMaps = null,
+  poOkrugLinkRows = []
+) => {
   const filialRow = getFilialRowByName(filialRows, filialName);
   const filteredPoRows = getTnFilialyAreaPoRows(filialRow);
+  const poResourceMap = getPoResourceMapFromLinks(poOkrugLinkRows, filialName);
   const poMap = new Map();
 
   const addPoReferenceRow = (poRow) => {
@@ -434,7 +519,7 @@ export const buildOperationalPoRows = (rows, filialRows = [], filialName = "", p
     const poName = poRow?.name;
     const poKey = normalizeLookupName(poName);
     if (!poKey || poMap.has(poKey)) return;
-    poMap.set(poKey, createPoRow(poRow));
+    poMap.set(poKey, createPoRow(poRow, poResourceMap.get(poKey)));
   };
 
   filteredPoRows.forEach(addPoReferenceRow);
@@ -459,10 +544,21 @@ export const buildOperationalPoRows = (rows, filialRows = [], filialName = "", p
       addRowToTotals(poMap.get(poKey), row);
     });
 
-  return Array.from(poMap.values()).map((row) => ({
+  const resultRows = Array.from(poMap.values()).map((row) => ({
     ...row,
     pes: toNumber(pesCountMaps?.byPoKey?.get(buildPesPoCountKey(filialName, row.branch))),
   }));
+
+  if (filialName && poOkrugLinkRows?.length) {
+    console.info("[dashboard-oo] Сводная таблица ПО: ресурсы из tn-po-okrug-links", {
+      filialName,
+      linksLoaded: poOkrugLinkRows.length,
+      poMatched: resultRows.filter((row) => poResourceMap.has(normalizeLookupName(row.branch)))
+        .length,
+    });
+  }
+
+  return resultRows;
 };
 
 export const buildOperationalOkrugRows = (
@@ -471,7 +567,8 @@ export const buildOperationalOkrugRows = (
   filialName = "",
   poName = "",
   poSlug = "",
-  pesCountMaps = null
+  pesCountMaps = null,
+  poOkrugLinkRows = []
 ) => {
   const filialRow = getFilialRowByName(filialRows, filialName);
   const selectedPoRows = getTnFilialyAreaPoRows(filialRow).filter(
@@ -485,6 +582,12 @@ export const buildOperationalOkrugRows = (
       : getTnFilialyOkrugaRows(filialRow);
   const okrugRows = [];
   const okrugSeen = new Set();
+  const okrugResourceMap = getPoOkrugLinkResourceMap(
+    poOkrugLinkRows,
+    filialName,
+    selectedPoName,
+    poSlug
+  );
 
   referenceOkrugaRows
     .filter((okrugRow) => okrugRow?.is_active !== false)
@@ -496,11 +599,18 @@ export const buildOperationalOkrugRows = (
       okrugRows.push({
         key: okrugRow?.documentId || okrugRow?.id || rawName,
         branch: formatOkrugName(rawName),
+        __okrugResourceKey: key,
         ...getResourceFields(okrugRow),
       });
     });
 
-  const poRows = buildOperationalPoRows(rows, filialRows, filialName, pesCountMaps);
+  const poRows = buildOperationalPoRows(
+    rows,
+    filialRows,
+    filialName,
+    pesCountMaps,
+    poOkrugLinkRows
+  );
   const selectedPoDataRow =
     poRows.find((row) => isPoRowSelected({ name: row.branch }, selectedPoName, poSlug)) ||
     createPoRow(selectedPoRow || { name: selectedPoName });
@@ -510,15 +620,31 @@ export const buildOperationalOkrugRows = (
     branch: selectedPoName,
   };
 
-  return [
+  const resultRows = [
     poDataRow,
     ...okrugRows.map((row) =>
       cloneOperationalValues(poDataRow, {
         ...row,
-        ...getResourceFields(row, poDataRow),
+        ...getPoOkrugLinkResourceFields(
+          okrugResourceMap.get(row.__okrugResourceKey)?.linkRow,
+          getResourceFields(row, poDataRow)
+        ),
+        __okrugResourceKey: undefined,
       })
     ),
   ];
+
+  if (filialName && selectedPoName && poOkrugLinkRows?.length) {
+    console.info("[dashboard-oo] 3 уровень: ресурсы округов из tn-po-okrug-links", {
+      filialName,
+      poName: selectedPoName,
+      linksLoaded: poOkrugLinkRows.length,
+      okrugMatched: okrugRows.filter((row) => okrugResourceMap.has(row.__okrugResourceKey)).length,
+      okrugRows: okrugRows.length,
+    });
+  }
+
+  return resultRows;
 };
 
 export const buildOperationalOkrugSummary = (rows) => {

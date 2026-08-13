@@ -7,7 +7,7 @@ import BrandSunLoader from "../../../../ui/BrandSunLoader";
 import useAuth from "../../../../../stores/useAuth";
 import useOperationalDashboardStore from "../../../../../stores/operationalDashboard/useOperationalDashboardStore";
 import usePesModuleDataStore from "../../../../../stores/pes/usePesModuleDataStore";
-import { fetchTnFilialyRows } from "../../../../../utils/tnFilialyApi";
+import { fetchTnFilialyRows, fetchTnPoOkrugLinkRows } from "../../../../../utils/tnFilialyApi";
 import {
   getOperationalFilialPathForBase,
   getOperationalPoPath,
@@ -129,6 +129,7 @@ export default function OperationalDistrictsPanel({
   const pesItems = usePesModuleDataStore((store) => store.items);
   const loadPesItems = usePesModuleDataStore((store) => store.loadItems);
   const [filialRows, setFilialRows] = useState([]);
+  const [poOkrugLinkRows, setPoOkrugLinkRows] = useState([]);
   const [pesAssemblyDestinations, setPesAssemblyDestinations] = useState([]);
 
   useEffect(() => {
@@ -146,6 +147,33 @@ export default function OperationalDistrictsPanel({
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (groupBy !== "po" && groupBy !== "okrug") {
+      setPoOkrugLinkRows([]);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    fetchTnPoOkrugLinkRows()
+      .then((nextRows) => {
+        if (!cancelled) setPoOkrugLinkRows(nextRows);
+      })
+      .catch((error) => {
+        console.warn(
+          "[dashboard-oo] Не удалось загрузить tn-po-okrug-links для сводной таблицы",
+          error?.message || error
+        );
+        if (!cancelled) setPoOkrugLinkRows([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [groupBy]);
 
   useEffect(() => {
     let cancelled = false;
@@ -195,16 +223,23 @@ export default function OperationalDistrictsPanel({
         filialName,
         poName,
         poSlug,
-        pesCountMaps
+        pesCountMaps,
+        poOkrugLinkRows
       );
       return [...branchRows, buildOperationalOkrugSummary(branchRows)];
     } else if (groupBy === "po") {
-      branchRows = buildOperationalPoRows(rows, filialRows, filialName, pesCountMaps);
+      branchRows = buildOperationalPoRows(
+        rows,
+        filialRows,
+        filialName,
+        pesCountMaps,
+        poOkrugLinkRows
+      );
     } else {
       branchRows = buildOperationalBranchRows(rows, filialRows, pesCountMaps);
     }
     return [...branchRows, buildOperationalBranchSummary(branchRows)];
-  }, [filialName, filialRows, groupBy, pesCountMaps, poName, poSlug, rows]);
+  }, [filialName, filialRows, groupBy, pesCountMaps, poName, poOkrugLinkRows, poSlug, rows]);
 
   const getHoverHandlers = (record) =>
     typeof onBranchHover === "function" && record?.key !== "summary"

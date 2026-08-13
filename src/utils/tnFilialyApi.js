@@ -5,6 +5,7 @@ const SERVICES_URL =
   import.meta.env.VITE_URL_BACKEND_SERVICES ||
   import.meta.env.VITE_URL_BACKEND;
 const TN_FILIALIES_ENDPOINT = `${BACKEND_URL}/api/tn-filialies`;
+const TN_PO_OKRUG_LINKS_ENDPOINT = `${BACKEND_URL}/api/tn-po-okrug-links`;
 const EVENTS_ENDPOINT = SERVICES_URL
   ? `${String(SERVICES_URL).replace(/\/$/, "")}/services/event`
   : "";
@@ -21,6 +22,9 @@ let pendingTnFilialyRowsPromise = null;
 let cachedTnFilialyModeRows = null;
 let cachedTnFilialyModeRowsAt = 0;
 let pendingTnFilialyModeRowsPromise = null;
+let cachedTnPoOkrugLinkRows = null;
+let cachedTnPoOkrugLinkRowsAt = 0;
+let pendingTnPoOkrugLinkRowsPromise = null;
 
 const getAuthHeaders = () => {
   const jwt = localStorage.getItem("jwt");
@@ -71,6 +75,15 @@ export const getTnFilialyPoRows = (filialRow) =>
 
 export const getTnFilialyPoOkrugaRows = (poRow) =>
   uniqueRelationsByKey(toRelationList(poRow?.tn_okruga, poRow?.tn_okrugs));
+
+export const getTnPoOkrugLinkFilialRow = (linkRow) =>
+  toRelationList(linkRow?.tn_filialy, linkRow?.tn_filialies)[0] || null;
+
+export const getTnPoOkrugLinkPoRow = (linkRow) =>
+  toRelationList(linkRow?.tn_po, linkRow?.tn_pos)[0] || null;
+
+export const getTnPoOkrugLinkOkrugRow = (linkRow) =>
+  toRelationList(linkRow?.tn_okrug, linkRow?.tn_okruga)[0] || null;
 
 export const getTnFilialyWriteId = (row) => row?.documentId || row?.id;
 
@@ -271,6 +284,70 @@ export async function fetchTnFilialyModeRows(options = {}) {
   }
 }
 
+export async function fetchTnPoOkrugLinkRows(options = {}) {
+  const force = Boolean(options?.force);
+  const now = Date.now();
+  if (
+    !force &&
+    cachedTnPoOkrugLinkRows &&
+    now - cachedTnPoOkrugLinkRowsAt < CACHE_TTL_MS
+  ) {
+    return cachedTnPoOkrugLinkRows;
+  }
+  if (!force && pendingTnPoOkrugLinkRowsPromise) {
+    return pendingTnPoOkrugLinkRowsPromise;
+  }
+
+  pendingTnPoOkrugLinkRowsPromise = (async () => {
+    const rows = [];
+    let page = 1;
+    let pageCount = 1;
+
+    do {
+      const { data } = await axios.get(TN_PO_OKRUG_LINKS_ENDPOINT, {
+        params: {
+          status: TN_FILIALIES_STATUS,
+          "filters[is_active][$eq]": true,
+          "fields[0]": "name",
+          "fields[1]": "is_active",
+          "fields[2]": "sort_order",
+          "fields[3]": "ovb",
+          "fields[4]": "osn_resours",
+          "pagination[page]": page,
+          "pagination[pageSize]": PAGE_SIZE,
+          "populate[tn_filialy][fields][0]": "name",
+          "populate[tn_filialy][fields][1]": "sort_order",
+          "populate[tn_po][fields][0]": "name",
+          "populate[tn_po][fields][1]": "sort_order",
+          "populate[tn_okrug][fields][0]": "name",
+          "populate[tn_okrug][fields][1]": "source_name",
+          "populate[tn_okrug][fields][2]": "sort_order",
+          "sort[0]": "sort_order:asc",
+        },
+        headers: getAuthHeaders(),
+      });
+
+      rows.push(...(Array.isArray(data?.data) ? data.data.map(mapStrapiItem) : []));
+      pageCount = Number(data?.meta?.pagination?.pageCount || 1);
+      page += 1;
+    } while (page <= pageCount);
+
+    cachedTnPoOkrugLinkRows = rows;
+    cachedTnPoOkrugLinkRowsAt = Date.now();
+    console.info("[dashboard-oo] tn-po-okrug-links: загружено из Strapi", {
+      count: rows.length,
+      endpoint: TN_PO_OKRUG_LINKS_ENDPOINT,
+    });
+    return rows;
+  })();
+
+  try {
+    return await pendingTnPoOkrugLinkRowsPromise;
+  } finally {
+    pendingTnPoOkrugLinkRowsPromise = null;
+  }
+}
+
 export async function updateTnFilialyRezim(writeId, rezim) {
   const { data } = await axios.put(
     `${TN_FILIALIES_ENDPOINT}/${writeId}`,
@@ -286,6 +363,8 @@ export async function updateTnFilialyRezim(writeId, rezim) {
   cachedTnFilialyRowsAt = 0;
   cachedTnFilialyModeRows = null;
   cachedTnFilialyModeRowsAt = 0;
+  cachedTnPoOkrugLinkRows = null;
+  cachedTnPoOkrugLinkRowsAt = 0;
 
   return mapStrapiItem(data?.data);
 }
