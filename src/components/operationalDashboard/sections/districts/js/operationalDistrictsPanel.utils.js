@@ -367,11 +367,19 @@ const isPoOkrugLinkInFilial = (linkRow, filialName) => {
   return isSameNormalizedName(normalizeBranchName(filialRow?.name), normalizeBranchName(filialName));
 };
 
+const getPoOkrugLinkPoName = (linkRow) => {
+  const poRow = getTnPoOkrugLinkPoRow(linkRow);
+  if (poRow?.name) return poRow.name;
+
+  const okrugRow = getTnPoOkrugLinkOkrugRow(linkRow);
+  return okrugRow?.name || okrugRow?.source_name || "";
+};
+
 const isPoOkrugLinkInPo = (linkRow, poName, poSlug = "") =>
-  isPoRowSelected(getTnPoOkrugLinkPoRow(linkRow), poName, poSlug);
+  isPoRowSelected({ name: getPoOkrugLinkPoName(linkRow) }, poName, poSlug);
 
 const getPoOkrugLinkPoKey = (linkRow) =>
-  normalizeLookupName(getTnPoOkrugLinkPoRow(linkRow)?.name);
+  normalizeLookupName(getPoOkrugLinkPoName(linkRow));
 
 const getPoOkrugLinkOkrugKey = (linkRow) => {
   const okrugRow = getTnPoOkrugLinkOkrugRow(linkRow);
@@ -386,8 +394,7 @@ const getPoOkrugLinksForFilial = (linkRows = [], filialName = "") =>
 
 const getPoResourceMapFromLinks = (linkRows = [], filialName = "") =>
   getPoOkrugLinksForFilial(linkRows, filialName).reduce((acc, linkRow) => {
-    const poRow = getTnPoOkrugLinkPoRow(linkRow);
-    const poName = poRow?.name;
+    const poName = getPoOkrugLinkPoName(linkRow);
     const poKey = normalizeLookupName(poName);
     if (!poKey || acc.has(poKey)) return acc;
 
