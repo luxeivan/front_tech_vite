@@ -199,6 +199,13 @@ const getVisibleMonthCount = (statsMeta) => {
   return Number.isInteger(value) && value >= 1 && value <= 12 ? value : 6;
 };
 
+export const hasOperationalChart2025PoBreakdown = (branchName) => {
+  const sourceBranch = OPERATIONAL_CHART_2025_SOURCE.find(
+    (item) => item?.branch === branchName
+  );
+  return Boolean(sourceBranch?.productionOffices?.length);
+};
+
 export const getOperationalChart2025MonthlyValues = (branchName, statsMeta) => {
   const data = OPERATIONAL_CHART_2025_MONTHLY_VALUES[branchName];
   const { start, end } = getSourceYearWindow(statsMeta);
@@ -213,7 +220,12 @@ export const getOperationalChart2025PoMonthlyValues = (branchName, poName, stats
   const sourceBranch = OPERATIONAL_CHART_2025_SOURCE.find(
     (item) => item?.branch === branchName
   );
-  const poData = (sourceBranch?.productionOffices || []).find((item) => item?.name === poName)?.data;
+  const productionOffices = Array.isArray(sourceBranch?.productionOffices)
+    ? sourceBranch.productionOffices
+    : [];
+  const poData = productionOffices.length
+    ? productionOffices.find((item) => item?.name === poName)?.data
+    : sourceBranch?.data;
   const { start, end } = getSourceYearWindow(statsMeta);
 
   return MONTH_KEYS.map((key, monthIndex) => ({

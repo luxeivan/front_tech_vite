@@ -44,6 +44,7 @@ import {
   getOperationalFilialPathForBase,
   getOperationalPoPath,
   getOperationalPoSlug,
+  isOperationalDirectOnlyFilial,
   normalizeOperationalFilialName,
 } from "../../../../../utils/operationalFilialRoutes";
 import {
@@ -383,8 +384,15 @@ const dedupePoDisplayNames = (names) => {
 
 const assignVisiblePoNames = (features, activeFilialName) => {
   const normalizedFilialName = normalizeOperationalFilialName(activeFilialName);
+  const useDistrictNames = isOperationalDirectOnlyFilial(activeFilialName);
 
   features.forEach((feature) => {
+    if (useDistrictNames) {
+      const districtName = getFeatureDistrictLabel(feature);
+      feature.set("visible_po_names", districtName ? [districtName] : []);
+      return;
+    }
+
     if (!normalizedFilialName) {
       feature.set("visible_po_names", dedupePoDisplayNames(getFeaturePoNames(feature)));
       return;
@@ -1500,6 +1508,7 @@ export default function OperationalMapPanel({
         filialName && featurePoName
           ? getOperationalPoPath(filialName, featurePoName, basePath)
           : "";
+      if (filialName && featurePoName && isOperationalDirectOnlyFilial(filialName)) return;
       const filialPath = getOperationalFilialPathForBase(featureFilialName, basePath);
       if (poPath) {
         navigate(poPath);

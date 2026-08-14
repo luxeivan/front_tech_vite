@@ -21,6 +21,7 @@ import {
   getOperationalChart2025PoMonthlyValues,
   getOperationalChart2025PoValues,
   getOperationalChart2025Values,
+  hasOperationalChart2025PoBreakdown,
 } from "./operationalChartsPanel2025.data";
 import {
   getOperationalPoSlug,
@@ -301,6 +302,9 @@ export const buildPoTechViolationChartData = ({
   });
 
   const previousYearValues = getOperationalChart2025PoValues(normalizedFilialName, statsMeta);
+  const previousYearFilialValues = hasOperationalChart2025PoBreakdown(normalizedFilialName)
+    ? {}
+    : getOperationalChart2025Values(statsMeta);
   const previousYearValuesBySlug = Object.fromEntries(
     Object.entries(previousYearValues).map(([poName, value]) => [
       getOperationalPoSlug(poName),
@@ -321,7 +325,9 @@ export const buildPoTechViolationChartData = ({
     {
       branch: poRow.name,
       year: String(OPERATIONAL_CHART_PREVIOUS_YEAR),
-      value: previousYearValuesBySlug[poRow.slug] || 0,
+      value:
+        previousYearValuesBySlug[poRow.slug] ||
+        (poRows.length === 1 ? previousYearFilialValues[normalizedFilialName] || 0 : 0),
     },
     {
       branch: poRow.name,

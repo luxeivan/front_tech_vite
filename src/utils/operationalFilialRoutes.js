@@ -18,6 +18,11 @@ export const normalizeOperationalFilialName = (value) =>
     .toLocaleLowerCase("ru-RU")
     .replace(/ё/g, "е");
 
+export const OPERATIONAL_DIRECT_ONLY_FILIALS = new Set(["орехово-зуевский филиал"]);
+
+export const isOperationalDirectOnlyFilial = (filialName) =>
+  OPERATIONAL_DIRECT_ONLY_FILIALS.has(normalizeOperationalFilialName(filialName));
+
 export const getOperationalFilialRouteByName = (filialName) => {
   const normalizedName = normalizeOperationalFilialName(filialName);
   return OPERATIONAL_FILIAL_ROUTES.find(
@@ -82,6 +87,7 @@ export const getOperationalPoSlug = (poName) =>
 export const getOperationalPoPath = (filialName, poName, basePath = "/dashboard-oo") => {
   const filialRoute = getOperationalFilialRouteByName(filialName);
   const poSlug = getOperationalPoSlug(poName);
+  if (isOperationalDirectOnlyFilial(filialName)) return "";
   if (!filialRoute || !poSlug) return "";
   return `${basePath}/${filialRoute.slug}/${poSlug}`;
 };

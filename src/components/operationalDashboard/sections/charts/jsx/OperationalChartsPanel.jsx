@@ -131,6 +131,11 @@ export default function OperationalChartsPanel({
         : buildBranchTechViolationChartData(rowsCurrentYear, statsMeta),
     [filialName, filialRows, isPoChart, rowsCurrentYear, rowsCurrentYearByPo, statsMeta]
   );
+  const chartBranchCount = useMemo(
+    () => new Set(chartData.map((item) => item.branch)).size,
+    [chartData]
+  );
+  const isSparseChart = chartBranchCount > 0 && chartBranchCount <= 2;
   const totals = useMemo(() => getBranchChartTotals(chartData), [chartData]);
   const chartTitle = `${OPERATIONAL_CHART_TITLE_PREFIX} ${statsMeta?.periodLabel || "за 6 месяцев"}`;
   const statsDate = formatStatsDate(statsMeta?.calculatedAt);
@@ -223,8 +228,15 @@ export default function OperationalChartsPanel({
             </div>
           ) : hasLoaded && (hasStatsLoaded || isPoChart) ? (
             <>
-              <div className="operational-charts-panel__chart">
-                <Column {...config} />
+              <div
+                className={[
+                  "operational-charts-panel__chart",
+                  isSparseChart ? "operational-charts-panel__chart--sparse" : "",
+                ].filter(Boolean).join(" ")}
+              >
+                <div className="operational-charts-panel__chart-inner">
+                  <Column {...config} />
+                </div>
               </div>
               <div className="operational-charts-panel__summary">
                 <div className="operational-charts-panel__summary-values">
