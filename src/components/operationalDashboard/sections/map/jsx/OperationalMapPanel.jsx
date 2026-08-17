@@ -75,6 +75,7 @@ const SERVICES_URL =
 const BACKEND_URL = import.meta.env.VITE_URL_BACKEND;
 const OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast";
 const FILIAL_MODE_POLL_MS = 5000;
+const WEATHER_LOG_PREFIX = "[dashboard-oo] Погода";
 
 const getWeatherHour = (time) => {
   const match = String(time || "").match(/T(\d{2})/);
@@ -138,6 +139,47 @@ const requestWeatherFromBackend = async (baseUrl) => {
   return normalizeWeatherPayload(data);
 };
 
+const requestWeatherByPlaceFromBackend = async (baseUrl, weatherContext) => {
+  const place = String(weatherContext?.place || "").trim();
+  if (!baseUrl || !place) return null;
+
+  console.info(`${WEATHER_LOG_PREFIX}: персональный запрос`, {
+    level: weatherContext?.level || "",
+    requestedPlace: place,
+    districtName: weatherContext?.districtName || "",
+    filialName: weatherContext?.filialName || "",
+    poName: weatherContext?.poName || "",
+    reason: weatherContext?.source || "",
+    baseUrl,
+  });
+
+  const { data } = await axios.get(`${baseUrl}/services/weather/test-by-place`, {
+    params: { place },
+    timeout: 12000,
+  });
+  if (data?.ok === false) throw new Error(data?.message || "Погода недоступна");
+
+  const weatherPayload = data?.weather ? {
+    ...data.weather,
+    source: data.source,
+    label: data.location?.name || data.query || place,
+    latitude: data.location?.latitude,
+    longitude: data.location?.longitude,
+  } : data;
+
+  console.info(`${WEATHER_LOG_PREFIX}: персональный ответ`, {
+    requestedPlace: place,
+    resolvedName: data?.location?.name || weatherPayload?.label || "",
+    country: data?.location?.country || "",
+    region: data?.location?.admin1 || "",
+    latitude: data?.location?.latitude,
+    longitude: data?.location?.longitude,
+    source: data?.source || weatherPayload?.source || "",
+  });
+
+  return normalizeWeatherPayload(weatherPayload);
+};
+
 const requestWeatherDirectly = async () => {
   const { data } = await axios.get(OPEN_METEO_URL, {
     params: {
@@ -155,9 +197,23 @@ const requestWeatherDirectly = async () => {
   return normalizeWeatherPayload(data);
 };
 
-const loadOperationalWeather = async () => {
+const loadOperationalWeather = async (weatherContext = null) => {
   const backends = [...new Set([SERVICES_URL, BACKEND_URL].filter(Boolean))];
   let lastError = null;
+  const hasPersonalPlace = Boolean(String(weatherContext?.place || "").trim());
+
+  if (hasPersonalPlace) {
+    for (const baseUrl of backends) {
+      try {
+        const data = await requestWeatherByPlaceFromBackend(baseUrl, weatherContext);
+        if (data) return data;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    throw lastError || new Error("Погода недоступна");
+  }
 
   if (import.meta.env.DEV) {
     try {
@@ -965,9 +1021,16 @@ const getIsWallDisplayMapViewport = () =>
   window.innerWidth === 3840 &&
   window.innerHeight === 2160;
 
-function OperationalWeatherCard() {
+function OperationalWeatherCard({ weatherContext = null }) {
   const [weather, setWeather] = useState(null);
   const [error, setError] = useState(null);
+  const weatherContextKey = [
+    weatherContext?.level || "",
+    weatherContext?.place || "",
+    weatherContext?.districtName || "",
+    weatherContext?.filialName || "",
+    weatherContext?.poName || "",
+  ].join("|");
 
   useEffect(() => {
     let cancelled = false;
@@ -975,7 +1038,7 @@ function OperationalWeatherCard() {
     const loadWeather = async () => {
       try {
         setError(null);
-        const data = await loadOperationalWeather();
+        const data = await loadOperationalWeather(weatherContext);
         if (cancelled) return;
         setWeather(data);
       } catch (requestError) {
@@ -992,7 +1055,7 @@ function OperationalWeatherCard() {
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, []);
+  }, [weatherContextKey]);
 
   if (error) {
     return (
@@ -1059,7 +1122,7 @@ function OperationalWeatherCard() {
   );
 }
 
-export function OperationalMapTopline({ className = "" }) {
+export function OperationalMapTopline({ className = "", weatherContext = null }) {
   const [now, setNow] = useState(() => dayjs());
 
   useEffect(() => {
@@ -1078,7 +1141,7 @@ export function OperationalMapTopline({ className = "" }) {
         <strong>{now.format("DD.MM.YYYY")}</strong>
         <span>{now.format("HH:mm")}</span>
       </div>
-      <OperationalWeatherCard />
+      <OperationalWeatherCard weatherContext={weatherContext} />
     </div>
   );
 }
@@ -1097,6 +1160,7 @@ export default function OperationalMapPanel({
   showPesMarkers = false,
   showTopline = true,
   showMobileTopline = false,
+  weatherContext = null,
   variant = "",
 }) {
   const navigate = useNavigate();
@@ -1676,9 +1740,12 @@ export default function OperationalMapPanel({
     <div className={panelClassName}>
       <div className="operational-dashboard__panel-body">
         <div className="operational-map-panel__surface">
-          {showTopline ? <OperationalMapTopline /> : null}
+          {showTopline ? <OperationalMapTopline weatherContext={weatherContext} /> : null}
           {showMobileTopline ? (
-            <OperationalMapTopline className="operational-map-panel__topline--mobile" />
+            <OperationalMapTopline
+              className="operational-map-panel__topline--mobile"
+              weatherContext={weatherContext}
+            />
           ) : null}
           <div className="operational-map-panel__map-frame">
             <div
