@@ -1075,11 +1075,13 @@ const getDistrictLabelStyle = (
   compactLabels = false,
   labelGroup = "district",
   districtDetailMode = false,
-  isWallDisplay = false
+  isWallDisplay = false,
+  activeLabelName = ""
 ) => {
   if (labelGroup === "po") {
     const poNames = getFeaturePoLabelNames(feature);
     const fontSize = isWallDisplay ? 18 : compactLabels ? 10 : 11;
+    const activeLabelKey = normalizeOperationalMapAreaName(activeLabelName);
 
     return poNames
       .map((poName, index) => {
@@ -1093,18 +1095,24 @@ const getDistrictLabelStyle = (
           compactLabels,
           isWallDisplay
         );
+        const isActive = Boolean(activeLabelKey) &&
+          normalizeOperationalMapAreaName(poName) === activeLabelKey;
 
         return new Style({
-          zIndex: districtDetailMode ? 70 : 50,
+          zIndex: isActive ? 90 : districtDetailMode ? 70 : 50,
           text: new Text({
             text: label,
             offsetX,
             offsetY,
             overflow: true,
             padding: [2, 4, 2, 4],
-            fill: new Fill({ color: "#1575bc" }),
-            stroke: new Stroke({ color: "#ffffff", width: isWallDisplay ? 7 : 3 }),
-            font: `700 ${fontSize}px Arial, sans-serif`,
+            fill: new Fill({ color: isActive ? "#00589f" : "#1575bc" }),
+            stroke: new Stroke({ color: "#ffffff", width: isWallDisplay ? 7 : isActive ? 5 : 3 }),
+            backgroundFill: isActive ? new Fill({ color: "rgba(255, 255, 255, 0.92)" }) : null,
+            backgroundStroke: isActive
+              ? new Stroke({ color: "rgba(0, 97, 170, 0.35)", width: 1.5 })
+              : null,
+            font: `${isActive ? 800 : 700} ${isActive ? fontSize + 1 : fontSize}px Arial, sans-serif`,
           }),
         });
       })
@@ -1831,7 +1839,8 @@ export default function OperationalMapPanel({
                 isCompactViewport,
                 fillGroup,
                 districtDetailMode,
-                isWallDisplayViewport
+                isWallDisplayViewport,
+                externalHoverName
               )
           : null
       );
@@ -1841,6 +1850,7 @@ export default function OperationalMapPanel({
     areaDataByKey,
     districtDetailMode,
     fillGroup,
+    externalHoverName,
     isCompactViewport,
     isWallDisplayViewport,
     mapFeaturesVersion,
