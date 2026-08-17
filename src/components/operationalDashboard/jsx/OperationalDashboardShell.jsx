@@ -25,7 +25,42 @@ const parseSsePayload = (event) => {
 
 const isFilialModeEvent = (payload) =>
   payload?.type === TN_FILIALY_REZIM_UPDATED_EVENT ||
-  payload?.payload?.type === TN_FILIALY_REZIM_UPDATED_EVENT;
+  payload?.payload?.type === TN_FILIALY_REZIM_UPDATED_EVENT ||
+  (payload?.type === "strapi-webhook" &&
+    String(payload?.uid || payload?.model || "").includes("tn-filialy"));
+
+const getFilialModePayload = (payload) => {
+  if (payload?.payload?.type === TN_FILIALY_REZIM_UPDATED_EVENT) {
+    return payload.payload;
+  }
+  if (payload?.type === TN_FILIALY_REZIM_UPDATED_EVENT) {
+    return payload;
+  }
+  if (payload?.type === "strapi-webhook") {
+    const entry = payload?.entry || {};
+    const id = entry.documentId || entry.id || null;
+    const name = entry.name || "";
+
+    return {
+      type: TN_FILIALY_REZIM_UPDATED_EVENT,
+      source: "strapi-webhook",
+      event: payload.event,
+      rezim: entry.rezim || "",
+      filialIds: id ? [id] : [],
+      filials: name
+        ? [
+            {
+              id: entry.id || null,
+              documentId: entry.documentId || null,
+              name,
+            },
+          ]
+        : [],
+      timestamp: payload.timestamp || Date.now(),
+    };
+  }
+  return payload?.payload || payload;
+};
 
 export default function OperationalDashboardShell({
   MapPanelComponent = OperationalMapPanel,
@@ -70,7 +105,7 @@ export default function OperationalDashboardShell({
         if (isFilialModeEvent(payload)) {
           window.dispatchEvent(
             new CustomEvent(TN_FILIALY_REZIM_UPDATED_EVENT, {
-              detail: payload?.payload || payload,
+              detail: getFilialModePayload(payload),
             })
           );
         }

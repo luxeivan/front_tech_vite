@@ -74,7 +74,9 @@ const SERVICES_URL =
   import.meta.env.VITE_URL_BACKEND;
 const BACKEND_URL = import.meta.env.VITE_URL_BACKEND;
 const OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast";
-const FILIAL_MODE_POLL_MS = 5000;
+// Основной live-update режимов приходит через Strapi webhook -> backend SSE.
+// Polling оставлен редким fallback, если webhook/SSE временно не сработали.
+const FILIAL_MODE_POLL_MS = 60_000;
 const WEATHER_LOG_PREFIX = "[dashboard-oo] Погода";
 
 const getWeatherHour = (time) => {
