@@ -233,15 +233,15 @@ const logKolomnaBranchCalculation = ({ rowsCurrentYear, counts, previousYearValu
     statsMeta,
   });
 
-  console.groupCollapsed(
-    `[dashboard-oo] Коломна по месяцам: ${statsMeta?.periodLabel || "период не пересчитан"}`
-  );
-  console.table(rows);
-  console.log("Контроль графика:", {
-    [OPERATIONAL_CHART_PREVIOUS_YEAR]: previousYearValues[DEBUG_BRANCH_NAME] || 0,
-    [OPERATIONAL_CHART_CURRENT_YEAR]: counts.get(DEBUG_BRANCH_NAME) || 0,
-  });
-  console.groupEnd();
+  // console.groupCollapsed(
+  //   `[dashboard-oo] Коломна по месяцам: ${statsMeta?.periodLabel || "период не пересчитан"}`
+  // );
+  // console.table(rows);
+  // console.log("Контроль графика:", {
+  //   [OPERATIONAL_CHART_PREVIOUS_YEAR]: previousYearValues[DEBUG_BRANCH_NAME] || 0,
+  //   [OPERATIONAL_CHART_CURRENT_YEAR]: counts.get(DEBUG_BRANCH_NAME) || 0,
+  // });
+  // console.groupEnd();
 };
 
 const logKolomnaPoCalculation = ({
@@ -267,9 +267,9 @@ const logKolomnaPoCalculation = ({
   if (loggedKolomnaPoWindows.has(windowKey)) return;
   loggedKolomnaPoWindows.add(windowKey);
 
-  console.groupCollapsed(
-    `[dashboard-oo] ПО Коломны по месяцам: ${statsMeta?.periodLabel || "период не пересчитан"}`
-  );
+  // console.groupCollapsed(
+  //   `[dashboard-oo] ПО Коломны по месяцам: ${statsMeta?.periodLabel || "период не пересчитан"}`
+  // );
   poRows.forEach((poRow) => {
     const currentYearRow = rowsCurrentYearByPo.find(
       (row) =>
@@ -281,15 +281,15 @@ const logKolomnaPoCalculation = ({
       values2026: currentYearRow?.__months || [],
       statsMeta,
     });
-    console.groupCollapsed(poRow.name);
-    console.table(rows);
-    console.log("Контроль графика:", {
-      [OPERATIONAL_CHART_PREVIOUS_YEAR]: previousYearValuesBySlug[poRow.slug] || 0,
-      [OPERATIONAL_CHART_CURRENT_YEAR]: counts.get(poRow.slug) || 0,
-    });
-    console.groupEnd();
+    // console.groupCollapsed(poRow.name);
+    // console.table(rows);
+    // console.log("Контроль графика:", {
+    //   [OPERATIONAL_CHART_PREVIOUS_YEAR]: previousYearValuesBySlug[poRow.slug] || 0,
+    //   [OPERATIONAL_CHART_CURRENT_YEAR]: counts.get(poRow.slug) || 0,
+    // });
+    // console.groupEnd();
   });
-  console.groupEnd();
+  // console.groupEnd();
 };
 
 export const buildBranchTechViolationChartData = (rowsCurrentYear, statsMeta) => {

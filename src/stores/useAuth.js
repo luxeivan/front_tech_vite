@@ -3,6 +3,7 @@ import { create } from "zustand";
 const urlBackend = import.meta.env.VITE_URL_BACKEND;
 
 let axiosInterceptorsInstalled = false;
+let fieldsSettingRequest = null;
 
 function isAuthSessionEndpoint(config = {}) {
   const requestUrl = String(config.url || "");
@@ -57,7 +58,7 @@ function installAxiosInterceptors() {
   axiosInterceptorsInstalled = true;
 }
 
-const useAuth = create((set) => ({
+const useAuth = create((set, get) => ({
   isAuth: false,
   fieldsSetting: false,
   user: null,
@@ -73,7 +74,7 @@ const useAuth = create((set) => ({
       set({ user: r.data, isAuth: true });
       return r.data;
     } catch (e) {
-      console.log('[auth] /users/me error', e?.response?.data || e.message);
+      // console.log('[auth] /users/me error', e?.response?.data || e.message);
       localStorage.removeItem('jwt');
       set({ isAuth: false, user: null, fieldsSetting: false });
       return null;
@@ -91,15 +92,15 @@ const useAuth = create((set) => ({
         password,
       });
       if (res.data) {
-        console.log(res.data);
+        // console.log(res.data);
         localStorage.setItem("jwt", res.data.jwt);
         sessionStorage.setItem("postAuthSplashPending", "1");
-        console.log('[auth] login ok ->', res.data);
+        // console.log('[auth] login ok ->', res.data);
         set({ user: res.data.user });
         set((state) => ({ isAuth: true }));
       }
     } catch (error) {
-      console.log(error);
+      // console.log(error);
     }
   },
   getUserMe: async () => {
@@ -111,30 +112,46 @@ const useAuth = create((set) => ({
       set({ user: r.data, isAuth: true });
       return r.data;
     } catch (e) {
-      console.log('[auth] getUserMe error', e?.response?.data || e.message);
+      // console.log('[auth] getUserMe error', e?.response?.data || e.message);
       localStorage.removeItem('jwt');
       set({ isAuth: false, user: null });
       return null;
     }
   },
-  getFieldsSetting: async () => {
-    try {
-      const res = await axios.get(
-        `${urlBackend}/api/nastrojki-polejs?pagination[pageSize]=100`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("jwt")}`,
-          },
-        }
-      );
-      if (res.data) {
-        const count = res.data.data?.length || 0;
-        console.log(`[fieldsSetting] загружено ${count} записей из nastrojki-polejs`);
-        set((state) => ({ fieldsSetting: res.data.data }));
-      }
-    } catch (error) {
-      console.log(error);
+  getFieldsSetting: async (options = {}) => {
+    const force = Boolean(options?.force);
+    const existing = get().fieldsSetting;
+
+    if (!force && Array.isArray(existing)) {
+      return existing;
     }
+
+    if (!force && fieldsSettingRequest) {
+      return fieldsSettingRequest;
+    }
+
+    fieldsSettingRequest = (async () => {
+      try {
+        const res = await axios.get(
+          `${urlBackend}/api/nastrojki-polejs?pagination[pageSize]=100`,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("jwt")}`,
+            },
+          }
+        );
+        const rows = Array.isArray(res.data?.data) ? res.data.data : [];
+        set((state) => ({ fieldsSetting: rows }));
+        return rows;
+      } catch (error) {
+        // console.log(error);
+        return null;
+      } finally {
+        fieldsSettingRequest = null;
+      }
+    })();
+
+    return fieldsSettingRequest;
   },
 }));
 

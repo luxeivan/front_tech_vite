@@ -144,7 +144,7 @@ const usePlannedStore = create((set, get) => ({
       set({ plannedTns: { data: allItems } });
     } catch (error) {
       if (get().primaryDataRequestSeq !== requestSeq) return;
-      console.log("Ошибка при получении плановых ТН", error);
+      // console.log("Ошибка при получении плановых ТН", error);
       set({ plannedTns: { data: [] }, totalCount: 0 });
     } finally {
       if (get().primaryDataRequestSeq === requestSeq) set({ isLoadingPlannedTns: false });

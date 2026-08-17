@@ -200,10 +200,10 @@ export default function MapPanel({
   }, [activeLayer]);
 
   useEffect(() => {
-    console.log(
-      "[MapOL] FIAS resolution start, codes:",
-      fiasCodes?.length || 0
-    );
+    // console.log(
+    //   "[MapOL] FIAS resolution start, codes:",
+    //   fiasCodes?.length || 0
+    // );
 
     if (!(cacheRef.current instanceof globalThis.Map)) {
       cacheRef.current = new globalThis.Map();
@@ -215,10 +215,10 @@ export default function MapPanel({
       return;
     }
     if (!url || !fiasCollection) {
-      console.log("[MapOL] Missing url or fiasCollection", {
-        url,
-        fiasCollection,
-      });
+      // console.log("[MapOL] Missing url or fiasCollection", {
+      //   url,
+      //   fiasCollection,
+      // });
       setResolvedPoints([]);
       return;
     }

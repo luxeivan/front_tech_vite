@@ -550,7 +550,7 @@ export default function TableTN() {
   const handleStatusChange = (vals) => {
     setSelectedStatuses(vals || []);
     setPagination((p) => ({ ...p, page: 1 }));
-    console.log("[filters] режим: Статусы =", vals || []);
+    // console.log("[filters] режим: Статусы =", vals || []);
   };
 
   // --- removed openedCount, loadingOpened, totalByDate, headerTotal memoizations
@@ -573,7 +573,7 @@ export default function TableTN() {
     });
 
     all.forEach((tn, i) => {});
-    console.log("Всего ТН:", all.length);
+    // console.log("Всего ТН:", all.length);
   }, [tns?.data, isLoadingTns]);
 
   useEffect(() => {
@@ -626,7 +626,7 @@ export default function TableTN() {
           const payload = JSON.parse(evt.data);
           scheduleRefresh();
         } catch (e) {
-          console.log("Ошибка срабатывания вебхука", e);
+          // console.log("Ошибка срабатывания вебхука", e);
         }
       };
 

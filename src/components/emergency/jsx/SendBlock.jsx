@@ -174,15 +174,15 @@ export default function SendBlock({
     try {
       setMesTestLoading(true);
       const jwt = localStorage.getItem("jwt");
-      console.groupCollapsed?.("[Мосэнергосбыт] отправка");
-      console.log("[Мосэнергосбыт] request:", request);
+      // console.groupCollapsed?.("[Мосэнергосбыт] отправка");
+      // console.log("[Мосэнергосбыт] request:", request);
       const resp = await sendToMes(
         SERVICES_URL,
         mesPayload,
         jwt,
         buildAuditHeaders(user, "/")
       );
-      console.log("[Мосэнергосбыт] response:", resp);
+      // console.log("[Мосэнергосбыт] response:", resp);
       const ok = Boolean(resp?.ok);
 
       if (ok) {
@@ -263,7 +263,7 @@ export default function SendBlock({
         summary: formatErrorDetails(response) || response?.message || "Ответ без сообщения",
       });
     } finally {
-      console.groupEnd?.();
+      // console.groupEnd?.();
       setMesTestLoading(false);
     }
   };

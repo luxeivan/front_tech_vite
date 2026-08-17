@@ -42,7 +42,7 @@ const useData = create((set) => ({
       set({ tns: data, isLoadingTns: false });
     } catch (error) {
       set({ isLoadingTns: false });
-      console.log(`Ошибка при получении всех ТН`, error);
+      // console.log(`Ошибка при получении всех ТН`, error);
     }
   },
 
@@ -77,7 +77,7 @@ const useData = create((set) => ({
       set({ openedCount: total, loadingOpenedCount: false });
     } catch (e) {
       set({ openedCount: 0, loadingOpenedCount: false });
-      console.log("Ошибка при подсчёте открытых ТН", e?.message || e);
+      // console.log("Ошибка при подсчёте открытых ТН", e?.message || e);
     }
   },
   
@@ -94,12 +94,12 @@ const useData = create((set) => ({
         }
       );
       if (res.data) {
-        console.log(res.data);
+        // console.log(res.data);
         set((state) => ({ tn: res.data, isLoadingTn: false }));
       }
     } catch (error) {
       set({ isLoadingTn: false });
-      console.log(`Ошибка при получении ТН ${documentId}`, error);
+      // console.log(`Ошибка при получении ТН ${documentId}`, error);
     }
   },
 
@@ -120,14 +120,14 @@ const useData = create((set) => ({
         }
       );
       if (res.data) {
-        console.log(res.data);
+        // console.log(res.data);
         set((state) => ({ isUpdatingTn: false }));
         return true;
       }
       return false;
     } catch (error) {
       set({ isUpdatingTn: false });
-      console.log(`Ошибка при получении ТН ${documentId}`, error);
+      // console.log(`Ошибка при получении ТН ${documentId}`, error);
       return false;
     }
   },

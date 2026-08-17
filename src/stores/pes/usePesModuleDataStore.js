@@ -8,6 +8,10 @@ function getBackendBase() {
   return (a || b).replace(/\/$/, "");
 }
 
+const PES_ITEMS_CACHE_TTL_MS = 10 * 1000;
+let pesItemsRequest = null;
+let pesItemsLoadedAt = 0;
+
 const usePesModuleDataStore = create((set, get) => ({
   loading: false,
   items: [],
@@ -32,26 +36,50 @@ const usePesModuleDataStore = create((set, get) => ({
   // Текущие данные ПЭС.
   loadItems: async (user, options = {}) => {
     const silent = Boolean(options?.silent);
-    try {
-      if (!silent) set({ loading: true, error: "" });
-      const base = getBackendBase();
-      const { data } = await axios.get(`${base}/services/pes/module/items`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("jwt") || ""}`,
-          ...buildAuditHeaders(user, "/pes"),
-        },
-      });
-      const rows = Array.isArray(data?.items) ? data.items : [];
-      set({ items: rows });
-      return rows;
-    } catch (e) {
-      if (!silent) {
-        set({ error: e?.response?.data?.message || e?.message || "Ошибка загрузки ПЭС" });
-      }
-      return null;
-    } finally {
-      if (!silent) set({ loading: false });
+    const force = Boolean(options?.force);
+    const state = get();
+    const now = Date.now();
+
+    if (
+      !force &&
+      pesItemsLoadedAt > 0 &&
+      Array.isArray(state.items) &&
+      now - pesItemsLoadedAt < PES_ITEMS_CACHE_TTL_MS
+    ) {
+      return state.items;
     }
+
+    if (!force && pesItemsRequest) {
+      return pesItemsRequest;
+    }
+
+    if (!silent) set({ loading: true, error: "" });
+
+    pesItemsRequest = (async () => {
+      try {
+        const base = getBackendBase();
+        const { data } = await axios.get(`${base}/services/pes/module/items`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("jwt") || ""}`,
+            ...buildAuditHeaders(user, "/pes"),
+          },
+        });
+        const rows = Array.isArray(data?.items) ? data.items : [];
+        pesItemsLoadedAt = Date.now();
+        set({ items: rows });
+        return rows;
+      } catch (e) {
+        if (!silent) {
+          set({ error: e?.response?.data?.message || e?.message || "Ошибка загрузки ПЭС" });
+        }
+        return null;
+      } finally {
+        pesItemsRequest = null;
+        if (!silent) set({ loading: false });
+      }
+    })();
+
+    return pesItemsRequest;
   },
 
   // Конфиг интеграций модуля ПЭС.

@@ -51,7 +51,7 @@ export default function JournalOpenModal({ open, onClose, journalIndex = 0 }) {
       prepared.sort((a, b) => parseDateFromLine(b) - parseDateFromLine(a));
       setLines(prepared);
 
-      console.log("[journalModal] loaded entries (index %d):", journalIndex, Array.isArray(prepared) ? prepared.length : 0);
+      // console.log("[journalModal] loaded entries (index %d):", journalIndex, Array.isArray(prepared) ? prepared.length : 0);
     } catch (e) {
       const status = e?.response?.status;
       const backendMsg = e?.response?.data?.error?.message;
@@ -62,7 +62,7 @@ export default function JournalOpenModal({ open, onClose, journalIndex = 0 }) {
       } else {
         message.error(backendMsg || e?.message || "Ошибка загрузки журнала. Попробуйте обновить страницу.");
       }
-      console.log("[journalModal] load error", e);
+      // console.log("[journalModal] load error", e);
       setLines([]);
     } finally {
       setLoading(false);

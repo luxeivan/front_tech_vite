@@ -572,14 +572,14 @@ export const buildOperationalPoRows = (
     pes: toNumber(pesCountMaps?.byPoKey?.get(buildPesPoCountKey(filialName, row.branch))),
   }));
 
-  if (filialName && poOkrugLinkRows?.length) {
-    console.info("[dashboard-oo] Сводная таблица ПО: ресурсы из tn-po-okrug-links", {
-      filialName,
-      linksLoaded: poOkrugLinkRows.length,
-      poMatched: resultRows.filter((row) => poResourceMap.has(normalizeLookupName(row.branch)))
-        .length,
-    });
-  }
+  // if (filialName && poOkrugLinkRows?.length) {
+  //   console.info("[dashboard-oo] Сводная таблица ПО: ресурсы из tn-po-okrug-links", {
+  //     filialName,
+  //     linksLoaded: poOkrugLinkRows.length,
+  //     poMatched: resultRows.filter((row) => poResourceMap.has(normalizeLookupName(row.branch)))
+  //       .length,
+  //   });
+  // }
 
   return resultRows;
 };
@@ -693,17 +693,17 @@ export const buildOperationalOkrugRows = (
     ...okrugRows,
   ];
 
-  if (filialName && selectedPoName && poOkrugLinkRows?.length) {
-    console.info("[dashboard-oo] 3 уровень: ресурсы округов из tn-po-okrug-links", {
-      filialName,
-      poName: selectedPoName,
-      linksLoaded: poOkrugLinkRows.length,
-      okrugMatched: Array.from(okrugMap.values()).filter((row) =>
-        okrugResourceMap.has(row.__okrugResourceKey)
-      ).length,
-      okrugRows: okrugRows.length,
-    });
-  }
+  // if (filialName && selectedPoName && poOkrugLinkRows?.length) {
+  //   console.info("[dashboard-oo] 3 уровень: ресурсы округов из tn-po-okrug-links", {
+  //     filialName,
+  //     poName: selectedPoName,
+  //     linksLoaded: poOkrugLinkRows.length,
+  //     okrugMatched: Array.from(okrugMap.values()).filter((row) =>
+  //       okrugResourceMap.has(row.__okrugResourceKey)
+  //     ).length,
+  //     okrugRows: okrugRows.length,
+  //   });
+  // }
 
   return resultRows;
 };

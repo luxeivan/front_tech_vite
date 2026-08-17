@@ -23,7 +23,7 @@ const perfNow = () =>
 
 const logDashboardPerf = (label, details) => {
   if (!canLogDashboardPerf()) return;
-  console.info(`[dashboard-oo:load] ${label}`, details);
+  // console.info(`[dashboard-oo:load] ${label}`, details);
 };
 
 const addFieldsToQuery = (queryParts, fields = []) => [

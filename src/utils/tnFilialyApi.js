@@ -334,10 +334,10 @@ export async function fetchTnPoOkrugLinkRows(options = {}) {
 
     cachedTnPoOkrugLinkRows = rows;
     cachedTnPoOkrugLinkRowsAt = Date.now();
-    console.info("[dashboard-oo] tn-po-okrug-links: загружено из Strapi", {
-      count: rows.length,
-      endpoint: TN_PO_OKRUG_LINKS_ENDPOINT,
-    });
+    // console.info("[dashboard-oo] tn-po-okrug-links: загружено из Strapi", {
+    //   count: rows.length,
+    //   endpoint: TN_PO_OKRUG_LINKS_ENDPOINT,
+    // });
     return rows;
   })();
 

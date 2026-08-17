@@ -68,8 +68,10 @@ function App() {
     Promise.resolve(getJwt()).finally(() => setAuthChecked(true));
   }, []);
   useEffect(() => {
-    getFieldsSetting();
-  }, [isAuth]);
+    if (isAuth) {
+      getFieldsSetting();
+    }
+  }, [getFieldsSetting, isAuth]);
   useEffect(() => {
     if (!isAuth) {
       setShowPostAuthSplash(false);

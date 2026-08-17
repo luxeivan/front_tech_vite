@@ -131,25 +131,25 @@ export async function sendToMes(url, data, jwt, extraHeaders = {}) {
   };
   const endpoint = `${url}/services/mes/upload`;
   const startedAt = performance.now();
-  console.groupCollapsed?.("[МосЭнергоСбыт] отправка");
-  console.log("[МосЭнергоСбыт] endpoint:", endpoint);
-  console.log("[МосЭнергоСбыт] request body:", data);
+  // console.groupCollapsed?.("[МосЭнергоСбыт] отправка");
+  // console.log("[МосЭнергоСбыт] endpoint:", endpoint);
+  // console.log("[МосЭнергоСбыт] request body:", data);
   try {
     const res = await axios.post(endpoint, data, {
       headers,
       timeout: 90000,
     });
-    console.log(
-      "[МосЭнергоСбыт] response:",
-      res?.data,
-      `за ${Math.round(performance.now() - startedAt)}мс`
-    );
+    // console.log(
+    //   "[МосЭнергоСбыт] response:",
+    //   res?.data,
+    //   `за ${Math.round(performance.now() - startedAt)}мс`
+    // );
     return res?.data;
   } catch (e) {
     console.error("[МосЭнергоСбыт] error:", e?.response?.data || e?.message || e);
     throw e;
   } finally {
-    console.groupEnd?.();
+    // console.groupEnd?.();
   }
 }
 

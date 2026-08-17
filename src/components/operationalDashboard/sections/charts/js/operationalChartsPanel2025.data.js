@@ -159,12 +159,12 @@ const logKolomna2025Calculation = (data, windowStart, windowEnd, value) => {
     };
   }).filter((row) => row.overlapDays > 0);
 
-  console.groupCollapsed("[dashboard-oo] Расчет 2025 для Коломны");
-  console.log("Окно 2025:", formatDebugDate(windowStart), "-", formatDebugDate(windowEnd));
-  console.table(rows);
-  console.log("Сумма до округления:", Number(value.toFixed(2)));
-  console.log("Итог после округления:", Math.round(value));
-  console.groupEnd();
+  // console.groupCollapsed("[dashboard-oo] Расчет 2025 для Коломны");
+  // console.log("Окно 2025:", formatDebugDate(windowStart), "-", formatDebugDate(windowEnd));
+  // console.table(rows);
+  // console.log("Сумма до округления:", Number(value.toFixed(2)));
+  // console.log("Итог после округления:", Math.round(value));
+  // console.groupEnd();
 };
 
 export const getOperationalChart2025Values = (statsMeta) => {
