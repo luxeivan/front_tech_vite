@@ -54,6 +54,11 @@ const OPERATIONAL_CHART_PO_ALIASES = {
     "лыткаринский участок": "Дзержинское ПО",
     "домодедовский филиал": "Домодедовское ПО",
   },
+  Красногорский: {
+    "долгопруднинское по": "Долгопрудненское ПО",
+    "долгопрудное по": "Долгопрудненское ПО",
+    долгопрудный: "Долгопрудненское ПО",
+  },
 };
 
 const isSameChartName = (left, right) =>
@@ -106,6 +111,14 @@ const getPoAliasName = (branch, poName) => {
   return branchAliases[normalizeChartLookupName(poName)] || "";
 };
 
+const getTopologyPoSlugByAlias = (branch, poName, topologyPoRows) => {
+  const matchedTopologyRow = topologyPoRows.find((row) => {
+    const aliasName = getPoAliasName(branch, row?.name);
+    return aliasName && isSameChartName(aliasName, poName);
+  });
+  return matchedTopologyRow?.slug || "";
+};
+
 const getPoSlugForChartRow = (row, branch, topologyPoRows) => {
   const poName = getPoNameByOldFields(row);
   const poSlug = getOperationalPoSlug(poName);
@@ -114,7 +127,31 @@ const getPoSlugForChartRow = (row, branch, topologyPoRows) => {
 
   const aliasName = getPoAliasName(branch, poName);
   const aliasSlug = getOperationalPoSlug(aliasName);
-  return topologySlugs.has(aliasSlug) ? aliasSlug : "";
+  if (topologySlugs.has(aliasSlug)) return aliasSlug;
+
+  return getTopologyPoSlugByAlias(branch, poName, topologyPoRows);
+};
+
+const buildPreviousYearValuesBySlug = (branch, previousYearValues, poRows) => {
+  const valuesBySlug = {};
+
+  Object.entries(previousYearValues || {}).forEach(([poName, value]) => {
+    const numericValue = Number(value || 0);
+    const slugs = new Set([getOperationalPoSlug(poName)].filter(Boolean));
+
+    poRows.forEach((poRow) => {
+      const aliasName = getPoAliasName(branch, poRow?.name);
+      if (aliasName && isSameChartName(aliasName, poName) && poRow?.slug) {
+        slugs.add(poRow.slug);
+      }
+    });
+
+    slugs.forEach((slug) => {
+      valuesBySlug[slug] = (valuesBySlug[slug] || 0) + numericValue;
+    });
+  });
+
+  return valuesBySlug;
 };
 
 const CHART_DISPCENTER_BRANCH_BY_NORMALIZED_NAME = new Map(
@@ -335,11 +372,10 @@ export const buildPoTechViolationChartData = ({
   const previousYearFilialValues = hasOperationalChart2025PoBreakdown(normalizedFilialName)
     ? {}
     : getOperationalChart2025Values(statsMeta);
-  const previousYearValuesBySlug = Object.fromEntries(
-    Object.entries(previousYearValues).map(([poName, value]) => [
-      getOperationalPoSlug(poName),
-      value,
-    ])
+  const previousYearValuesBySlug = buildPreviousYearValuesBySlug(
+    normalizedFilialName,
+    previousYearValues,
+    poRows
   );
   if (isSameChartName(normalizedFilialName, DEBUG_BRANCH_NAME)) {
     logKolomnaPoCalculation({
