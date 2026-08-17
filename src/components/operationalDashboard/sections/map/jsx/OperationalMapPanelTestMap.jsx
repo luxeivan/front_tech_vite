@@ -79,6 +79,10 @@ const SERVICES_URL =
 const FILIAL_MODE_POLL_MS = 5000;
 const BACKEND_URL = import.meta.env.VITE_URL_BACKEND;
 const OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast";
+const PO_LABEL_MANUAL_OFFSETS_BY_KEY = {
+  [normalizeOperationalMapAreaName("Павлово-Посадское ПО")]: { x: 42, y: -34 },
+  [normalizeOperationalMapAreaName("Электростальское ПО")]: { x: -12, y: 18 },
+};
 
 const getWeatherHour = (time) => {
   const match = String(time || "").match(/T(\d{2})/);
@@ -482,10 +486,15 @@ const getPoNameAtPixel = (
   const anchorPixel = map?.getPixelFromCoordinate?.(anchor);
   if (!Array.isArray(anchorPixel)) return getFeaturePoName(feature);
 
-  const offsets = getPoLabelOffsets(poNames.length, compactLabels, isWallDisplay);
   return poNames
     .map((poName, index) => {
-      const [offsetX, offsetY] = offsets[index] || [0, 0];
+      const [offsetX, offsetY] = getPoLabelOffset(
+        poName,
+        index,
+        poNames.length,
+        compactLabels,
+        isWallDisplay
+      );
       const labelPixel = [anchorPixel[0] + offsetX, anchorPixel[1] + offsetY];
       return {
         poName,
@@ -571,6 +580,22 @@ const getPoLabelOffsets = (count, compactLabels = false, isWallDisplay = false) 
     const side = index % 2 === 0 ? -1 : 1;
     return [side * baseX * Math.ceil((index + 1) / 2), row * baseY];
   });
+};
+
+const getPoLabelOffset = (
+  poName,
+  index,
+  count,
+  compactLabels = false,
+  isWallDisplay = false
+) => {
+  const manualOffset = PO_LABEL_MANUAL_OFFSETS_BY_KEY[normalizeOperationalMapAreaName(poName)];
+  if (manualOffset) {
+    const scale = isWallDisplay ? 1.35 : compactLabels ? 0.82 : 1;
+    return [manualOffset.x * scale, manualOffset.y * scale];
+  }
+
+  return getPoLabelOffsets(count, compactLabels, isWallDisplay)[index] || [0, 0];
 };
 
 const readCachedTnOkrugaRows = () => {
@@ -781,14 +806,19 @@ const getDistrictLabelStyle = (
     );
     if (!poNames.length) return null;
 
-    const offsets = getPoLabelOffsets(poNames.length, compactLabels, isWallDisplay);
     const fontSize = isWallDisplay ? 18 : compactLabels ? 10 : 11;
 
     return poNames
       .map((poName, index) => {
         const label = wrapMapLabel(poName, true);
         if (!label) return null;
-        const [offsetX, offsetY] = offsets[index] || [0, 0];
+        const [offsetX, offsetY] = getPoLabelOffset(
+          poName,
+          index,
+          poNames.length,
+          compactLabels,
+          isWallDisplay
+        );
 
         return new Style({
           zIndex: districtDetailMode ? 70 : 50,

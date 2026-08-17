@@ -153,10 +153,23 @@ const requestWeatherByPlaceFromBackend = async (baseUrl, weatherContext) => {
     baseUrl,
   });
 
-  const { data } = await axios.get(`${baseUrl}/services/weather/test-by-place`, {
-    params: { place },
-    timeout: 12000,
-  });
+  let data;
+  try {
+    const response = await axios.get(`${baseUrl}/services/weather/test-by-place`, {
+      params: { place },
+      timeout: 12000,
+    });
+    data = response.data;
+  } catch (error) {
+    console.warn(`${WEATHER_LOG_PREFIX}: персональная ошибка API`, {
+      requestedPlace: place,
+      baseUrl,
+      status: error?.response?.status || null,
+      response: error?.response?.data || null,
+      message: error?.message || "",
+    });
+    throw error;
+  }
   if (data?.ok === false) throw new Error(data?.message || "Погода недоступна");
 
   const weatherPayload = data?.weather ? {
@@ -212,6 +225,10 @@ const loadOperationalWeather = async (weatherContext = null) => {
       }
     }
 
+    console.warn(`${WEATHER_LOG_PREFIX}: персональный запрос не сработал`, {
+      requestedPlace: weatherContext?.place || "",
+      reason: lastError?.response?.data?.message || lastError?.message || "Погода недоступна",
+    });
     throw lastError || new Error("Погода недоступна");
   }
 
@@ -308,6 +325,10 @@ const MAP_ZOOM_DELTA =
   Number.isFinite(Number(OPERATIONAL_MAP_SCALE)) && Number(OPERATIONAL_MAP_SCALE) > 0
     ? Math.log2(Number(OPERATIONAL_MAP_SCALE))
     : 0;
+const PO_LABEL_MANUAL_OFFSETS_BY_KEY = {
+  [normalizeOperationalMapAreaName("Павлово-Посадское ПО")]: { x: 42, y: -34 },
+  [normalizeOperationalMapAreaName("Электростальское ПО")]: { x: -12, y: 18 },
+};
 
 const fitMapToSource = (view, source) => {
   const extent = source.getExtent();
@@ -775,8 +796,8 @@ const wrapMapLabel = (value, compact = false) => {
 const getPoLabelOffsets = (count, compactLabels = false, isWallDisplay = false) => {
   if (count <= 1) return [[0, 0]];
 
-  const baseX = isWallDisplay ? 92 : compactLabels ? 58 : 76;
-  const baseY = isWallDisplay ? 66 : compactLabels ? 42 : 56;
+  const baseX = isWallDisplay ? 112 : compactLabels ? 74 : 98;
+  const baseY = isWallDisplay ? 82 : compactLabels ? 54 : 70;
 
   const presets = {
     2: [
@@ -819,6 +840,12 @@ const getPoLabelOffset = (
   compactLabels = false,
   isWallDisplay = false
 ) => {
+  const manualOffset = PO_LABEL_MANUAL_OFFSETS_BY_KEY[normalizeOperationalMapAreaName(poName)];
+  if (manualOffset) {
+    const scale = isWallDisplay ? 1.35 : compactLabels ? 0.82 : 1;
+    return [manualOffset.x * scale, manualOffset.y * scale];
+  }
+
   const clusterMeta = feature?.get?.("area_label_cluster_meta") || {};
   const key = normalizeOperationalMapAreaName(poName);
   const meta = clusterMeta[key];
@@ -992,7 +1019,7 @@ const assignAreaLabels = (features, labelGroup) => {
   if (!Array.isArray(extent) || !extent.every(Number.isFinite)) return;
 
   const diagonal = Math.hypot(extent[2] - extent[0], extent[3] - extent[1]);
-  const clusterDistance = diagonal * 0.12;
+  const clusterDistance = diagonal * 0.22;
   const clusters = [];
 
   labelItems.forEach((item) => {
