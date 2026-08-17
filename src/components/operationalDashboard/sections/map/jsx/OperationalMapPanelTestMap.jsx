@@ -32,9 +32,7 @@ import {
   OPERATIONAL_MAP_STRETCH_Y,
   OPERATIONAL_WEATHER_LOCATION,
 } from "../js/operationalMapPanel.config";
-import {
-  buildTnOkrugaFeatureCollection,
-} from "../../../../../utils/tnOkrugaApi";
+import { buildTnOkrugaFeatureCollection } from "../../../../../utils/tnOkrugaApi";
 import {
   buildTnFilialyTopologyOkrugaRows,
   fetchTnFilialyModeRows,
@@ -74,16 +72,27 @@ import "../css/OperationalMapPanel.css";
 import "../css/OperationalMapPanelTestMap.css";
 
 const SERVICES_URL =
-  import.meta.env.VITE_URL_BACKEND_SERVICES ||
-  import.meta.env.VITE_URL_BACKEND;
+  import.meta.env.VITE_URL_BACKEND_SERVICES || import.meta.env.VITE_URL_BACKEND;
 // Основной live-update режимов приходит через Strapi webhook -> backend SSE.
 // Polling оставлен редким fallback, если webhook/SSE временно не сработали.
 const FILIAL_MODE_POLL_MS = 60_000;
 const BACKEND_URL = import.meta.env.VITE_URL_BACKEND;
 const OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast";
+// const PO_LABEL_MANUAL_OFFSETS_BY_KEY = {
+//   [normalizeOperationalMapAreaName("Павлово-Посадское ПО")]: { x: 42, y: -34 },
+//   [normalizeOperationalMapAreaName("Электростальское ПО")]: { x: -12, y: 18 },
+// };
+
 const PO_LABEL_MANUAL_OFFSETS_BY_KEY = {
+  // Павлово-Посадский филиал
   [normalizeOperationalMapAreaName("Павлово-Посадское ПО")]: { x: 42, y: -34 },
   [normalizeOperationalMapAreaName("Электростальское ПО")]: { x: -12, y: 18 },
+
+// Одинцовский филиал
+[normalizeOperationalMapAreaName("Одинцовское ПО")]: { x: 50, y: -45 },
+[normalizeOperationalMapAreaName("Звенигородское ПО")]: { x: -70, y: -22 },
+[normalizeOperationalMapAreaName("Голицынское ПО")]: { x: 5, y: 8 },
+[normalizeOperationalMapAreaName("Краснознаменское ПО")]: { x: 35, y: 35 },
 };
 
 const getWeatherHour = (time) => {
@@ -93,15 +102,21 @@ const getWeatherHour = (time) => {
 
 const formatPressureMmHg = (pressureHpa) => {
   const pressure = Number(pressureHpa);
-  return Number.isFinite(pressure) ? formatMapNumber(pressure * 0.750061683) : "—";
+  return Number.isFinite(pressure)
+    ? formatMapNumber(pressure * 0.750061683)
+    : "—";
 };
 
 const normalizeWeatherPayload = (payload) => {
   const current = payload?.current || {};
   const hourly = payload?.hourly || {};
   const times = Array.isArray(hourly.time) ? hourly.time : [];
-  const temperatures = Array.isArray(hourly.temperature_2m) ? hourly.temperature_2m : [];
-  const weatherCodes = Array.isArray(hourly.weather_code) ? hourly.weather_code : [];
+  const temperatures = Array.isArray(hourly.temperature_2m)
+    ? hourly.temperature_2m
+    : [];
+  const weatherCodes = Array.isArray(hourly.weather_code)
+    ? hourly.weather_code
+    : [];
   const fallbackParts = [
     { key: "night", label: "Ночь", hour: 3 },
     { key: "morning", label: "Утро", hour: 9 },
@@ -126,7 +141,8 @@ const normalizeWeatherPayload = (payload) => {
     longitude: payload?.longitude || OPERATIONAL_WEATHER_LOCATION.longitude,
     updatedAt: payload?.updatedAt || current.time,
     temperature: payload?.temperature ?? current.temperature_2m,
-    apparentTemperature: payload?.apparentTemperature ?? current.apparent_temperature,
+    apparentTemperature:
+      payload?.apparentTemperature ?? current.apparent_temperature,
     humidity: payload?.humidity ?? current.relative_humidity_2m,
     windSpeed: payload?.windSpeed ?? current.wind_speed_10m,
     cloudCover: payload?.cloudCover ?? current.cloud_cover,
@@ -220,7 +236,8 @@ const RGIS_DETAIL_ZOOM = 9.25;
 const MAP_FIT_PADDING = [10, 6, 8, 6];
 const TN_OKRUGA_MAP_CACHE_KEY = "operationalDashboard.tnFilialyTopologyRows.v2";
 const MAP_ZOOM_DELTA =
-  Number.isFinite(Number(OPERATIONAL_MAP_SCALE)) && Number(OPERATIONAL_MAP_SCALE) > 0
+  Number.isFinite(Number(OPERATIONAL_MAP_SCALE)) &&
+  Number(OPERATIONAL_MAP_SCALE) > 0
     ? Math.log2(Number(OPERATIONAL_MAP_SCALE))
     : 0;
 
@@ -257,7 +274,10 @@ const clipContextToSourceFeatures = (event, map, source) => {
     getGeometryPolygons(feature.getGeometry()).forEach((polygon) => {
       polygon.forEach((ring) => {
         ring.forEach((coordinate, index) => {
-          const [pixelX, pixelY] = getRenderPixel(event, map.getPixelFromCoordinate(coordinate));
+          const [pixelX, pixelY] = getRenderPixel(
+            event,
+            map.getPixelFromCoordinate(coordinate),
+          );
           if (index === 0) {
             context.moveTo(pixelX, pixelY);
           } else {
@@ -312,7 +332,11 @@ const fitMapToSource = (view, source) => {
   });
 
   const zoom = view.getZoom();
-  if (Number.isFinite(zoom) && Number.isFinite(MAP_ZOOM_DELTA) && MAP_ZOOM_DELTA !== 0) {
+  if (
+    Number.isFinite(zoom) &&
+    Number.isFinite(MAP_ZOOM_DELTA) &&
+    MAP_ZOOM_DELTA !== 0
+  ) {
     view.setZoom(zoom + MAP_ZOOM_DELTA);
   }
 };
@@ -330,14 +354,17 @@ const getModeStrokeColor = (mode) => {
 };
 
 const toFeatureNameList = (value) => {
-  if (Array.isArray(value)) return value.map((item) => String(item || "").trim()).filter(Boolean);
+  if (Array.isArray(value))
+    return value.map((item) => String(item || "").trim()).filter(Boolean);
   const name = String(value || "").trim();
   return name ? [name] : [];
 };
 
 const getFeatureFilialNames = (feature) => {
   const names = toFeatureNameList(feature?.get?.("filial_names"));
-  return names.length ? names : toFeatureNameList(feature?.get?.("filial_name"));
+  return names.length
+    ? names
+    : toFeatureNameList(feature?.get?.("filial_name"));
 };
 
 const getFeaturePoNames = (feature) => {
@@ -348,10 +375,13 @@ const getFeaturePoNames = (feature) => {
   return names.length ? names : toFeatureNameList(feature?.get?.("po_name"));
 };
 
-const getFeatureFilialName = (feature) => getFeatureFilialNames(feature)[0] || "";
+const getFeatureFilialName = (feature) =>
+  getFeatureFilialNames(feature)[0] || "";
 
 const getFeaturePoName = (feature) =>
-  String(feature?.get?.("primary_po_name") || "").trim() || getFeaturePoNames(feature)[0] || "";
+  String(feature?.get?.("primary_po_name") || "").trim() ||
+  getFeaturePoNames(feature)[0] ||
+  "";
 
 const getFeatureAreaName = (feature, areaGroup) => {
   if (areaGroup === "district") return getFeatureDistrictLabel(feature);
@@ -370,7 +400,9 @@ const normalizePoDisplayKey = (value) =>
     .trim();
 
 const formatPoDisplayName = (value) => {
-  const name = String(value || "").replace(/\s+/g, " ").trim();
+  const name = String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
   if (!name) return "";
   return /\s+по$/i.test(name) ? name : `${name} ПО`;
 };
@@ -402,14 +434,18 @@ const assignVisiblePoNames = (features, activeFilialName) => {
     }
 
     if (!normalizedFilialName) {
-      feature.set("visible_po_names", dedupePoDisplayNames(getFeaturePoNames(feature)));
+      feature.set(
+        "visible_po_names",
+        dedupePoDisplayNames(getFeaturePoNames(feature)),
+      );
       return;
     }
 
     const visiblePoNames = getFeaturePoRelations(feature)
       .filter(
         (relation) =>
-          normalizeOperationalFilialName(relation?.filial_name) === normalizedFilialName
+          normalizeOperationalFilialName(relation?.filial_name) ===
+          normalizedFilialName,
       )
       .map((relation) => relation?.name)
       .filter(Boolean);
@@ -439,11 +475,17 @@ const getFeatureHoverLabel = (feature, hoverGroup) => {
 const getGeometryAnchorCoordinate = (geometry) => {
   if (!geometry) return null;
 
-  if (geometry.getType() === "Polygon" && typeof geometry.getInteriorPoint === "function") {
+  if (
+    geometry.getType() === "Polygon" &&
+    typeof geometry.getInteriorPoint === "function"
+  ) {
     return geometry.getInteriorPoint().getCoordinates();
   }
 
-  if (geometry.getType() === "MultiPolygon" && typeof geometry.getInteriorPoints === "function") {
+  if (
+    geometry.getType() === "MultiPolygon" &&
+    typeof geometry.getInteriorPoints === "function"
+  ) {
     const points = geometry.getInteriorPoints().getCoordinates();
     if (Array.isArray(points) && points.length) {
       const extent = geometry.getExtent();
@@ -471,13 +513,13 @@ const getPoNameAtPixel = (
   feature,
   pixel,
   compactLabels = false,
-  isWallDisplay = false
+  isWallDisplay = false,
 ) => {
   const labelNames = toFeatureNameList(
     String(feature?.get?.("area_label") || "")
       .split("\n")
       .map((item) => item.trim())
-      .filter(Boolean)
+      .filter(Boolean),
   );
   const poNames = labelNames.length ? labelNames : getFeaturePoNames(feature);
   if (poNames.length <= 1) return poNames[0] || "";
@@ -488,22 +530,28 @@ const getPoNameAtPixel = (
   const anchorPixel = map?.getPixelFromCoordinate?.(anchor);
   if (!Array.isArray(anchorPixel)) return getFeaturePoName(feature);
 
-  return poNames
-    .map((poName, index) => {
-      const [offsetX, offsetY] = getPoLabelOffset(
-        poName,
-        index,
-        poNames.length,
-        compactLabels,
-        isWallDisplay
-      );
-      const labelPixel = [anchorPixel[0] + offsetX, anchorPixel[1] + offsetY];
-      return {
-        poName,
-        distance: Math.hypot(pixel[0] - labelPixel[0], pixel[1] - labelPixel[1]),
-      };
-    })
-    .sort((left, right) => left.distance - right.distance)[0]?.poName || getFeaturePoName(feature);
+  return (
+    poNames
+      .map((poName, index) => {
+        const [offsetX, offsetY] = getPoLabelOffset(
+          poName,
+          index,
+          poNames.length,
+          compactLabels,
+          isWallDisplay,
+        );
+        const labelPixel = [anchorPixel[0] + offsetX, anchorPixel[1] + offsetY];
+        return {
+          poName,
+          distance: Math.hypot(
+            pixel[0] - labelPixel[0],
+            pixel[1] - labelPixel[1],
+          ),
+        };
+      })
+      .sort((left, right) => left.distance - right.distance)[0]?.poName ||
+    getFeaturePoName(feature)
+  );
 };
 
 const getFeatureHoverNames = (feature, hoverGroup) => {
@@ -518,18 +566,25 @@ const isFeatureInHoverGroup = (feature, hoverGroup, hoverName) => {
   return getFeatureHoverNames(feature, hoverGroup).some(
     (featureHoverName) =>
       featureHoverName === hoverName ||
-      normalizeOperationalMapAreaName(featureHoverName) === normalizedHoverName
+      normalizeOperationalMapAreaName(featureHoverName) === normalizedHoverName,
   );
 };
 
-const applyHoverBoundary = (hoverSource, districtSource, hoverGroup, hoverName) => {
+const applyHoverBoundary = (
+  hoverSource,
+  districtSource,
+  hoverGroup,
+  hoverName,
+) => {
   hoverSource?.clear();
   if (!hoverSource || !districtSource || !hoverName) return;
 
   const nextFeatures = districtSource
     .getFeatures()
     .filter((feature) => isFeatureInHoverGroup(feature, hoverGroup, hoverName));
-  const boundaryFeature = buildBoundaryFeature(nextFeatures, { groupName: hoverName });
+  const boundaryFeature = buildBoundaryFeature(nextFeatures, {
+    groupName: hoverName,
+  });
   if (boundaryFeature) hoverSource.addFeature(boundaryFeature);
 };
 
@@ -543,9 +598,10 @@ const getFeatureDistrictLabel = (feature) =>
 const getFeatureExtentArea = (feature) => {
   const extent = feature?.getGeometry?.()?.getExtent?.();
   if (!Array.isArray(extent) || !extent.every(Number.isFinite)) return 0;
-  return Math.max(0, extent[2] - extent[0]) * Math.max(0, extent[3] - extent[1]);
+  return (
+    Math.max(0, extent[2] - extent[0]) * Math.max(0, extent[3] - extent[1])
+  );
 };
-
 
 const wrapMapLabel = (value, compact = false) => {
   const label = String(value || "").trim();
@@ -570,7 +626,11 @@ const wrapMapLabel = (value, compact = false) => {
   return lines.join("\n");
 };
 
-const getPoLabelOffsets = (count, compactLabels = false, isWallDisplay = false) => {
+const getPoLabelOffsets = (
+  count,
+  compactLabels = false,
+  isWallDisplay = false,
+) => {
   if (count <= 1) return [[0, 0]];
 
   const baseX = isWallDisplay ? 56 : compactLabels ? 22 : 34;
@@ -589,15 +649,18 @@ const getPoLabelOffset = (
   index,
   count,
   compactLabels = false,
-  isWallDisplay = false
+  isWallDisplay = false,
 ) => {
-  const manualOffset = PO_LABEL_MANUAL_OFFSETS_BY_KEY[normalizeOperationalMapAreaName(poName)];
+  const manualOffset =
+    PO_LABEL_MANUAL_OFFSETS_BY_KEY[normalizeOperationalMapAreaName(poName)];
   if (manualOffset) {
     const scale = isWallDisplay ? 1.35 : compactLabels ? 0.82 : 1;
     return [manualOffset.x * scale, manualOffset.y * scale];
   }
 
-  return getPoLabelOffsets(count, compactLabels, isWallDisplay)[index] || [0, 0];
+  return (
+    getPoLabelOffsets(count, compactLabels, isWallDisplay)[index] || [0, 0]
+  );
 };
 
 const readCachedTnOkrugaRows = () => {
@@ -633,7 +696,8 @@ const collectGeometryRings = (geometry) => {
   if (!geometry) return [];
 
   if (geometry.getType() === "Polygon") return geometry.getCoordinates();
-  if (geometry.getType() === "MultiPolygon") return geometry.getCoordinates().flat();
+  if (geometry.getType() === "MultiPolygon")
+    return geometry.getCoordinates().flat();
   return [];
 };
 
@@ -696,7 +760,12 @@ const buildGroupBoundaryFeatures = (features, group, getProperties) => {
   });
 
   return Array.from(groups.values())
-    .map((item) => buildBoundaryFeature(item.features, getProperties(item.name, item.features)))
+    .map((item) =>
+      buildBoundaryFeature(
+        item.features,
+        getProperties(item.name, item.features),
+      ),
+    )
     .filter(Boolean);
 };
 
@@ -710,7 +779,9 @@ const assignAreaLabels = (features, labelGroup) => {
   const groups = new Map();
   features.forEach((feature) => {
     const areaNames =
-      labelGroup === "po" ? getFeaturePoNames(feature) : [getFeatureAreaName(feature, labelGroup)];
+      labelGroup === "po"
+        ? getFeaturePoNames(feature)
+        : [getFeatureAreaName(feature, labelGroup)];
     areaNames.forEach((areaName) => {
       const areaKey = normalizeOperationalMapAreaName(areaName);
       if (!areaKey) return;
@@ -729,18 +800,19 @@ const assignAreaLabels = (features, labelGroup) => {
   Array.from(groups.values())
     .sort((left, right) => left.features.length - right.features.length)
     .forEach((group) => {
-      const labelFeature = [...group.features].sort(
-        (left, right) => {
-          const leftUsed = usedLabelFeatures.has(left) ? 1 : 0;
-          const rightUsed = usedLabelFeatures.has(right) ? 1 : 0;
-          if (leftUsed !== rightUsed) return leftUsed - rightUsed;
-          return getFeatureExtentArea(right) - getFeatureExtentArea(left);
-        }
-      )[0];
+      const labelFeature = [...group.features].sort((left, right) => {
+        const leftUsed = usedLabelFeatures.has(left) ? 1 : 0;
+        const rightUsed = usedLabelFeatures.has(right) ? 1 : 0;
+        if (leftUsed !== rightUsed) return leftUsed - rightUsed;
+        return getFeatureExtentArea(right) - getFeatureExtentArea(left);
+      })[0];
       if (!labelFeature) return;
       usedLabelFeatures.add(labelFeature);
       const currentLabel = String(labelFeature.get("area_label") || "").trim();
-      labelFeature.set("area_label", currentLabel ? `${currentLabel}\n${group.name}` : group.name);
+      labelFeature.set(
+        "area_label",
+        currentLabel ? `${currentLabel}\n${group.name}` : group.name,
+      );
       if (!String(labelFeature.get("primary_po_name") || "").trim()) {
         labelFeature.set("primary_po_name", group.name);
       }
@@ -755,7 +827,7 @@ const getDistrictStyle = (
     fillGroup = "filial",
     isRgisDetailMode = false,
     isWallDisplay = false,
-  } = {}
+  } = {},
 ) => {
   const areaName = getFeatureAreaName(feature, fillGroup);
   const areaData = findOperationalMapAreaData(areaDataByKey, areaName);
@@ -767,9 +839,10 @@ const getDistrictStyle = (
   const areaStrokeColor = isRgisDetailMode
     ? "rgba(21, 117, 188, 0.48)"
     : "rgba(21, 117, 188, 0.3)";
-  const fillColor = people > 0
-    ? getRgisOverlayFillColor(areaData.color, activeFillOpacity)
-    : emptyFillColor;
+  const fillColor =
+    people > 0
+      ? getRgisOverlayFillColor(areaData.color, activeFillOpacity)
+      : emptyFillColor;
   const strokeColor = districtDetailMode
     ? "rgba(21, 117, 188, 0.78)"
     : fillGroup === "po"
@@ -797,14 +870,14 @@ const getDistrictLabelStyle = (
   compactLabels = false,
   labelGroup = "district",
   districtDetailMode = false,
-  isWallDisplay = false
+  isWallDisplay = false,
 ) => {
   if (labelGroup === "po") {
     const poNames = toFeatureNameList(
       String(feature?.get?.("area_label") || "")
         .split("\n")
         .map((item) => item.trim())
-        .filter(Boolean)
+        .filter(Boolean),
     );
     if (!poNames.length) return null;
 
@@ -819,7 +892,7 @@ const getDistrictLabelStyle = (
           index,
           poNames.length,
           compactLabels,
-          isWallDisplay
+          isWallDisplay,
         );
 
         return new Style({
@@ -831,7 +904,10 @@ const getDistrictLabelStyle = (
             overflow: true,
             padding: [2, 4, 2, 4],
             fill: new Fill({ color: "#1575bc" }),
-            stroke: new Stroke({ color: "#ffffff", width: isWallDisplay ? 7 : 3 }),
+            stroke: new Stroke({
+              color: "#ffffff",
+              width: isWallDisplay ? 7 : 3,
+            }),
             font: `700 ${fontSize}px Arial, sans-serif`,
           }),
         });
@@ -839,7 +915,10 @@ const getDistrictLabelStyle = (
       .filter(Boolean);
   }
 
-  const label = wrapMapLabel(getFeatureLabelName(feature, labelGroup), compactLabels);
+  const label = wrapMapLabel(
+    getFeatureLabelName(feature, labelGroup),
+    compactLabels,
+  );
   if (!label) return null;
 
   const fontSize = isWallDisplay
@@ -939,7 +1018,10 @@ function OperationalWeatherCard() {
     <div className="operational-map-panel__weather" aria-label="Погода">
       <div className="operational-map-panel__weather-content">
         <div className="operational-map-panel__weather-main">
-          <span className="operational-map-panel__weather-icon" aria-hidden="true">
+          <span
+            className="operational-map-panel__weather-icon"
+            aria-hidden="true"
+          >
             {view.icon}
           </span>
           <div>
@@ -947,9 +1029,15 @@ function OperationalWeatherCard() {
             <span>{view.label}</span>
           </div>
         </div>
-        <div className="operational-map-panel__weather-parts" aria-label="Прогноз на сутки">
+        <div
+          className="operational-map-panel__weather-parts"
+          aria-label="Прогноз на сутки"
+        >
           {formattedParts.map((part) => (
-            <span key={part.key} className="operational-map-panel__weather-part">
+            <span
+              key={part.key}
+              className="operational-map-panel__weather-part"
+            >
               <b>{part.label}</b>
               <i aria-hidden="true">{part.icon}</i>
               <em>{part.temperatureText}</em>
@@ -974,10 +1062,9 @@ export function OperationalMapTopline({ className = "" }) {
     return () => window.clearInterval(timer);
   }, []);
 
-  const classNames = [
-    "operational-map-panel__topline",
-    className,
-  ].filter(Boolean).join(" ");
+  const classNames = ["operational-map-panel__topline", className]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <div className={classNames}>
@@ -1018,8 +1105,12 @@ export default function OperationalMapPanel({
   const modeBoundarySourceRef = useRef(null);
   const [mapFeaturesVersion, setMapFeaturesVersion] = useState(0);
   const [hoveredArea, setHoveredArea] = useState(null);
-  const [isCompactViewport, setIsCompactViewport] = useState(getIsCompactMapViewport);
-  const [isWallDisplayViewport, setIsWallDisplayViewport] = useState(getIsWallDisplayMapViewport);
+  const [isCompactViewport, setIsCompactViewport] = useState(
+    getIsCompactMapViewport,
+  );
+  const [isWallDisplayViewport, setIsWallDisplayViewport] = useState(
+    getIsWallDisplayMapViewport,
+  );
   const [isRgisDetailMode, setIsRgisDetailMode] = useState(false);
   const [isMapReady, setIsMapReady] = useState(false);
   const isUserRgisDetailEnabledRef = useRef(false);
@@ -1028,24 +1119,29 @@ export default function OperationalMapPanel({
     "operational-dashboard__panel--map",
     "operational-map-panel",
     variant ? `operational-map-panel--${variant}` : "",
-  ].filter(Boolean).join(" ");
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   const areaData = useMemo(
     () =>
       fillGroup === "district"
         ? buildOperationalMapDistrictData(rows, { filialName, poName, poSlug })
         : fillGroup === "po"
-        ? buildOperationalMapPoData(rows)
-        : buildOperationalMapFilialData(rows),
-    [filialName, fillGroup, poName, poSlug, rows]
+          ? buildOperationalMapPoData(rows)
+          : buildOperationalMapFilialData(rows),
+    [filialName, fillGroup, poName, poSlug, rows],
   );
   const areaDataByKey = useMemo(
     () => new Map(areaData.map((item) => [item.key, item])),
-    [areaData]
+    [areaData],
   );
 
   useEffect(() => {
-    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+    if (
+      typeof window === "undefined" ||
+      typeof window.matchMedia !== "function"
+    ) {
       return undefined;
     }
 
@@ -1059,7 +1155,8 @@ export default function OperationalMapPanel({
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
 
-    const handleResize = () => setIsWallDisplayViewport(getIsWallDisplayMapViewport());
+    const handleResize = () =>
+      setIsWallDisplayViewport(getIsWallDisplayMapViewport());
     handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
@@ -1101,7 +1198,7 @@ export default function OperationalMapPanel({
       if (!features.length) return false;
 
       return features.some((feature) =>
-        feature.getGeometry?.()?.intersectsCoordinate?.(coordinate)
+        feature.getGeometry?.()?.intersectsCoordinate?.(coordinate),
       );
     };
     const { source: livePesSource, layer: livePesLayer } = createPesLayer({
@@ -1156,22 +1253,24 @@ export default function OperationalMapPanel({
 
     let cancelled = false;
     const format = new GeoJSON();
-    const disposeRgisBaseLayerClip = applyRgisBaseLayerClip(rgisBaseLayer, map, districtSource);
+    const disposeRgisBaseLayerClip = applyRgisBaseLayerClip(
+      rgisBaseLayer,
+      map,
+      districtSource,
+    );
 
-    const refreshBoundaryLayers = (features = districtSourceRef.current?.getFeatures() || []) => {
+    const refreshBoundaryLayers = (
+      features = districtSourceRef.current?.getFeatures() || [],
+    ) => {
       filialHoverSource.clear();
       modeBoundarySource.clear();
       const areaBoundaryFeatures =
         fillGroup === "po"
-          ? buildGroupBoundaryFeatures(
-              features,
-              "po",
-              (groupName) => ({
-                groupName,
-                strokeColor: "#cfd6de",
-                strokeWidth: OPERATIONAL_MAP_DISTRICT_STROKE_WIDTH,
-              })
-            )
+          ? buildGroupBoundaryFeatures(features, "po", (groupName) => ({
+              groupName,
+              strokeColor: "#cfd6de",
+              strokeWidth: OPERATIONAL_MAP_DISTRICT_STROKE_WIDTH,
+            }))
           : [];
       const modeBoundaryFeatures = buildGroupBoundaryFeatures(
         features,
@@ -1185,12 +1284,18 @@ export default function OperationalMapPanel({
             groupName,
             strokeColor: modeStrokeColor,
           };
-        }
+        },
       ).filter((feature) => feature.get("strokeColor"));
-      modeBoundarySource.addFeatures([...areaBoundaryFeatures, ...modeBoundaryFeatures]);
+      modeBoundarySource.addFeatures([
+        ...areaBoundaryFeatures,
+        ...modeBoundaryFeatures,
+      ]);
     };
 
-    const applyFeatureCollection = (featureCollection, { fit = false } = {}) => {
+    const applyFeatureCollection = (
+      featureCollection,
+      { fit = false } = {},
+    ) => {
       if (cancelled || !mapRef.current || !districtSourceRef.current) return;
       const features = format.readFeatures(featureCollection, {
         dataProjection: "EPSG:4326",
@@ -1223,7 +1328,8 @@ export default function OperationalMapPanel({
 
     const updateRgisDetailMode = () => {
       setIsRgisDetailMode(
-        isUserRgisDetailEnabledRef.current && getIsRgisDetailMode(view.getZoom())
+        isUserRgisDetailEnabledRef.current &&
+          getIsRgisDetailMode(view.getZoom()),
       );
     };
     const handleZoomChange = () => {
@@ -1236,9 +1342,13 @@ export default function OperationalMapPanel({
       updateRgisDetailMode();
     };
     const mapTargetElement = map.getTargetElement();
-    mapTargetElement.addEventListener("wheel", handleUserZoomIntent, { passive: true });
+    mapTargetElement.addEventListener("wheel", handleUserZoomIntent, {
+      passive: true,
+    });
     mapTargetElement.addEventListener("dblclick", handleUserZoomIntent);
-    mapTargetElement.addEventListener("touchstart", handleUserZoomIntent, { passive: true });
+    mapTargetElement.addEventListener("touchstart", handleUserZoomIntent, {
+      passive: true,
+    });
     const endpoint = showPesMarkers ? getPesEndpointFromEnv() : "";
     const livePesPolling = endpoint
       ? startPesPolling({
@@ -1246,21 +1356,30 @@ export default function OperationalMapPanel({
           endpoint,
           pollMs: PES_POLL_MS_DEFAULT,
           loadModuleInfo: true,
-          onError: (error) => console.error("[OperationalMap] PES vehicles error:", error),
+          onError: (error) =>
+            console.error("[OperationalMap] PES vehicles error:", error),
         })
       : null;
     let pesPopupAbortController = null;
 
-    const renderPesPopup = (feature, moduleInfo = null, { loading = false } = {}) => {
+    const renderPesPopup = (
+      feature,
+      moduleInfo = null,
+      { loading = false } = {},
+    ) => {
       const moduleStatus =
-        moduleInfo?.effectiveStatus || moduleInfo?.status || feature.get("moduleStatus") || "";
+        moduleInfo?.effectiveStatus ||
+        moduleInfo?.status ||
+        feature.get("moduleStatus") ||
+        "";
       pesPopupContentEl.innerHTML = buildPesPopupHtml({
         name: feature.get("name"),
         moduleStatus,
         branch: moduleInfo?.branch || feature.get("moduleBranch") || "",
         po: moduleInfo?.po || feature.get("modulePo") || "",
         powerKw: moduleInfo?.powerKw ?? feature.get("modulePowerKw"),
-        destination: moduleInfo?.destination || feature.get("moduleDestination") || null,
+        destination:
+          moduleInfo?.destination || feature.get("moduleDestination") || null,
         loading,
       });
     };
@@ -1282,7 +1401,7 @@ export default function OperationalMapPanel({
       try {
         const moduleInfo = await getPesModuleInfoByNumber(
           pesNumber,
-          pesPopupAbortController.signal
+          pesPopupAbortController.signal,
         );
         if (pesPopupAbortController.signal.aborted) return;
         if (moduleInfo) {
@@ -1307,7 +1426,12 @@ export default function OperationalMapPanel({
       filialHoverSource.clear();
       if (!hoverName) return;
 
-      applyHoverBoundary(filialHoverSource, districtSource, hoverGroup, hoverName);
+      applyHoverBoundary(
+        filialHoverSource,
+        districtSource,
+        hoverGroup,
+        hoverName,
+      );
     };
 
     const applyDistrictRows = (rows, options) => {
@@ -1319,7 +1443,10 @@ export default function OperationalMapPanel({
         normalizePoName: normalizeOperationalFilialName,
         getPoSlug: getOperationalPoSlug,
       });
-      applyFeatureCollection(buildTnOkrugaFeatureCollection(topologyOkrugaRows), options);
+      applyFeatureCollection(
+        buildTnOkrugaFeatureCollection(topologyOkrugaRows),
+        options,
+      );
     };
 
     const loadFallbackFeatures = async () => {
@@ -1336,7 +1463,10 @@ export default function OperationalMapPanel({
       }
     };
 
-    const loadDistrictFeatures = async ({ fit = false, force = false } = {}) => {
+    const loadDistrictFeatures = async ({
+      fit = false,
+      force = false,
+    } = {}) => {
       try {
         const rows = await fetchTnFilialyRows({ force });
         if (cancelled || !mapRef.current || !districtSourceRef.current) return;
@@ -1360,11 +1490,13 @@ export default function OperationalMapPanel({
 
     const applyFilialModePayload = (payload) => {
       const rezim = payload?.rezim;
-      const filialIds = new Set((payload?.filialIds || []).map((id) => String(id)));
+      const filialIds = new Set(
+        (payload?.filialIds || []).map((id) => String(id)),
+      );
       const filialNames = new Set(
         (payload?.filials || [])
           .map((item) => normalizeOperationalMapAreaName(item?.name))
-          .filter(Boolean)
+          .filter(Boolean),
       );
 
       if (!rezim || (!filialIds.size && !filialNames.size)) return false;
@@ -1373,11 +1505,15 @@ export default function OperationalMapPanel({
       let changed = false;
       features.forEach((feature) => {
         const featureFilialIds = toFeatureNameList(feature.get("filial_ids"));
-        const featureFilialNames = toFeatureNameList(feature.get("filial_names")).map(
-          normalizeOperationalMapAreaName
+        const featureFilialNames = toFeatureNameList(
+          feature.get("filial_names"),
+        ).map(normalizeOperationalMapAreaName);
+        const hasTargetId = featureFilialIds.some((id) =>
+          filialIds.has(String(id)),
         );
-        const hasTargetId = featureFilialIds.some((id) => filialIds.has(String(id)));
-        const hasTargetName = featureFilialNames.some((name) => filialNames.has(name));
+        const hasTargetName = featureFilialNames.some((name) =>
+          filialNames.has(name),
+        );
         if (!hasTargetId && !hasTargetName) return;
 
         feature.set("rezim", rezim);
@@ -1413,9 +1549,9 @@ export default function OperationalMapPanel({
       let changed = false;
       features.forEach((feature) => {
         const featureFilialIds = toFeatureNameList(feature.get("filial_ids"));
-        const featureFilialNames = toFeatureNameList(feature.get("filial_names")).map(
-          normalizeOperationalMapAreaName
-        );
+        const featureFilialNames = toFeatureNameList(
+          feature.get("filial_names"),
+        ).map(normalizeOperationalMapAreaName);
         const modeByFeatureId = featureFilialIds
           .map((id) => modeById.get(String(id)))
           .find((mode) => mode !== undefined);
@@ -1479,11 +1615,14 @@ export default function OperationalMapPanel({
         handleFilialModeUpdated(event);
       }
     };
-    window.addEventListener(TN_FILIALY_REZIM_UPDATED_EVENT, handleFilialModeUpdated);
+    window.addEventListener(
+      TN_FILIALY_REZIM_UPDATED_EVENT,
+      handleFilialModeUpdated,
+    );
     window.addEventListener("storage", handleFilialModeStorageUpdated);
     modeRowsPollingTimer = window.setInterval(
       () => scheduleFilialModeRowsRefresh(0),
-      FILIAL_MODE_POLL_MS
+      FILIAL_MODE_POLL_MS,
     );
 
     const handlePointerMove = (event) => {
@@ -1498,7 +1637,13 @@ export default function OperationalMapPanel({
       const feature = getDistrictFeatureAtPixel(event.pixel);
       const hoverName =
         hoverGroup === "po"
-          ? getPoNameAtPixel(map, feature, event.pixel, isCompactViewport, isWallDisplayViewport)
+          ? getPoNameAtPixel(
+              map,
+              feature,
+              event.pixel,
+              isCompactViewport,
+              isWallDisplayViewport,
+            )
           : getFeatureHoverName(feature, hoverGroup);
 
       if (!feature || !hoverName) {
@@ -1508,7 +1653,9 @@ export default function OperationalMapPanel({
         return;
       }
 
-      map.getTargetElement().style.cursor = enableFilialNavigation ? "pointer" : "";
+      map.getTargetElement().style.cursor = enableFilialNavigation
+        ? "pointer"
+        : "";
       highlightHoverGroup(hoverName);
       const rect = map.getTargetElement().getBoundingClientRect();
       setHoveredArea({
@@ -1538,14 +1685,28 @@ export default function OperationalMapPanel({
       const featureFilialName = getFeatureFilialName(feature);
       const featurePoName =
         hoverGroup === "po" || fillGroup === "po"
-          ? getPoNameAtPixel(map, feature, event.pixel, isCompactViewport, isWallDisplayViewport)
+          ? getPoNameAtPixel(
+              map,
+              feature,
+              event.pixel,
+              isCompactViewport,
+              isWallDisplayViewport,
+            )
           : getFeaturePoName(feature);
       const poPath =
         filialName && featurePoName
           ? getOperationalPoPath(filialName, featurePoName, basePath)
           : "";
-      if (filialName && featurePoName && isOperationalDirectOnlyFilial(filialName)) return;
-      const filialPath = getOperationalFilialPathForBase(featureFilialName, basePath);
+      if (
+        filialName &&
+        featurePoName &&
+        isOperationalDirectOnlyFilial(filialName)
+      )
+        return;
+      const filialPath = getOperationalFilialPathForBase(
+        featureFilialName,
+        basePath,
+      );
       if (poPath) {
         navigate(poPath);
         return;
@@ -1572,7 +1733,10 @@ export default function OperationalMapPanel({
       cancelled = true;
       window.clearTimeout(modeRowsRefreshTimer);
       window.clearInterval(modeRowsPollingTimer);
-      window.removeEventListener(TN_FILIALY_REZIM_UPDATED_EVENT, handleFilialModeUpdated);
+      window.removeEventListener(
+        TN_FILIALY_REZIM_UPDATED_EVENT,
+        handleFilialModeUpdated,
+      );
       window.removeEventListener("storage", handleFilialModeStorageUpdated);
       pesPopupAbortController?.abort?.();
       view.un("change:resolution", handleZoomChange);
@@ -1616,7 +1780,7 @@ export default function OperationalMapPanel({
       filialHoverSourceRef.current,
       districtSourceRef.current,
       hoverGroup,
-      externalHoverName
+      externalHoverName,
     );
   }, [externalHoverName, hoverGroup, hoveredArea?.name, mapFeaturesVersion]);
 
@@ -1632,7 +1796,7 @@ export default function OperationalMapPanel({
         showDistrictLabels,
         isRgisDetailMode,
         isWallDisplay: isWallDisplayViewport,
-      })
+      }),
     );
     layer.changed();
 
@@ -1645,9 +1809,9 @@ export default function OperationalMapPanel({
                 isCompactViewport,
                 fillGroup,
                 districtDetailMode,
-                isWallDisplayViewport
+                isWallDisplayViewport,
               )
-          : null
+          : null,
       );
       labelLayer.changed();
     }
@@ -1686,14 +1850,20 @@ export default function OperationalMapPanel({
             className={[
               "operational-map-panel__map-frame",
               isMapReady ? "" : "operational-map-panel__map-frame--loading",
-            ].filter(Boolean).join(" ")}
+            ]
+              .filter(Boolean)
+              .join(" ")}
           >
             <div
               ref={mapElRef}
               className={[
                 "operational-map-panel__map",
-                isRgisDetailMode ? "operational-map-panel__map--rgis-detail" : "",
-              ].filter(Boolean).join(" ")}
+                isRgisDetailMode
+                  ? "operational-map-panel__map--rgis-detail"
+                  : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
               style={{
                 transform: `translateY(${OPERATIONAL_MAP_OFFSET_Y}px) scaleY(${OPERATIONAL_MAP_STRETCH_Y})`,
                 transformOrigin: "center center",
@@ -1715,11 +1885,15 @@ export default function OperationalMapPanel({
           <div className="operational-map-panel__mode-legend">
             <h4>Действующие режимы:</h4>
             <span>
-              <i style={{ borderColor: OPERATIONAL_MAP_MODE_STROKE_COLORS.rpg }} />
+              <i
+                style={{ borderColor: OPERATIONAL_MAP_MODE_STROKE_COLORS.rpg }}
+              />
               - введен РПГ
             </span>
             <span>
-              <i style={{ borderColor: OPERATIONAL_MAP_MODE_STROKE_COLORS.orr }} />
+              <i
+                style={{ borderColor: OPERATIONAL_MAP_MODE_STROKE_COLORS.orr }}
+              />
               - введен ОРР
             </span>
           </div>
@@ -1727,16 +1901,16 @@ export default function OperationalMapPanel({
             <div>
               <h4>Обесточено населения:</h4>
               <span>
-                <i style={{ background: OPERATIONAL_MAP_COLORS.low }} />
-                - до 5000 чел.
+                <i style={{ background: OPERATIONAL_MAP_COLORS.low }} />- до
+                5000 чел.
               </span>
               <span>
-                <i style={{ background: OPERATIONAL_MAP_COLORS.medium }} />
-                - от 5000 до 20000 чел.
+                <i style={{ background: OPERATIONAL_MAP_COLORS.medium }} />- от
+                5000 до 20000 чел.
               </span>
               <span>
-                <i style={{ background: OPERATIONAL_MAP_COLORS.high }} />
-                - более 20000 чел.
+                <i style={{ background: OPERATIONAL_MAP_COLORS.high }} />- более
+                20000 чел.
               </span>
             </div>
           </div>

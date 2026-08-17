@@ -38,9 +38,7 @@ import {
   OPERATIONAL_MAP_STRETCH_Y,
   OPERATIONAL_WEATHER_LOCATION,
 } from "../js/operationalMapPanel.config";
-import {
-  buildTnOkrugaFeatureCollection,
-} from "../../../../../utils/tnOkrugaApi";
+import { buildTnOkrugaFeatureCollection } from "../../../../../utils/tnOkrugaApi";
 import {
   getOperationalFilialPathForBase,
   getOperationalPoPath,
@@ -70,8 +68,7 @@ import { sortPesNumber } from "../../../../pes/js/pesTilesBoard.utils";
 import "../css/OperationalMapPanel.css";
 
 const SERVICES_URL =
-  import.meta.env.VITE_URL_BACKEND_SERVICES ||
-  import.meta.env.VITE_URL_BACKEND;
+  import.meta.env.VITE_URL_BACKEND_SERVICES || import.meta.env.VITE_URL_BACKEND;
 const BACKEND_URL = import.meta.env.VITE_URL_BACKEND;
 const OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast";
 // Основной live-update режимов приходит через Strapi webhook -> backend SSE.
@@ -86,15 +83,21 @@ const getWeatherHour = (time) => {
 
 const formatPressureMmHg = (pressureHpa) => {
   const pressure = Number(pressureHpa);
-  return Number.isFinite(pressure) ? formatMapNumber(pressure * 0.750061683) : "—";
+  return Number.isFinite(pressure)
+    ? formatMapNumber(pressure * 0.750061683)
+    : "—";
 };
 
 const normalizeWeatherPayload = (payload) => {
   const current = payload?.current || {};
   const hourly = payload?.hourly || {};
   const times = Array.isArray(hourly.time) ? hourly.time : [];
-  const temperatures = Array.isArray(hourly.temperature_2m) ? hourly.temperature_2m : [];
-  const weatherCodes = Array.isArray(hourly.weather_code) ? hourly.weather_code : [];
+  const temperatures = Array.isArray(hourly.temperature_2m)
+    ? hourly.temperature_2m
+    : [];
+  const weatherCodes = Array.isArray(hourly.weather_code)
+    ? hourly.weather_code
+    : [];
   const fallbackParts = [
     { key: "night", label: "Ночь", hour: 3 },
     { key: "morning", label: "Утро", hour: 9 },
@@ -119,7 +122,8 @@ const normalizeWeatherPayload = (payload) => {
     longitude: payload?.longitude || OPERATIONAL_WEATHER_LOCATION.longitude,
     updatedAt: payload?.updatedAt || current.time,
     temperature: payload?.temperature ?? current.temperature_2m,
-    apparentTemperature: payload?.apparentTemperature ?? current.apparent_temperature,
+    apparentTemperature:
+      payload?.apparentTemperature ?? current.apparent_temperature,
     humidity: payload?.humidity ?? current.relative_humidity_2m,
     windSpeed: payload?.windSpeed ?? current.wind_speed_10m,
     cloudCover: payload?.cloudCover ?? current.cloud_cover,
@@ -157,10 +161,13 @@ const requestWeatherByPlaceFromBackend = async (baseUrl, weatherContext) => {
 
   let data;
   try {
-    const response = await axios.get(`${baseUrl}/services/weather/test-by-place`, {
-      params: { place },
-      timeout: 12000,
-    });
+    const response = await axios.get(
+      `${baseUrl}/services/weather/test-by-place`,
+      {
+        params: { place },
+        timeout: 12000,
+      },
+    );
     data = response.data;
   } catch (error) {
     console.warn(`${WEATHER_LOG_PREFIX}: персональная ошибка API`, {
@@ -174,13 +181,15 @@ const requestWeatherByPlaceFromBackend = async (baseUrl, weatherContext) => {
   }
   if (data?.ok === false) throw new Error(data?.message || "Погода недоступна");
 
-  const weatherPayload = data?.weather ? {
-    ...data.weather,
-    source: data.source,
-    label: data.location?.name || data.query || place,
-    latitude: data.location?.latitude,
-    longitude: data.location?.longitude,
-  } : data;
+  const weatherPayload = data?.weather
+    ? {
+        ...data.weather,
+        source: data.source,
+        label: data.location?.name || data.query || place,
+        latitude: data.location?.latitude,
+        longitude: data.location?.longitude,
+      }
+    : data;
 
   console.info(`${WEATHER_LOG_PREFIX}: персональный ответ`, {
     requestedPlace: place,
@@ -220,7 +229,10 @@ const loadOperationalWeather = async (weatherContext = null) => {
   if (hasPersonalPlace) {
     for (const baseUrl of backends) {
       try {
-        const data = await requestWeatherByPlaceFromBackend(baseUrl, weatherContext);
+        const data = await requestWeatherByPlaceFromBackend(
+          baseUrl,
+          weatherContext,
+        );
         if (data) return data;
       } catch (error) {
         lastError = error;
@@ -229,7 +241,10 @@ const loadOperationalWeather = async (weatherContext = null) => {
 
     console.warn(`${WEATHER_LOG_PREFIX}: персональный запрос не сработал`, {
       requestedPlace: weatherContext?.place || "",
-      reason: lastError?.response?.data?.message || lastError?.message || "Погода недоступна",
+      reason:
+        lastError?.response?.data?.message ||
+        lastError?.message ||
+        "Погода недоступна",
     });
     throw lastError || new Error("Погода недоступна");
   }
@@ -264,7 +279,10 @@ const loadOperationalWeather = async (weatherContext = null) => {
 
 const EMPTY_DISTRICT_STYLE = new Style({
   fill: new Fill({ color: "rgba(255, 255, 255, 0.96)" }),
-  stroke: new Stroke({ color: "#b8c4d0", width: OPERATIONAL_MAP_DISTRICT_STROKE_WIDTH }),
+  stroke: new Stroke({
+    color: "#b8c4d0",
+    width: OPERATIONAL_MAP_DISTRICT_STROKE_WIDTH,
+  }),
 });
 const FILIAL_HOVER_STYLE = new Style({
   zIndex: 30,
@@ -282,7 +300,8 @@ const MODE_BOUNDARY_STYLE = (feature) =>
 const MAP_FALLBACK_CENTER = [38.25, 55.58];
 const MAP_FALLBACK_ZOOM = 8;
 const MAP_FIT_PADDING = [10, 6, 8, 6];
-const TN_OKRUGA_MAP_CACHE_KEY = "operationalDashboard.tnFilialyTopologyRows.legacy.v2";
+const TN_OKRUGA_MAP_CACHE_KEY =
+  "operationalDashboard.tnFilialyTopologyRows.legacy.v2";
 const PES_MARKER_AREA_POINTS = [
   [-0.24, -0.16],
   [0.24, 0.16],
@@ -320,16 +339,24 @@ const PES_MARKER_ICON_BY_STATUS = Object.fromEntries(
       svgRaw: pesKamazVectorSvgRaw,
       recolorAllFills: true,
     }),
-  ])
+  ]),
 );
 const PES_MARKER_STYLE_CACHE = new Map();
 const MAP_ZOOM_DELTA =
-  Number.isFinite(Number(OPERATIONAL_MAP_SCALE)) && Number(OPERATIONAL_MAP_SCALE) > 0
+  Number.isFinite(Number(OPERATIONAL_MAP_SCALE)) &&
+  Number(OPERATIONAL_MAP_SCALE) > 0
     ? Math.log2(Number(OPERATIONAL_MAP_SCALE))
     : 0;
+
 const PO_LABEL_MANUAL_OFFSETS_BY_KEY = {
+  // Павлово-Посадский филиал
   [normalizeOperationalMapAreaName("Павлово-Посадское ПО")]: { x: 42, y: -34 },
   [normalizeOperationalMapAreaName("Электростальское ПО")]: { x: -12, y: 18 },
+
+  // Одинцовский филиал
+  [normalizeOperationalMapAreaName("Одинцовское ПО")]: { x: 480, y: -4 },
+  [normalizeOperationalMapAreaName("Звенигородское ПО")]: { x: -420, y: 4 },
+  [normalizeOperationalMapAreaName("Краснознаменское ПО")]: { x: 38, y: 42 },
 };
 
 const fitMapToSource = (view, source) => {
@@ -341,7 +368,11 @@ const fitMapToSource = (view, source) => {
   });
 
   const zoom = view.getZoom();
-  if (Number.isFinite(zoom) && Number.isFinite(MAP_ZOOM_DELTA) && MAP_ZOOM_DELTA !== 0) {
+  if (
+    Number.isFinite(zoom) &&
+    Number.isFinite(MAP_ZOOM_DELTA) &&
+    MAP_ZOOM_DELTA !== 0
+  ) {
     view.setZoom(zoom + MAP_ZOOM_DELTA);
   }
 };
@@ -359,7 +390,8 @@ const getModeStrokeColor = (mode) => {
 };
 
 const toFeatureNameList = (value) => {
-  if (Array.isArray(value)) return value.map((item) => String(item || "").trim()).filter(Boolean);
+  if (Array.isArray(value))
+    return value.map((item) => String(item || "").trim()).filter(Boolean);
   const name = String(value || "").trim();
   return name ? [name] : [];
 };
@@ -372,7 +404,9 @@ const toFeatureMultilineNameList = (value) =>
 
 const getFeatureFilialNames = (feature) => {
   const names = toFeatureNameList(feature?.get?.("filial_names"));
-  return names.length ? names : toFeatureNameList(feature?.get?.("filial_name"));
+  return names.length
+    ? names
+    : toFeatureNameList(feature?.get?.("filial_name"));
 };
 
 const getFeaturePoNames = (feature) => {
@@ -383,12 +417,16 @@ const getFeaturePoNames = (feature) => {
   return names.length ? names : toFeatureNameList(feature?.get?.("po_name"));
 };
 
-const getFeatureFilialName = (feature) => getFeatureFilialNames(feature)[0] || "";
+const getFeatureFilialName = (feature) =>
+  getFeatureFilialNames(feature)[0] || "";
 
 const getFeaturePoName = (feature) =>
-  String(feature?.get?.("primary_po_name") || "").trim() || getFeaturePoNames(feature)[0] || "";
+  String(feature?.get?.("primary_po_name") || "").trim() ||
+  getFeaturePoNames(feature)[0] ||
+  "";
 
-const getFeaturePoLabelNames = (feature) => toFeatureMultilineNameList(feature?.get?.("area_label"));
+const getFeaturePoLabelNames = (feature) =>
+  toFeatureMultilineNameList(feature?.get?.("area_label"));
 
 const getFeatureAreaName = (feature, areaGroup) => {
   if (areaGroup === "district") return getFeatureDistrictLabel(feature);
@@ -420,7 +458,8 @@ const assignVisiblePoNames = (features, activeFilialName) => {
     const visiblePoNames = getFeaturePoRelations(feature)
       .filter(
         (relation) =>
-          normalizeOperationalFilialName(relation?.filial_name) === normalizedFilialName
+          normalizeOperationalFilialName(relation?.filial_name) ===
+          normalizedFilialName,
       )
       .map((relation) => relation?.name)
       .filter(Boolean);
@@ -452,7 +491,7 @@ const getPoNameAtPixel = (
   feature,
   pixel,
   compactLabels = false,
-  isWallDisplay = false
+  isWallDisplay = false,
 ) => {
   const labelNames = getFeaturePoLabelNames(feature);
   const poNames = labelNames.length ? labelNames : getFeaturePoNames(feature);
@@ -464,23 +503,29 @@ const getPoNameAtPixel = (
   const anchorPixel = map?.getPixelFromCoordinate?.(anchor);
   if (!Array.isArray(anchorPixel)) return getFeaturePoName(feature);
 
-  return poNames
-    .map((poName, index) => {
-      const [offsetX, offsetY] = getPoLabelOffset(
-        feature,
-        poName,
-        index,
-        poNames.length,
-        compactLabels,
-        isWallDisplay
-      );
-      const labelPixel = [anchorPixel[0] + offsetX, anchorPixel[1] + offsetY];
-      return {
-        poName,
-        distance: Math.hypot(pixel[0] - labelPixel[0], pixel[1] - labelPixel[1]),
-      };
-    })
-    .sort((left, right) => left.distance - right.distance)[0]?.poName || getFeaturePoName(feature);
+  return (
+    poNames
+      .map((poName, index) => {
+        const [offsetX, offsetY] = getPoLabelOffset(
+          feature,
+          poName,
+          index,
+          poNames.length,
+          compactLabels,
+          isWallDisplay,
+        );
+        const labelPixel = [anchorPixel[0] + offsetX, anchorPixel[1] + offsetY];
+        return {
+          poName,
+          distance: Math.hypot(
+            pixel[0] - labelPixel[0],
+            pixel[1] - labelPixel[1],
+          ),
+        };
+      })
+      .sort((left, right) => left.distance - right.distance)[0]?.poName ||
+    getFeaturePoName(feature)
+  );
 };
 
 const getFeatureHoverNames = (feature, hoverGroup) => {
@@ -496,7 +541,7 @@ const isActivePesMarkerItem = (item) =>
   PES_MARKER_ACTIVE_STATUSES.has(
     String(item?.effectiveStatus || item?.status || "")
       .trim()
-      .toLowerCase()
+      .toLowerCase(),
   );
 
 const isFeatureInHoverGroup = (feature, hoverGroup, hoverName) => {
@@ -505,18 +550,25 @@ const isFeatureInHoverGroup = (feature, hoverGroup, hoverName) => {
   return getFeatureHoverNames(feature, hoverGroup).some(
     (featureHoverName) =>
       featureHoverName === hoverName ||
-      normalizeOperationalMapAreaName(featureHoverName) === normalizedHoverName
+      normalizeOperationalMapAreaName(featureHoverName) === normalizedHoverName,
   );
 };
 
-const applyHoverBoundary = (hoverSource, districtSource, hoverGroup, hoverName) => {
+const applyHoverBoundary = (
+  hoverSource,
+  districtSource,
+  hoverGroup,
+  hoverName,
+) => {
   hoverSource?.clear();
   if (!hoverSource || !districtSource || !hoverName) return;
 
   const nextFeatures = districtSource
     .getFeatures()
     .filter((feature) => isFeatureInHoverGroup(feature, hoverGroup, hoverName));
-  const boundaryFeature = buildBoundaryFeature(nextFeatures, { groupName: hoverName });
+  const boundaryFeature = buildBoundaryFeature(nextFeatures, {
+    groupName: hoverName,
+  });
   if (boundaryFeature) hoverSource.addFeature(boundaryFeature);
 };
 
@@ -530,11 +582,17 @@ const getFeatureDistrictLabel = (feature) =>
 const getGeometryAnchorCoordinate = (geometry) => {
   if (!geometry) return null;
 
-  if (geometry.getType() === "Polygon" && typeof geometry.getInteriorPoint === "function") {
+  if (
+    geometry.getType() === "Polygon" &&
+    typeof geometry.getInteriorPoint === "function"
+  ) {
     return geometry.getInteriorPoint().getCoordinates();
   }
 
-  if (geometry.getType() === "MultiPolygon" && typeof geometry.getInteriorPoints === "function") {
+  if (
+    geometry.getType() === "MultiPolygon" &&
+    typeof geometry.getInteriorPoints === "function"
+  ) {
     const points = geometry.getInteriorPoints().getCoordinates();
     if (Array.isArray(points) && points.length) {
       const extent = geometry.getExtent();
@@ -560,18 +618,23 @@ const getGeometryAnchorCoordinate = (geometry) => {
 const getFeatureExtentArea = (feature) => {
   const extent = feature?.getGeometry?.()?.getExtent?.();
   if (!Array.isArray(extent) || !extent.every(Number.isFinite)) return 0;
-  return Math.max(0, extent[2] - extent[0]) * Math.max(0, extent[3] - extent[1]);
+  return (
+    Math.max(0, extent[2] - extent[0]) * Math.max(0, extent[3] - extent[1])
+  );
 };
 
 const getCombinedFeatureGeometry = (features) => {
-  const list = (Array.isArray(features) ? features : []).filter((feature) => feature?.getGeometry?.());
+  const list = (Array.isArray(features) ? features : []).filter((feature) =>
+    feature?.getGeometry?.(),
+  );
   if (!list.length) return null;
   if (list.length === 1) return list[0].getGeometry();
 
   const extent = [Infinity, Infinity, -Infinity, -Infinity];
   list.forEach((feature) => {
     const featureExtent = feature.getGeometry().getExtent?.();
-    if (!Array.isArray(featureExtent) || !featureExtent.every(Number.isFinite)) return;
+    if (!Array.isArray(featureExtent) || !featureExtent.every(Number.isFinite))
+      return;
     extent[0] = Math.min(extent[0], featureExtent[0]);
     extent[1] = Math.min(extent[1], featureExtent[1]);
     extent[2] = Math.max(extent[2], featureExtent[2]);
@@ -583,7 +646,9 @@ const getCombinedFeatureGeometry = (features) => {
   return {
     getExtent: () => extent,
     intersectsCoordinate: (coordinate) =>
-      list.some((feature) => feature.getGeometry()?.intersectsCoordinate?.(coordinate)),
+      list.some((feature) =>
+        feature.getGeometry()?.intersectsCoordinate?.(coordinate),
+      ),
   };
 };
 
@@ -595,16 +660,24 @@ const isCoordinateInsideGeometry = (geometry, coordinate) => {
   return true;
 };
 
-const pushUniquePesCoordinate = (coordinates, geometry, coordinate, minDistance) => {
+const pushUniquePesCoordinate = (
+  coordinates,
+  geometry,
+  coordinate,
+  minDistance,
+) => {
   if (!isCoordinateInsideGeometry(geometry, coordinate)) return;
   const hasNearPoint = coordinates.some(
-    (point) => Math.hypot(point[0] - coordinate[0], point[1] - coordinate[1]) < minDistance
+    (point) =>
+      Math.hypot(point[0] - coordinate[0], point[1] - coordinate[1]) <
+      minDistance,
   );
   if (!hasNearPoint) coordinates.push(coordinate);
 };
 
 const getPesFallbackCoordinate = (center, index, compact = false) => {
-  const [x, y] = PES_MARKER_FALLBACK_OFFSETS[index % PES_MARKER_FALLBACK_OFFSETS.length];
+  const [x, y] =
+    PES_MARKER_FALLBACK_OFFSETS[index % PES_MARKER_FALLBACK_OFFSETS.length];
   const ring = Math.floor(index / PES_MARKER_FALLBACK_OFFSETS.length);
   const multiplier = compact ? 0.7 : 1;
   return [
@@ -613,14 +686,19 @@ const getPesFallbackCoordinate = (center, index, compact = false) => {
   ];
 };
 
-const getPesMarkerCoordinates = (geometry, count, compact = false, fallbackCoordinate = null) => {
+const getPesMarkerCoordinates = (
+  geometry,
+  count,
+  compact = false,
+  fallbackCoordinate = null,
+) => {
   const center = getGeometryAnchorCoordinate(geometry) || fallbackCoordinate;
   if (!center || !Number.isFinite(count) || count <= 0) return [];
 
   const extent = geometry?.getExtent?.();
   if (!Array.isArray(extent) || !extent.every(Number.isFinite)) {
     return Array.from({ length: count }, (_, index) =>
-      getPesFallbackCoordinate(center, index, compact)
+      getPesFallbackCoordinate(center, index, compact),
     );
   }
 
@@ -628,7 +706,8 @@ const getPesMarkerCoordinates = (geometry, count, compact = false, fallbackCoord
   const extentHeight = extent[3] - extent[1];
   const spreadWidth = Math.max(extentWidth, compact ? 8000 : 12000);
   const spreadHeight = Math.max(extentHeight, compact ? 8000 : 12000);
-  const minDistance = Math.min(spreadWidth, spreadHeight) * (compact ? 0.1 : 0.12);
+  const minDistance =
+    Math.min(spreadWidth, spreadHeight) * (compact ? 0.1 : 0.12);
   const coordinates = [];
 
   PES_MARKER_AREA_POINTS.forEach(([xRatio, yRatio]) => {
@@ -637,24 +716,35 @@ const getPesMarkerCoordinates = (geometry, count, compact = false, fallbackCoord
       coordinates,
       geometry,
       [center[0] + spreadWidth * xRatio, center[1] + spreadHeight * yRatio],
-      minDistance
+      minDistance,
     );
   });
 
   const columns = Math.ceil(Math.sqrt(count * 2));
   const rows = columns;
   for (let row = 1; row <= rows && coordinates.length < count; row += 1) {
-    for (let column = 1; column <= columns && coordinates.length < count; column += 1) {
+    for (
+      let column = 1;
+      column <= columns && coordinates.length < count;
+      column += 1
+    ) {
       const coordinate = [
         extent[0] + (extentWidth * column) / (columns + 1),
         extent[1] + (extentHeight * row) / (rows + 1),
       ];
-      pushUniquePesCoordinate(coordinates, geometry, coordinate, minDistance * 0.85);
+      pushUniquePesCoordinate(
+        coordinates,
+        geometry,
+        coordinate,
+        minDistance * 0.85,
+      );
     }
   }
 
   while (coordinates.length < count) {
-    coordinates.push(getPesFallbackCoordinate(center, coordinates.length, compact));
+    coordinates.push(
+      getPesFallbackCoordinate(center, coordinates.length, compact),
+    );
   }
 
   return coordinates;
@@ -664,7 +754,9 @@ const findPesAnchorArea = (districtFeatures, item) => {
   const districtKey = normalizeOperationalMapAreaName(item?.district);
   if (districtKey) {
     const districtFeature = districtFeatures.find((feature) => {
-      const featureKey = normalizeOperationalMapAreaName(getFeatureDistrictLabel(feature));
+      const featureKey = normalizeOperationalMapAreaName(
+        getFeatureDistrictLabel(feature),
+      );
       return (
         featureKey === districtKey ||
         featureKey.includes(districtKey) ||
@@ -676,7 +768,9 @@ const findPesAnchorArea = (districtFeatures, item) => {
       return {
         key:
           districtFeature.getId?.() ||
-          normalizeOperationalMapAreaName(getFeatureDistrictLabel(districtFeature)),
+          normalizeOperationalMapAreaName(
+            getFeatureDistrictLabel(districtFeature),
+          ),
         coordinate: getGeometryAnchorCoordinate(geometry),
         geometry,
       };
@@ -686,19 +780,27 @@ const findPesAnchorArea = (districtFeatures, item) => {
   const poKey = normalizeOperationalMapAreaName(item?.po);
   if (!poKey) return null;
   const poFeatures = districtFeatures.filter((feature) => {
-    const featurePoKey = normalizeOperationalMapAreaName(getFeaturePoName(feature));
+    const featurePoKey = normalizeOperationalMapAreaName(
+      getFeaturePoName(feature),
+    );
     return (
       featurePoKey &&
-      (featurePoKey === poKey || featurePoKey.includes(poKey) || poKey.includes(featurePoKey))
+      (featurePoKey === poKey ||
+        featurePoKey.includes(poKey) ||
+        poKey.includes(featurePoKey))
     );
   });
   if (!poFeatures.length) return null;
 
   const geometry = getCombinedFeatureGeometry(poFeatures);
-  const biggestFeature = [...poFeatures].sort((a, b) => getFeatureExtentArea(b) - getFeatureExtentArea(a))[0];
+  const biggestFeature = [...poFeatures].sort(
+    (a, b) => getFeatureExtentArea(b) - getFeatureExtentArea(a),
+  )[0];
   return {
     key: poKey,
-    coordinate: getGeometryAnchorCoordinate(biggestFeature?.getGeometry?.()) || getGeometryAnchorCoordinate(geometry),
+    coordinate:
+      getGeometryAnchorCoordinate(biggestFeature?.getGeometry?.()) ||
+      getGeometryAnchorCoordinate(geometry),
     geometry,
   };
 };
@@ -733,7 +835,10 @@ const buildPesMarkerFeatures = ({ items, districtFeatures, compact }) => {
     const anchorCoordinate = anchorArea?.coordinate || fallbackCoordinate;
     if (!anchorCoordinate) return;
 
-    const anchorKey = anchorArea?.key || normalizeOperationalMapAreaName(item?.po) || "fallback";
+    const anchorKey =
+      anchorArea?.key ||
+      normalizeOperationalMapAreaName(item?.po) ||
+      "fallback";
 
     if (!groupedItems.has(anchorKey)) {
       groupedItems.set(anchorKey, {
@@ -752,7 +857,7 @@ const buildPesMarkerFeatures = ({ items, districtFeatures, compact }) => {
       geometry,
       sortedItems.length,
       compact,
-      coordinate
+      coordinate,
     );
 
     sortedItems.forEach((item, index) => {
@@ -795,7 +900,11 @@ const wrapMapLabel = (value, compact = false) => {
   return lines.join("\n");
 };
 
-const getPoLabelOffsets = (count, compactLabels = false, isWallDisplay = false) => {
+const getPoLabelOffsets = (
+  count,
+  compactLabels = false,
+  isWallDisplay = false,
+) => {
   if (count <= 1) return [[0, 0]];
 
   const baseX = isWallDisplay ? 112 : compactLabels ? 74 : 98;
@@ -829,7 +938,7 @@ const getPoLabelOffsets = (count, compactLabels = false, isWallDisplay = false) 
   if (presets[count]) return presets[count];
 
   return Array.from({ length: count }, (_, index) => {
-    const angle = (-Math.PI / 2) + (index / count) * Math.PI * 2;
+    const angle = -Math.PI / 2 + (index / count) * Math.PI * 2;
     return [Math.cos(angle) * baseX, Math.sin(angle) * baseY];
   });
 };
@@ -840,9 +949,10 @@ const getPoLabelOffset = (
   index,
   count,
   compactLabels = false,
-  isWallDisplay = false
+  isWallDisplay = false,
 ) => {
-  const manualOffset = PO_LABEL_MANUAL_OFFSETS_BY_KEY[normalizeOperationalMapAreaName(poName)];
+  const manualOffset =
+    PO_LABEL_MANUAL_OFFSETS_BY_KEY[normalizeOperationalMapAreaName(poName)];
   if (manualOffset) {
     const scale = isWallDisplay ? 1.35 : compactLabels ? 0.82 : 1;
     return [manualOffset.x * scale, manualOffset.y * scale];
@@ -851,11 +961,22 @@ const getPoLabelOffset = (
   const clusterMeta = feature?.get?.("area_label_cluster_meta") || {};
   const key = normalizeOperationalMapAreaName(poName);
   const meta = clusterMeta[key];
-  if (meta && Number.isInteger(meta.index) && Number.isInteger(meta.count) && meta.count > 1) {
-    return getPoLabelOffsets(meta.count, compactLabels, isWallDisplay)[meta.index] || [0, 0];
+  if (
+    meta &&
+    Number.isInteger(meta.index) &&
+    Number.isInteger(meta.count) &&
+    meta.count > 1
+  ) {
+    return (
+      getPoLabelOffsets(meta.count, compactLabels, isWallDisplay)[
+        meta.index
+      ] || [0, 0]
+    );
   }
 
-  return getPoLabelOffsets(count, compactLabels, isWallDisplay)[index] || [0, 0];
+  return (
+    getPoLabelOffsets(count, compactLabels, isWallDisplay)[index] || [0, 0]
+  );
 };
 
 const readCachedTnOkrugaRows = () => {
@@ -891,7 +1012,8 @@ const collectGeometryRings = (geometry) => {
   if (!geometry) return [];
 
   if (geometry.getType() === "Polygon") return geometry.getCoordinates();
-  if (geometry.getType() === "MultiPolygon") return geometry.getCoordinates().flat();
+  if (geometry.getType() === "MultiPolygon")
+    return geometry.getCoordinates().flat();
   return [];
 };
 
@@ -954,7 +1076,12 @@ const buildGroupBoundaryFeatures = (features, group, getProperties) => {
   });
 
   return Array.from(groups.values())
-    .map((item) => buildBoundaryFeature(item.features, getProperties(item.name, item.features)))
+    .map((item) =>
+      buildBoundaryFeature(
+        item.features,
+        getProperties(item.name, item.features),
+      ),
+    )
     .filter(Boolean);
 };
 
@@ -969,7 +1096,9 @@ const assignAreaLabels = (features, labelGroup) => {
   const groups = new Map();
   features.forEach((feature) => {
     const areaNames =
-      labelGroup === "po" ? getFeaturePoNames(feature) : [getFeatureAreaName(feature, labelGroup)];
+      labelGroup === "po"
+        ? getFeaturePoNames(feature)
+        : [getFeatureAreaName(feature, labelGroup)];
     areaNames.forEach((areaName) => {
       const areaKey = normalizeOperationalMapAreaName(areaName);
       if (!areaKey) return;
@@ -989,22 +1118,25 @@ const assignAreaLabels = (features, labelGroup) => {
   Array.from(groups.values())
     .sort((left, right) => left.features.length - right.features.length)
     .forEach((group) => {
-      const labelFeature = [...group.features].sort(
-        (left, right) => {
-          const leftUsed = usedLabelFeatures.has(left) ? 1 : 0;
-          const rightUsed = usedLabelFeatures.has(right) ? 1 : 0;
-          if (leftUsed !== rightUsed) return leftUsed - rightUsed;
-          return getFeatureExtentArea(right) - getFeatureExtentArea(left);
-        }
-      )[0];
+      const labelFeature = [...group.features].sort((left, right) => {
+        const leftUsed = usedLabelFeatures.has(left) ? 1 : 0;
+        const rightUsed = usedLabelFeatures.has(right) ? 1 : 0;
+        if (leftUsed !== rightUsed) return leftUsed - rightUsed;
+        return getFeatureExtentArea(right) - getFeatureExtentArea(left);
+      })[0];
       if (!labelFeature) return;
       usedLabelFeatures.add(labelFeature);
       const currentLabel = String(labelFeature.get("area_label") || "").trim();
-      labelFeature.set("area_label", currentLabel ? `${currentLabel}\n${group.name}` : group.name);
+      labelFeature.set(
+        "area_label",
+        currentLabel ? `${currentLabel}\n${group.name}` : group.name,
+      );
       if (!String(labelFeature.get("primary_po_name") || "").trim()) {
         labelFeature.set("primary_po_name", group.name);
       }
-      const coordinate = getGeometryAnchorCoordinate(labelFeature.getGeometry());
+      const coordinate = getGeometryAnchorCoordinate(
+        labelFeature.getGeometry(),
+      );
       if (coordinate) {
         labelItems.push({
           name: group.name,
@@ -1026,12 +1158,13 @@ const assignAreaLabels = (features, labelGroup) => {
 
   labelItems.forEach((item) => {
     const cluster = clusters.find((candidate) =>
-      candidate.items.some((candidateItem) =>
-        Math.hypot(
-          candidateItem.coordinate[0] - item.coordinate[0],
-          candidateItem.coordinate[1] - item.coordinate[1]
-        ) <= clusterDistance
-      )
+      candidate.items.some(
+        (candidateItem) =>
+          Math.hypot(
+            candidateItem.coordinate[0] - item.coordinate[0],
+            candidateItem.coordinate[1] - item.coordinate[1],
+          ) <= clusterDistance,
+      ),
     );
 
     if (cluster) {
@@ -1071,7 +1204,7 @@ const getDistrictStyle = (
     districtDetailMode = false,
     fillGroup = "filial",
     isWallDisplay = false,
-  } = {}
+  } = {},
 ) => {
   const areaName = getFeatureAreaName(feature, fillGroup);
   const areaData = findOperationalMapAreaData(areaDataByKey, areaName);
@@ -1105,7 +1238,7 @@ const getDistrictLabelStyle = (
   labelGroup = "district",
   districtDetailMode = false,
   isWallDisplay = false,
-  activeLabelName = ""
+  activeLabelName = "",
 ) => {
   if (labelGroup === "po") {
     const poNames = getFeaturePoLabelNames(feature);
@@ -1122,9 +1255,10 @@ const getDistrictLabelStyle = (
           index,
           poNames.length,
           compactLabels,
-          isWallDisplay
+          isWallDisplay,
         );
-        const isActive = Boolean(activeLabelKey) &&
+        const isActive =
+          Boolean(activeLabelKey) &&
           normalizeOperationalMapAreaName(poName) === activeLabelKey;
 
         return new Style({
@@ -1136,8 +1270,13 @@ const getDistrictLabelStyle = (
             overflow: true,
             padding: [2, 4, 2, 4],
             fill: new Fill({ color: isActive ? "#00589f" : "#1575bc" }),
-            stroke: new Stroke({ color: "#ffffff", width: isWallDisplay ? 7 : isActive ? 5 : 3 }),
-            backgroundFill: isActive ? new Fill({ color: "rgba(255, 255, 255, 0.92)" }) : null,
+            stroke: new Stroke({
+              color: "#ffffff",
+              width: isWallDisplay ? 7 : isActive ? 5 : 3,
+            }),
+            backgroundFill: isActive
+              ? new Fill({ color: "rgba(255, 255, 255, 0.92)" })
+              : null,
             backgroundStroke: isActive
               ? new Stroke({ color: "rgba(0, 97, 170, 0.35)", width: 1.5 })
               : null,
@@ -1148,7 +1287,10 @@ const getDistrictLabelStyle = (
       .filter(Boolean);
   }
 
-  const label = wrapMapLabel(getFeatureLabelName(feature, labelGroup), compactLabels);
+  const label = wrapMapLabel(
+    getFeatureLabelName(feature, labelGroup),
+    compactLabels,
+  );
   if (!label) return null;
 
   const fontSize = isWallDisplay
@@ -1255,7 +1397,10 @@ function OperationalWeatherCard({ weatherContext = null }) {
     <div className="operational-map-panel__weather" aria-label="Погода">
       <div className="operational-map-panel__weather-content">
         <div className="operational-map-panel__weather-main">
-          <span className="operational-map-panel__weather-icon" aria-hidden="true">
+          <span
+            className="operational-map-panel__weather-icon"
+            aria-hidden="true"
+          >
             {view.icon}
           </span>
           <div>
@@ -1263,9 +1408,15 @@ function OperationalWeatherCard({ weatherContext = null }) {
             <span>{view.label}</span>
           </div>
         </div>
-        <div className="operational-map-panel__weather-parts" aria-label="Прогноз на сутки">
+        <div
+          className="operational-map-panel__weather-parts"
+          aria-label="Прогноз на сутки"
+        >
           {formattedParts.map((part) => (
-            <span key={part.key} className="operational-map-panel__weather-part">
+            <span
+              key={part.key}
+              className="operational-map-panel__weather-part"
+            >
               <b>{part.label}</b>
               <i aria-hidden="true">{part.icon}</i>
               <em>{part.temperatureText}</em>
@@ -1282,7 +1433,10 @@ function OperationalWeatherCard({ weatherContext = null }) {
   );
 }
 
-export function OperationalMapTopline({ className = "", weatherContext = null }) {
+export function OperationalMapTopline({
+  className = "",
+  weatherContext = null,
+}) {
   const [now, setNow] = useState(() => dayjs());
 
   useEffect(() => {
@@ -1290,10 +1444,9 @@ export function OperationalMapTopline({ className = "", weatherContext = null })
     return () => window.clearInterval(timer);
   }, []);
 
-  const classNames = [
-    "operational-map-panel__topline",
-    className,
-  ].filter(Boolean).join(" ");
+  const classNames = ["operational-map-panel__topline", className]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <div className={classNames}>
@@ -1340,27 +1493,33 @@ export default function OperationalMapPanel({
   const pesMarkerLayerRef = useRef(null);
   const [mapFeaturesVersion, setMapFeaturesVersion] = useState(0);
   const [hoveredArea, setHoveredArea] = useState(null);
-  const [isCompactViewport, setIsCompactViewport] = useState(getIsCompactMapViewport);
-  const [isWallDisplayViewport, setIsWallDisplayViewport] = useState(getIsWallDisplayMapViewport);
+  const [isCompactViewport, setIsCompactViewport] = useState(
+    getIsCompactMapViewport,
+  );
+  const [isWallDisplayViewport, setIsWallDisplayViewport] = useState(
+    getIsWallDisplayMapViewport,
+  );
   const panelClassName = [
     "operational-dashboard__panel",
     "operational-dashboard__panel--map",
     "operational-map-panel",
     variant ? `operational-map-panel--${variant}` : "",
-  ].filter(Boolean).join(" ");
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   const areaData = useMemo(
     () =>
       fillGroup === "district"
         ? buildOperationalMapDistrictData(rows, { filialName, poName, poSlug })
         : fillGroup === "po"
-        ? buildOperationalMapPoData(rows)
-        : buildOperationalMapFilialData(rows),
-    [filialName, fillGroup, poName, poSlug, rows]
+          ? buildOperationalMapPoData(rows)
+          : buildOperationalMapFilialData(rows),
+    [filialName, fillGroup, poName, poSlug, rows],
   );
   const areaDataByKey = useMemo(
     () => new Map(areaData.map((item) => [item.key, item])),
-    [areaData]
+    [areaData],
   );
   const filialPesItems = useMemo(() => {
     if (!showPesMarkers || !filialName) return [];
@@ -1368,7 +1527,7 @@ export default function OperationalMapPanel({
     return (Array.isArray(pesItems) ? pesItems : []).filter(
       (item) =>
         normalizePesFilialName(item?.branch) === normalizedFilialName &&
-        isActivePesMarkerItem(item)
+        isActivePesMarkerItem(item),
     );
   }, [filialName, pesItems, showPesMarkers]);
 
@@ -1386,7 +1545,10 @@ export default function OperationalMapPanel({
   }, [filialName, loadPesItems, showPesMarkers, user]);
 
   useEffect(() => {
-    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+    if (
+      typeof window === "undefined" ||
+      typeof window.matchMedia !== "function"
+    ) {
       return undefined;
     }
 
@@ -1400,7 +1562,8 @@ export default function OperationalMapPanel({
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
 
-    const handleResize = () => setIsWallDisplayViewport(getIsWallDisplayMapViewport());
+    const handleResize = () =>
+      setIsWallDisplayViewport(getIsWallDisplayMapViewport());
     handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
@@ -1476,20 +1639,18 @@ export default function OperationalMapPanel({
     let cancelled = false;
     const format = new GeoJSON();
 
-    const refreshBoundaryLayers = (features = districtSourceRef.current?.getFeatures() || []) => {
+    const refreshBoundaryLayers = (
+      features = districtSourceRef.current?.getFeatures() || [],
+    ) => {
       filialHoverSource.clear();
       modeBoundarySource.clear();
       const areaBoundaryFeatures =
         fillGroup === "po"
-          ? buildGroupBoundaryFeatures(
-              features,
-              "po",
-              (groupName) => ({
-                groupName,
-                strokeColor: "#cfd6de",
-                strokeWidth: OPERATIONAL_MAP_DISTRICT_STROKE_WIDTH,
-              })
-            )
+          ? buildGroupBoundaryFeatures(features, "po", (groupName) => ({
+              groupName,
+              strokeColor: "#cfd6de",
+              strokeWidth: OPERATIONAL_MAP_DISTRICT_STROKE_WIDTH,
+            }))
           : [];
       const modeBoundaryFeatures = buildGroupBoundaryFeatures(
         features,
@@ -1503,12 +1664,18 @@ export default function OperationalMapPanel({
             groupName,
             strokeColor: modeStrokeColor,
           };
-        }
+        },
       ).filter((feature) => feature.get("strokeColor"));
-      modeBoundarySource.addFeatures([...areaBoundaryFeatures, ...modeBoundaryFeatures]);
+      modeBoundarySource.addFeatures([
+        ...areaBoundaryFeatures,
+        ...modeBoundaryFeatures,
+      ]);
     };
 
-    const applyFeatureCollection = (featureCollection, { fit = false } = {}) => {
+    const applyFeatureCollection = (
+      featureCollection,
+      { fit = false } = {},
+    ) => {
       if (cancelled || !mapRef.current || !districtSourceRef.current) return;
       const features = format.readFeatures(featureCollection, {
         dataProjection: "EPSG:4326",
@@ -1534,7 +1701,12 @@ export default function OperationalMapPanel({
       filialHoverSource.clear();
       if (!hoverName) return;
 
-      applyHoverBoundary(filialHoverSource, districtSource, hoverGroup, hoverName);
+      applyHoverBoundary(
+        filialHoverSource,
+        districtSource,
+        hoverGroup,
+        hoverName,
+      );
     };
 
     const applyDistrictRows = (rows, options) => {
@@ -1546,7 +1718,10 @@ export default function OperationalMapPanel({
         normalizePoName: normalizeOperationalFilialName,
         getPoSlug: getOperationalPoSlug,
       });
-      applyFeatureCollection(buildTnOkrugaFeatureCollection(topologyOkrugaRows), options);
+      applyFeatureCollection(
+        buildTnOkrugaFeatureCollection(topologyOkrugaRows),
+        options,
+      );
     };
 
     const loadFallbackFeatures = async () => {
@@ -1563,7 +1738,10 @@ export default function OperationalMapPanel({
       }
     };
 
-    const loadDistrictFeatures = async ({ fit = false, force = false } = {}) => {
+    const loadDistrictFeatures = async ({
+      fit = false,
+      force = false,
+    } = {}) => {
       try {
         const rows = await fetchTnFilialyRows({ force });
         if (cancelled || !mapRef.current || !districtSourceRef.current) return;
@@ -1587,11 +1765,13 @@ export default function OperationalMapPanel({
 
     const applyFilialModePayload = (payload) => {
       const rezim = payload?.rezim;
-      const filialIds = new Set((payload?.filialIds || []).map((id) => String(id)));
+      const filialIds = new Set(
+        (payload?.filialIds || []).map((id) => String(id)),
+      );
       const filialNames = new Set(
         (payload?.filials || [])
           .map((item) => normalizeOperationalMapAreaName(item?.name))
-          .filter(Boolean)
+          .filter(Boolean),
       );
 
       if (!rezim || (!filialIds.size && !filialNames.size)) return false;
@@ -1600,11 +1780,15 @@ export default function OperationalMapPanel({
       let changed = false;
       features.forEach((feature) => {
         const featureFilialIds = toFeatureNameList(feature.get("filial_ids"));
-        const featureFilialNames = toFeatureNameList(feature.get("filial_names")).map(
-          normalizeOperationalMapAreaName
+        const featureFilialNames = toFeatureNameList(
+          feature.get("filial_names"),
+        ).map(normalizeOperationalMapAreaName);
+        const hasTargetId = featureFilialIds.some((id) =>
+          filialIds.has(String(id)),
         );
-        const hasTargetId = featureFilialIds.some((id) => filialIds.has(String(id)));
-        const hasTargetName = featureFilialNames.some((name) => filialNames.has(name));
+        const hasTargetName = featureFilialNames.some((name) =>
+          filialNames.has(name),
+        );
         if (!hasTargetId && !hasTargetName) return;
 
         feature.set("rezim", rezim);
@@ -1639,9 +1823,9 @@ export default function OperationalMapPanel({
       let changed = false;
       features.forEach((feature) => {
         const featureFilialIds = toFeatureNameList(feature.get("filial_ids"));
-        const featureFilialNames = toFeatureNameList(feature.get("filial_names")).map(
-          normalizeOperationalMapAreaName
-        );
+        const featureFilialNames = toFeatureNameList(
+          feature.get("filial_names"),
+        ).map(normalizeOperationalMapAreaName);
         const modeByFeatureId = featureFilialIds
           .map((id) => modeById.get(String(id)))
           .find((mode) => mode !== undefined);
@@ -1704,18 +1888,27 @@ export default function OperationalMapPanel({
         handleFilialModeUpdated(event);
       }
     };
-    window.addEventListener(TN_FILIALY_REZIM_UPDATED_EVENT, handleFilialModeUpdated);
+    window.addEventListener(
+      TN_FILIALY_REZIM_UPDATED_EVENT,
+      handleFilialModeUpdated,
+    );
     window.addEventListener("storage", handleFilialModeStorageUpdated);
     modeRowsPollingTimer = window.setInterval(
       () => scheduleFilialModeRowsRefresh(0),
-      FILIAL_MODE_POLL_MS
+      FILIAL_MODE_POLL_MS,
     );
 
     const handlePointerMove = (event) => {
       const feature = getDistrictFeatureAtPixel(event.pixel);
       const hoverName =
         hoverGroup === "po"
-          ? getPoNameAtPixel(map, feature, event.pixel, isCompactViewport, isWallDisplayViewport)
+          ? getPoNameAtPixel(
+              map,
+              feature,
+              event.pixel,
+              isCompactViewport,
+              isWallDisplayViewport,
+            )
           : getFeatureHoverName(feature, hoverGroup);
 
       if (!feature || !hoverName) {
@@ -1725,7 +1918,9 @@ export default function OperationalMapPanel({
         return;
       }
 
-      map.getTargetElement().style.cursor = enableFilialNavigation ? "pointer" : "";
+      map.getTargetElement().style.cursor = enableFilialNavigation
+        ? "pointer"
+        : "";
       highlightHoverGroup(hoverName);
       const rect = map.getTargetElement().getBoundingClientRect();
       setHoveredArea({
@@ -1748,14 +1943,28 @@ export default function OperationalMapPanel({
       const featureFilialName = getFeatureFilialName(feature);
       const featurePoName =
         hoverGroup === "po" || fillGroup === "po"
-          ? getPoNameAtPixel(map, feature, event.pixel, isCompactViewport, isWallDisplayViewport)
+          ? getPoNameAtPixel(
+              map,
+              feature,
+              event.pixel,
+              isCompactViewport,
+              isWallDisplayViewport,
+            )
           : getFeaturePoName(feature);
       const poPath =
         filialName && featurePoName
           ? getOperationalPoPath(filialName, featurePoName, basePath)
           : "";
-      if (filialName && featurePoName && isOperationalDirectOnlyFilial(filialName)) return;
-      const filialPath = getOperationalFilialPathForBase(featureFilialName, basePath);
+      if (
+        filialName &&
+        featurePoName &&
+        isOperationalDirectOnlyFilial(filialName)
+      )
+        return;
+      const filialPath = getOperationalFilialPathForBase(
+        featureFilialName,
+        basePath,
+      );
       if (poPath) {
         navigate(poPath);
         return;
@@ -1782,11 +1991,16 @@ export default function OperationalMapPanel({
       cancelled = true;
       window.clearTimeout(modeRowsRefreshTimer);
       window.clearInterval(modeRowsPollingTimer);
-      window.removeEventListener(TN_FILIALY_REZIM_UPDATED_EVENT, handleFilialModeUpdated);
+      window.removeEventListener(
+        TN_FILIALY_REZIM_UPDATED_EVENT,
+        handleFilialModeUpdated,
+      );
       window.removeEventListener("storage", handleFilialModeStorageUpdated);
       map.un("pointermove", handlePointerMove);
       map.un("singleclick", handleSingleClick);
-      map.getTargetElement().removeEventListener("pointerleave", handlePointerLeave);
+      map
+        .getTargetElement()
+        .removeEventListener("pointerleave", handlePointerLeave);
       resizeObserver.disconnect();
       map.setTarget(null);
       mapRef.current = null;
@@ -1819,7 +2033,7 @@ export default function OperationalMapPanel({
       filialHoverSourceRef.current,
       districtSourceRef.current,
       hoverGroup,
-      externalHoverName
+      externalHoverName,
     );
   }, [externalHoverName, hoverGroup, hoveredArea?.name, mapFeaturesVersion]);
 
@@ -1839,7 +2053,7 @@ export default function OperationalMapPanel({
         items: filialPesItems,
         districtFeatures,
         compact: isCompactViewport,
-      })
+      }),
     );
     pesMarkerLayerRef.current?.changed();
   }, [filialPesItems, isCompactViewport, mapFeaturesVersion, showPesMarkers]);
@@ -1855,7 +2069,7 @@ export default function OperationalMapPanel({
         fillGroup,
         showDistrictLabels,
         isWallDisplay: isWallDisplayViewport,
-      })
+      }),
     );
     layer.changed();
 
@@ -1869,9 +2083,9 @@ export default function OperationalMapPanel({
                 fillGroup,
                 districtDetailMode,
                 isWallDisplayViewport,
-                externalHoverName
+                externalHoverName,
               )
-          : null
+          : null,
       );
       labelLayer.changed();
     }
@@ -1902,7 +2116,9 @@ export default function OperationalMapPanel({
     <div className={panelClassName}>
       <div className="operational-dashboard__panel-body">
         <div className="operational-map-panel__surface">
-          {showTopline ? <OperationalMapTopline weatherContext={weatherContext} /> : null}
+          {showTopline ? (
+            <OperationalMapTopline weatherContext={weatherContext} />
+          ) : null}
           {showMobileTopline ? (
             <OperationalMapTopline
               className="operational-map-panel__topline--mobile"
@@ -1934,11 +2150,15 @@ export default function OperationalMapPanel({
           <div className="operational-map-panel__mode-legend">
             <h4>Действующие режимы:</h4>
             <span>
-              <i style={{ borderColor: OPERATIONAL_MAP_MODE_STROKE_COLORS.rpg }} />
+              <i
+                style={{ borderColor: OPERATIONAL_MAP_MODE_STROKE_COLORS.rpg }}
+              />
               - введен РПГ
             </span>
             <span>
-              <i style={{ borderColor: OPERATIONAL_MAP_MODE_STROKE_COLORS.orr }} />
+              <i
+                style={{ borderColor: OPERATIONAL_MAP_MODE_STROKE_COLORS.orr }}
+              />
               - введен ОРР
             </span>
           </div>
@@ -1946,16 +2166,16 @@ export default function OperationalMapPanel({
             <div>
               <h4>Обесточено населения:</h4>
               <span>
-                <i style={{ background: OPERATIONAL_MAP_COLORS.low }} />
-                - до 5000 чел.
+                <i style={{ background: OPERATIONAL_MAP_COLORS.low }} />- до
+                5000 чел.
               </span>
               <span>
-                <i style={{ background: OPERATIONAL_MAP_COLORS.medium }} />
-                - от 5000 до 20000 чел.
+                <i style={{ background: OPERATIONAL_MAP_COLORS.medium }} />- от
+                5000 до 20000 чел.
               </span>
               <span>
-                <i style={{ background: OPERATIONAL_MAP_COLORS.high }} />
-                - более 20000 чел.
+                <i style={{ background: OPERATIONAL_MAP_COLORS.high }} />- более
+                20000 чел.
               </span>
             </div>
           </div>
