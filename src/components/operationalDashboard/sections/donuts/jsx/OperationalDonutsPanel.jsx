@@ -177,7 +177,7 @@ function DurationDonut({ data, groupBy = "filial", compact = false, isWallDispla
   const chartData = getDurationChartData(data);
   const total = Number(data?.total || 0);
   const hasValues = total > 0;
-  const isFilialView = groupBy === "filial" || groupBy === "po";
+  const isFilialView = groupBy === "filial" || groupBy === "po" || groupBy === "okrug";
   const chartHeight = isWallDisplay
     ? compact
       ? 380
@@ -249,7 +249,7 @@ function PopulationDonut({ data, groupBy = "filial", compact = false, isWallDisp
   const chartData = getPopulationChartData(data);
   const total = Number(data?.total || 0);
   const hasValues = total > 0;
-  const isFilialView = groupBy === "filial" || groupBy === "po";
+  const isFilialView = groupBy === "filial" || groupBy === "po" || groupBy === "okrug";
   const chartHeight = isWallDisplay
     ? compact
       ? 380
@@ -362,7 +362,7 @@ export default function OperationalDonutsPanel({
     "operational-dashboard__panel--donuts",
     "operational-donuts-panel",
     groupBy === "filial" ? "operational-donuts-panel--filial" : "",
-    groupBy === "po" ? "operational-donuts-panel--po" : "",
+    groupBy === "po" || groupBy === "okrug" ? "operational-donuts-panel--po" : "",
     className,
   ]
     .filter(Boolean)

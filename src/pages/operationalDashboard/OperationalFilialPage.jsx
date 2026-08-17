@@ -144,7 +144,7 @@ export default function OperationalFilialPage({
           filialName={filialName}
           poName={poName}
           poSlug={poSlug}
-          groupBy="po"
+          groupBy={isPoLevel ? "okrug" : "po"}
         />
         <MapPanelComponent
           basePath={basePath}

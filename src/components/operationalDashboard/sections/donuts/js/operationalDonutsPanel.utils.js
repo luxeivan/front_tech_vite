@@ -12,6 +12,7 @@ import {
 } from "../../../../dashboard/js/dashboardCommon";
 import {
   getOperationalBranchByRow,
+  getOperationalDistrictByRow,
   normalizeBranchName,
 } from "../../districts/js/operationalDistrictsPanel.utils";
 import { getOperationalPoSlug } from "../../../../../utils/operationalFilialRoutes";
@@ -44,6 +45,14 @@ const getOperationalPoByRow = (row) => {
   return typeof poName === "string" ? poName.trim() : poName;
 };
 
+const getOperationalDistrictDisplayName = (row) =>
+  String(getOperationalDistrictByRow(row) || "")
+    .replace(/(^|\s)г\s*\.?\s*о\s*\.?(?=\s|$)/giu, " ")
+    .replace(/(^|\s)г\s*\.?(?=\s|$)/giu, " ")
+    .replace(/городской\s+округ/giu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
 const isRowInFilial = (row, filialName) => {
   const targetFilial = normalizeLookupName(normalizeBranchName(filialName));
   if (!targetFilial) return true;
@@ -63,8 +72,11 @@ const isRowInPo = (row, poName, poSlug = "") => {
   );
 };
 
-const getPopulationGroupByRow = (row, groupBy) =>
-  groupBy === "po" ? getOperationalPoByRow(row) : getOperationalBranchByRow(row);
+const getPopulationGroupByRow = (row, groupBy) => {
+  if (groupBy === "okrug") return getOperationalDistrictDisplayName(row);
+  if (groupBy === "po") return getOperationalPoByRow(row);
+  return getOperationalBranchByRow(row);
+};
 
 export const buildDurationDonutData = (rows, now = dayjs(), options = {}) => {
   const { filialName = "", poName = "", poSlug = "" } = options;
