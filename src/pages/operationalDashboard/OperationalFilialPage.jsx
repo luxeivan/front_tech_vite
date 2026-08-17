@@ -66,14 +66,14 @@ export default function OperationalFilialPage({
 
   useEffect(() => {
     if (!hasLoaded) {
-      loadData({ includeStats: !isPoLevel });
+      loadData({ includeStats: true });
     }
-  }, [hasLoaded, isPoLevel, loadData]);
+  }, [hasLoaded, loadData]);
 
   useEffect(() => {
-    if (isPoLevel || !hasLoaded || hasStatsLoaded) return;
+    if (!hasLoaded || hasStatsLoaded) return;
     reloadStats();
-  }, [hasLoaded, hasStatsLoaded, isPoLevel, reloadStats]);
+  }, [hasLoaded, hasStatsLoaded, reloadStats]);
 
   useEffect(() => {
     let disposed = false;
@@ -170,17 +170,13 @@ export default function OperationalFilialPage({
           groupBy={isPoLevel ? "okrug" : "po"}
           onBranchHover={isPoLevel ? undefined : setHoveredAreaName}
         />
-        {isPoLevel ? (
-          <div className="operational-dashboard__panel operational-dashboard__panel--charts operational-filial-page__panel">
-            <div className="operational-dashboard__panel-body" />
-          </div>
-        ) : (
-          <OperationalChartsPanel
-            className="operational-filial-page__panel"
-            filialName={filialName}
-            filialRows={filialRows}
-          />
-        )}
+        <OperationalChartsPanel
+          className="operational-filial-page__panel"
+          filialName={filialName}
+          filialRows={filialRows}
+          poName={isPoLevel ? poName : ""}
+          poSlug={isPoLevel ? poSlug : ""}
+        />
       </div>
     </section>
   );

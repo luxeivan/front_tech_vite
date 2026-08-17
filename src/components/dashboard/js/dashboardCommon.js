@@ -28,9 +28,8 @@ export const getTnFilialName = (row) => {
   const filial = s(pick(row, "SC_FILIAL"));
   if (filial) return filial;
 
-  // Старый источник филиала до перехода на SC_FILIAL:
-  // const oldFilial = s(pick(row, "OWN_SCNAME"));
-  // if (oldFilial) return oldFilial;
+  const oldFilial = s(pick(row, "OWN_SCNAME"));
+  if (oldFilial) return oldFilial;
 
   return null;
 };
@@ -39,9 +38,8 @@ export const getTnPoName = (row) => {
   const po = s(pick(row, "SC_PO"));
   if (po) return po;
 
-  // Старый источник ПО до перехода на SC_PO:
-  // const oldPo = s(pick(row, "SCNAME"));
-  // if (oldPo) return oldPo;
+  const oldPo = s(pick(row, "SCNAME"));
+  if (oldPo) return oldPo;
 
   return null;
 };

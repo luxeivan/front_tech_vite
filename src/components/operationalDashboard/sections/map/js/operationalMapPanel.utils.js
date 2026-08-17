@@ -6,7 +6,14 @@ import {
   getTnPoName,
   toNumber,
 } from "../../../../dashboard/js/dashboardCommon";
-import { getOperationalBranchByRow } from "../../districts/js/operationalDistrictsPanel.utils";
+import {
+  getOperationalBranchByRow,
+  getOperationalDistrictByRow,
+  getOperationalPoByRow,
+  normalizeBranchName,
+  normalizeLookupName,
+} from "../../districts/js/operationalDistrictsPanel.utils";
+import { getOperationalPoSlug } from "../../../../../utils/operationalFilialRoutes";
 import {
   OPERATIONAL_BRANCH_DISTRICT_ALIASES,
   OPERATIONAL_BRANCH_POINTS,
@@ -38,7 +45,11 @@ export const normalizeOperationalMapAreaName = (value) =>
     .toLowerCase()
     .replace(/ё/g, "е")
     .replace(/\s*(?:филиал|фил\.?|производственное\s+отделение|по)\s*$/giu, "")
-    .replace(/\b(?:город|район|городской|муниципальный|округ|г\.?о\.?)\b/giu, " ")
+    .replace(/(^|[^а-яa-z0-9]+)г\s*\.?\s*о\s*\.?(?=$|[^а-яa-z0-9]+)/giu, " ")
+    .replace(
+      /(^|[^а-яa-z0-9]+)(?:городской|муниципальный|город|округ|район|го)(?=$|[^а-яa-z0-9]+)/giu,
+      " "
+    )
     .replace(/[^а-яa-z0-9]+/giu, " ")
     .trim();
 
@@ -84,8 +95,12 @@ const normalizeMapName = (value) =>
   String(value || "")
     .toLowerCase()
     .replace(/ё/g, "е")
-    .replace(/городской|округ|муниципальный|район|г\.?о\.?/g, " ")
-    .replace(/[^а-яa-z0-9]+/g, " ")
+    .replace(/(^|[^а-яa-z0-9]+)г\s*\.?\s*о\s*\.?(?=$|[^а-яa-z0-9]+)/giu, " ")
+    .replace(
+      /(^|[^а-яa-z0-9]+)(?:городской|муниципальный|город|округ|район|го)(?=$|[^а-яa-z0-9]+)/giu,
+      " "
+    )
+    .replace(/[^а-яa-z0-9]+/giu, " ")
     .trim();
 
 export const getBranchByDistrictName = (districtName) => {
@@ -182,6 +197,58 @@ export const buildOperationalMapFilialData = (rows) =>
 
 export const buildOperationalMapPoData = (rows) =>
   buildOperationalMapAreaData(rows, getTnPoName);
+
+const isSameAreaName = (left, right) => normalizeLookupName(left) === normalizeLookupName(right);
+
+const isRowInMapBranch = (row, filialName = "") => {
+  const branchName = normalizeBranchName(filialName);
+  if (!branchName) return true;
+  return isSameAreaName(getOperationalBranchByRow(row), branchName);
+};
+
+const isRowInMapPo = (row, poName = "", poSlug = "") => {
+  const normalizedPoName = normalizeLookupName(poName);
+  const normalizedPoSlug = String(poSlug || "").trim();
+  if (!normalizedPoName && !normalizedPoSlug) return true;
+
+  const rowPoName = getOperationalPoByRow(row);
+  return (
+    (normalizedPoName && normalizeLookupName(rowPoName) === normalizedPoName) ||
+    (normalizedPoSlug && getOperationalPoSlug(rowPoName) === normalizedPoSlug)
+  );
+};
+
+export const buildOperationalMapDistrictData = (
+  rows,
+  { filialName = "", poName = "", poSlug = "" } = {}
+) => {
+  const areaMap = new Map();
+
+  (Array.isArray(rows) ? rows : [])
+    .filter(
+      (row) =>
+        isDashboardBaseType(row) &&
+        isNotDeletedTN(row) &&
+        isOpenTN(row) &&
+        isRowInMapBranch(row, filialName) &&
+        isRowInMapPo(row, poName, poSlug)
+    )
+    .forEach((row) => {
+      const areaName = String(getOperationalDistrictByRow(row) || "").trim();
+      const key = normalizeOperationalMapAreaName(areaName);
+      if (!key) return;
+
+      if (!areaMap.has(key)) areaMap.set(key, createAreaData(areaName));
+      addRowToAreaData(areaMap.get(key), row);
+    });
+
+  return Array.from(areaMap.entries()).map(([key, item]) => ({
+    ...item,
+    key,
+    severity: getPopulationSeverity(item.people),
+    color: getPopulationColor(item.people),
+  }));
+};
 
 export const getWeatherView = (code) => {
   const value = Number(code);

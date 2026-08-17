@@ -59,7 +59,7 @@ export const normalizeBranchName = (value) => {
   return normalized;
 };
 
-const normalizeLookupName = (value) =>
+export const normalizeLookupName = (value) =>
   String(value || "")
     .replace(/ё/g, "е")
     .replace(/\s+/g, " ")
@@ -80,14 +80,11 @@ const DISPCENTER_BRANCH_BY_NORMALIZED_NAME = new Map(
 
 export const getOperationalBranchByRow = (row) => {
   const branch = normalizeBranchName(getTnFilialName(row));
-  if (branch) return branch;
+  if (branch && OPERATIONAL_BRANCHES.includes(branch)) return branch;
 
-  // Старый источник филиала до перехода на SC_FILIAL:
-  // const dispcenter = pick(row, "DISPCENTER_NAME_");
-  // const oldBranch = DISPCENTER_BRANCH_BY_NORMALIZED_NAME.get(normalizeLookupName(dispcenter));
-  // return oldBranch || null;
-
-  return null;
+  const dispcenter = pick(row, "DISPCENTER_NAME_");
+  const oldBranch = DISPCENTER_BRANCH_BY_NORMALIZED_NAME.get(normalizeLookupName(dispcenter));
+  return oldBranch || null;
 };
 
 export const isOperationalDashboardRow = (row) =>
@@ -148,7 +145,7 @@ const getPoOkrugLinkResourceFields = (linkRow, fallback = {}) => {
   };
 };
 
-const getOperationalPoByRow = (row) => {
+export const getOperationalPoByRow = (row) => {
   const poName = getTnPoName(row);
   return typeof poName === "string" ? poName.trim() : poName;
 };
@@ -169,7 +166,7 @@ const uniqueNames = (names) => {
 const sortRuNames = (names) =>
   [...names].sort((left, right) => String(left || "").localeCompare(String(right || ""), "ru"));
 
-const normalizeDistrictLookupName = (value) =>
+export const normalizeDistrictLookupName = (value) =>
   normalizeLookupName(value)
     .replace(/(^|\s)г\s*\.?\s*о\s*\.?(?=\s|$)/giu, " ")
     .replace(/(^|\s)г\s*\.?(?=\s|$)/giu, " ")
@@ -180,6 +177,12 @@ const normalizeDistrictLookupName = (value) =>
     )
     .replace(/\s+/g, " ")
     .trim();
+
+export const getOperationalDistrictByRow = (row) => {
+  const district = pick(row, "DISTRICT");
+  if (district) return String(district).trim();
+  return "";
+};
 
 const extractDistrictNameFromAddress = (address) => {
   const value = String(address || "").replace(/\s+/g, " ").trim();
@@ -462,6 +465,19 @@ const createPoRow = (poRow, resourceOverride = null) => {
   };
 };
 
+const createOkrugRow = (okrugRow, fallbackResources = {}) => {
+  const rawName = okrugRow?.name || okrugRow?.source_name || OPERATIONAL_BRANCH_UNKNOWN_VALUE;
+  const key = normalizeDistrictLookupName(rawName) || normalizeLookupName(rawName);
+  return {
+    key: okrugRow?.documentId || okrugRow?.id || rawName,
+    branch: formatOkrugName(rawName),
+    __okrugResourceKey: key,
+    __tnCount: 0,
+    ...EMPTY_NUMERIC_VALUES,
+    ...getResourceFields(okrugRow, fallbackResources),
+  };
+};
+
 const formatOkrugName = (value) => {
   const name = String(value || "")
     .replace(/\s+/g, " ")
@@ -587,8 +603,7 @@ export const buildOperationalOkrugRows = (
     poName || poSlug
       ? selectedPoRows.flatMap(getTnFilialyPoOkrugaRows)
       : getTnFilialyOkrugaRows(filialRow);
-  const okrugRows = [];
-  const okrugSeen = new Set();
+  const okrugMap = new Map();
   const okrugResourceMap = getPoOkrugLinkResourceMap(
     poOkrugLinkRows,
     filialName,
@@ -601,14 +616,8 @@ export const buildOperationalOkrugRows = (
     .forEach((okrugRow) => {
       const rawName = okrugRow?.name || okrugRow?.source_name || OPERATIONAL_BRANCH_UNKNOWN_VALUE;
       const key = normalizeDistrictLookupName(rawName) || normalizeLookupName(rawName);
-      if (!key || okrugSeen.has(key)) return;
-      okrugSeen.add(key);
-      okrugRows.push({
-        key: okrugRow?.documentId || okrugRow?.id || rawName,
-        branch: formatOkrugName(rawName),
-        __okrugResourceKey: key,
-        ...getResourceFields(okrugRow),
-      });
+      if (!key || okrugMap.has(key)) return;
+      okrugMap.set(key, createOkrugRow(okrugRow));
     });
 
   const poRows = buildOperationalPoRows(
@@ -627,18 +636,61 @@ export const buildOperationalOkrugRows = (
     branch: selectedPoName,
   };
 
-  const resultRows = [
-    poDataRow,
-    ...okrugRows.map((row) =>
-      cloneOperationalValues(poDataRow, {
+  (Array.isArray(rows) ? rows : [])
+    .filter(
+      (row) =>
+        isOperationalDashboardRow(row) &&
+        isOpenTN(row) &&
+        isRowInBranch(row, filialName) &&
+        isRowInPo(row, selectedPoName, poSlug)
+    )
+    .forEach((row) => {
+      const rawDistrictName = getOperationalDistrictByRow(row);
+      const districtKey = normalizeDistrictLookupName(rawDistrictName) || normalizeLookupName(rawDistrictName);
+      if (!districtKey) return;
+
+      if (!okrugMap.has(districtKey)) {
+        okrugMap.set(
+          districtKey,
+          createOkrugRow(
+            {
+              id: `tn-district-${districtKey}`,
+              name: rawDistrictName,
+            },
+            poDataRow
+          )
+        );
+      }
+
+      const okrugRow = okrugMap.get(districtKey);
+      addRowToTotals(okrugRow, row);
+      okrugRow.__tnCount += 1;
+    });
+
+  const okrugRows = Array.from(okrugMap.values())
+    .filter((row) => row.__tnCount > 0)
+    .map((row) => {
+      const resourceOverride = getPoOkrugLinkResourceFields(
+        okrugResourceMap.get(row.__okrugResourceKey)?.linkRow,
+        getResourceFields(row, poDataRow)
+      );
+
+      return {
         ...row,
-        ...getPoOkrugLinkResourceFields(
-          okrugResourceMap.get(row.__okrugResourceKey)?.linkRow,
-          getResourceFields(row, poDataRow)
+        ...resourceOverride,
+        pes: toNumber(
+          pesCountMaps?.byOkrugPoKey?.get(
+            buildPesOkrugPoCountKey(filialName, selectedPoName, row.branch)
+          )
         ),
         __okrugResourceKey: undefined,
-      })
-    ),
+        __tnCount: undefined,
+      };
+    });
+
+  const resultRows = [
+    poDataRow,
+    ...okrugRows,
   ];
 
   if (filialName && selectedPoName && poOkrugLinkRows?.length) {
@@ -646,7 +698,9 @@ export const buildOperationalOkrugRows = (
       filialName,
       poName: selectedPoName,
       linksLoaded: poOkrugLinkRows.length,
-      okrugMatched: okrugRows.filter((row) => okrugResourceMap.has(row.__okrugResourceKey)).length,
+      okrugMatched: Array.from(okrugMap.values()).filter((row) =>
+        okrugResourceMap.has(row.__okrugResourceKey)
+      ).length,
       okrugRows: okrugRows.length,
     });
   }

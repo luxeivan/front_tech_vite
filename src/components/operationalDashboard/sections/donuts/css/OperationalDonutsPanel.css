@@ -48,21 +48,25 @@
   display: block;
 }
 
-.operational-donuts-panel--filial .operational-donuts-panel__item {
+.operational-donuts-panel--filial .operational-donuts-panel__item,
+.operational-donuts-panel--po .operational-donuts-panel__item {
   grid-template-rows: 44px 1fr;
 }
 
-.operational-donuts-panel--filial .operational-donuts-panel__title {
+.operational-donuts-panel--filial .operational-donuts-panel__title,
+.operational-donuts-panel--po .operational-donuts-panel__title {
   min-height: 44px;
   font-size: clamp(13px, 0.88vw, 18px);
 }
 
-.operational-donuts-panel--filial .operational-donuts-panel__chart {
+.operational-donuts-panel--filial .operational-donuts-panel__chart,
+.operational-donuts-panel--po .operational-donuts-panel__chart {
   height: 238px;
   min-height: 238px;
 }
 
-.operational-donuts-panel--filial .operational-donuts-panel__center-number {
+.operational-donuts-panel--filial .operational-donuts-panel__center-number,
+.operational-donuts-panel--po .operational-donuts-panel__center-number {
   font-size: 40px;
 }
 
@@ -266,16 +270,19 @@
     min-height: 500px;
   }
 
-  .operational-donuts-panel--filial .operational-donuts-panel__item {
+  .operational-donuts-panel--filial .operational-donuts-panel__item,
+  .operational-donuts-panel--po .operational-donuts-panel__item {
     grid-template-rows: 76px 1fr;
   }
 
-  .operational-donuts-panel--filial .operational-donuts-panel__title {
+  .operational-donuts-panel--filial .operational-donuts-panel__title,
+  .operational-donuts-panel--po .operational-donuts-panel__title {
     min-height: 76px;
     font-size: 30px;
   }
 
-  .operational-donuts-panel--filial .operational-donuts-panel__chart {
+  .operational-donuts-panel--filial .operational-donuts-panel__chart,
+  .operational-donuts-panel--po .operational-donuts-panel__chart {
     height: 430px;
     min-height: 430px;
   }

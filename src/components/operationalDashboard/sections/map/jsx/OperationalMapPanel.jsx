@@ -56,6 +56,7 @@ import {
   TN_FILIALY_REZIM_UPDATED_STORAGE_KEY,
 } from "../../../../../utils/tnFilialyApi";
 import {
+  buildOperationalMapDistrictData,
   buildOperationalMapFilialData,
   buildOperationalMapPoData,
   findOperationalMapAreaData,
@@ -303,6 +304,7 @@ const getFeaturePoName = (feature) =>
   String(feature?.get?.("primary_po_name") || "").trim() || getFeaturePoNames(feature)[0] || "";
 
 const getFeatureAreaName = (feature, areaGroup) => {
+  if (areaGroup === "district") return getFeatureDistrictLabel(feature);
   if (areaGroup === "po") return getFeaturePoName(feature);
   return getFeatureFilialName(feature);
 };
@@ -1125,10 +1127,12 @@ export default function OperationalMapPanel({
 
   const areaData = useMemo(
     () =>
-      fillGroup === "po"
+      fillGroup === "district"
+        ? buildOperationalMapDistrictData(rows, { filialName, poName, poSlug })
+        : fillGroup === "po"
         ? buildOperationalMapPoData(rows)
         : buildOperationalMapFilialData(rows),
-    [fillGroup, rows]
+    [filialName, fillGroup, poName, poSlug, rows]
   );
   const areaDataByKey = useMemo(
     () => new Map(areaData.map((item) => [item.key, item])),

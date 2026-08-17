@@ -87,6 +87,8 @@ export default function OperationalChartsPanel({
   className = "",
   filialName = "",
   filialRows = [],
+  poName = "",
+  poSlug = "",
 }) {
   const isStatsLoading = useOperationalDashboardStore((store) => store.isStatsLoading);
   const statsError = useOperationalDashboardStore((store) => store.statsError);
@@ -123,13 +125,15 @@ export default function OperationalChartsPanel({
     () =>
       isPoChart
         ? buildPoTechViolationChartData({
-            filialName,
-            filialRows,
-            rowsCurrentYearByPo,
-            statsMeta,
-          })
+          filialName,
+          filialRows,
+          poName,
+          poSlug,
+          rowsCurrentYearByPo,
+          statsMeta,
+        })
         : buildBranchTechViolationChartData(rowsCurrentYear, statsMeta),
-    [filialName, filialRows, isPoChart, rowsCurrentYear, rowsCurrentYearByPo, statsMeta]
+    [filialName, filialRows, isPoChart, poName, poSlug, rowsCurrentYear, rowsCurrentYearByPo, statsMeta]
   );
   const chartBranchCount = useMemo(
     () => new Set(chartData.map((item) => item.branch)).size,

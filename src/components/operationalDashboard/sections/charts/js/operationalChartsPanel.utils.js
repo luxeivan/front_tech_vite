@@ -69,13 +69,35 @@ const sortRu = (rows) =>
     String(left?.name || "").localeCompare(String(right?.name || ""), "ru")
   );
 
-const getPoChartRows = (filialRows, filialName, rowsCurrentYearByPo) => {
+const getPoChartRows = (
+  filialRows,
+  filialName,
+  rowsCurrentYearByPo,
+  selectedPoName = "",
+  selectedPoSlug = ""
+) => {
   const filialRow = getFilialRow(filialRows, filialName);
   const topologyPoRows = getTnFilialyAreaPoRows(filialRow)
     .filter((row) => row?.is_active !== false && row?.name)
     .map((row) => ({ name: row.name, slug: getOperationalPoSlug(row.name) }));
 
-  return sortRu(topologyPoRows);
+  const normalizedSelectedPoName = normalizeChartLookupName(selectedPoName);
+  const normalizedSelectedPoSlug = String(selectedPoSlug || "").trim();
+  if (!normalizedSelectedPoName && !normalizedSelectedPoSlug) {
+    return sortRu(topologyPoRows);
+  }
+
+  const selectedRows = topologyPoRows.filter(
+    (row) =>
+      (normalizedSelectedPoName &&
+        normalizeChartLookupName(row.name) === normalizedSelectedPoName) ||
+      (normalizedSelectedPoSlug && row.slug === normalizedSelectedPoSlug)
+  );
+
+  if (selectedRows.length) return sortRu(selectedRows);
+
+  const fallbackName = selectedPoName || normalizedSelectedPoSlug || "ПО";
+  return [{ name: fallbackName, slug: normalizedSelectedPoSlug || getOperationalPoSlug(fallbackName) }];
 };
 
 const getPoAliasName = (branch, poName) => {
@@ -276,11 +298,19 @@ export const buildBranchTechViolationChartData = (rowsCurrentYear, statsMeta) =>
 export const buildPoTechViolationChartData = ({
   filialName = "",
   filialRows = [],
+  poName = "",
+  poSlug = "",
   rowsCurrentYearByPo = [],
   statsMeta = null,
 } = {}) => {
   const normalizedFilialName = normalizeBranchName(filialName);
-  const poRows = getPoChartRows(filialRows, normalizedFilialName, rowsCurrentYearByPo);
+  const poRows = getPoChartRows(
+    filialRows,
+    normalizedFilialName,
+    rowsCurrentYearByPo,
+    poName,
+    poSlug
+  );
   const counts = new Map(poRows.map((row) => [row.slug, 0]));
 
   (Array.isArray(rowsCurrentYearByPo) ? rowsCurrentYearByPo : []).forEach((row) => {
