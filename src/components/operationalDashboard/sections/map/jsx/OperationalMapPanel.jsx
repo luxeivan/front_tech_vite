@@ -341,6 +341,12 @@ const toFeatureNameList = (value) => {
   return name ? [name] : [];
 };
 
+const toFeatureMultilineNameList = (value) =>
+  String(value || "")
+    .split(/\n+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
 const getFeatureFilialNames = (feature) => {
   const names = toFeatureNameList(feature?.get?.("filial_names"));
   return names.length ? names : toFeatureNameList(feature?.get?.("filial_name"));
@@ -358,6 +364,8 @@ const getFeatureFilialName = (feature) => getFeatureFilialNames(feature)[0] || "
 
 const getFeaturePoName = (feature) =>
   String(feature?.get?.("primary_po_name") || "").trim() || getFeaturePoNames(feature)[0] || "";
+
+const getFeaturePoLabelNames = (feature) => toFeatureMultilineNameList(feature?.get?.("area_label"));
 
 const getFeatureAreaName = (feature, areaGroup) => {
   if (areaGroup === "district") return getFeatureDistrictLabel(feature);
@@ -423,7 +431,8 @@ const getPoNameAtPixel = (
   compactLabels = false,
   isWallDisplay = false
 ) => {
-  const poNames = getFeaturePoNames(feature);
+  const labelNames = getFeaturePoLabelNames(feature);
+  const poNames = labelNames.length ? labelNames : getFeaturePoNames(feature);
   if (poNames.length <= 1) return poNames[0] || "";
 
   const anchor = getGeometryAnchorCoordinate(feature?.getGeometry?.());
@@ -432,10 +441,16 @@ const getPoNameAtPixel = (
   const anchorPixel = map?.getPixelFromCoordinate?.(anchor);
   if (!Array.isArray(anchorPixel)) return getFeaturePoName(feature);
 
-  const offsets = getPoLabelOffsets(poNames.length, compactLabels, isWallDisplay);
   return poNames
     .map((poName, index) => {
-      const [offsetX, offsetY] = offsets[index] || [0, 0];
+      const [offsetX, offsetY] = getPoLabelOffset(
+        feature,
+        poName,
+        index,
+        poNames.length,
+        compactLabels,
+        isWallDisplay
+      );
       const labelPixel = [anchorPixel[0] + offsetX, anchorPixel[1] + offsetY];
       return {
         poName,
@@ -760,15 +775,58 @@ const wrapMapLabel = (value, compact = false) => {
 const getPoLabelOffsets = (count, compactLabels = false, isWallDisplay = false) => {
   if (count <= 1) return [[0, 0]];
 
-  const baseX = isWallDisplay ? 56 : compactLabels ? 22 : 34;
-  const baseY = isWallDisplay ? 44 : compactLabels ? 18 : 28;
-  const center = (count - 1) / 2;
+  const baseX = isWallDisplay ? 92 : compactLabels ? 58 : 76;
+  const baseY = isWallDisplay ? 66 : compactLabels ? 42 : 56;
+
+  const presets = {
+    2: [
+      [-baseX * 0.6, -baseY * 0.45],
+      [baseX * 0.6, baseY * 0.45],
+    ],
+    3: [
+      [-baseX, -baseY * 0.35],
+      [baseX, -baseY * 0.35],
+      [0, baseY],
+    ],
+    4: [
+      [-baseX, -baseY],
+      [baseX, -baseY],
+      [-baseX, baseY],
+      [baseX, baseY],
+    ],
+    5: [
+      [-baseX, -baseY],
+      [baseX, -baseY],
+      [0, 0],
+      [-baseX, baseY],
+      [baseX, baseY],
+    ],
+  };
+
+  if (presets[count]) return presets[count];
 
   return Array.from({ length: count }, (_, index) => {
-    const row = index - center;
-    const side = index % 2 === 0 ? -1 : 1;
-    return [side * baseX * Math.ceil((index + 1) / 2), row * baseY];
+    const angle = (-Math.PI / 2) + (index / count) * Math.PI * 2;
+    return [Math.cos(angle) * baseX, Math.sin(angle) * baseY];
   });
+};
+
+const getPoLabelOffset = (
+  feature,
+  poName,
+  index,
+  count,
+  compactLabels = false,
+  isWallDisplay = false
+) => {
+  const clusterMeta = feature?.get?.("area_label_cluster_meta") || {};
+  const key = normalizeOperationalMapAreaName(poName);
+  const meta = clusterMeta[key];
+  if (meta && Number.isInteger(meta.index) && Number.isInteger(meta.count) && meta.count > 1) {
+    return getPoLabelOffsets(meta.count, compactLabels, isWallDisplay)[meta.index] || [0, 0];
+  }
+
+  return getPoLabelOffsets(count, compactLabels, isWallDisplay)[index] || [0, 0];
 };
 
 const readCachedTnOkrugaRows = () => {
@@ -875,6 +933,7 @@ const assignAreaLabels = (features, labelGroup) => {
   features.forEach((feature) => {
     feature.set("area_label", "");
     feature.set("primary_po_name", "");
+    feature.set("area_label_cluster_meta", {});
   });
   if (labelGroup !== "po") return;
 
@@ -897,6 +956,7 @@ const assignAreaLabels = (features, labelGroup) => {
   });
 
   const usedLabelFeatures = new Set();
+  const labelItems = [];
   Array.from(groups.values())
     .sort((left, right) => left.features.length - right.features.length)
     .forEach((group) => {
@@ -915,6 +975,63 @@ const assignAreaLabels = (features, labelGroup) => {
       if (!String(labelFeature.get("primary_po_name") || "").trim()) {
         labelFeature.set("primary_po_name", group.name);
       }
+      const coordinate = getGeometryAnchorCoordinate(labelFeature.getGeometry());
+      if (coordinate) {
+        labelItems.push({
+          name: group.name,
+          key: normalizeOperationalMapAreaName(group.name),
+          feature: labelFeature,
+          coordinate,
+        });
+      }
+    });
+
+  if (labelItems.length <= 1) return;
+
+  const extent = getCombinedFeatureGeometry(features)?.getExtent?.();
+  if (!Array.isArray(extent) || !extent.every(Number.isFinite)) return;
+
+  const diagonal = Math.hypot(extent[2] - extent[0], extent[3] - extent[1]);
+  const clusterDistance = diagonal * 0.12;
+  const clusters = [];
+
+  labelItems.forEach((item) => {
+    const cluster = clusters.find((candidate) =>
+      candidate.items.some((candidateItem) =>
+        Math.hypot(
+          candidateItem.coordinate[0] - item.coordinate[0],
+          candidateItem.coordinate[1] - item.coordinate[1]
+        ) <= clusterDistance
+      )
+    );
+
+    if (cluster) {
+      cluster.items.push(item);
+    } else {
+      clusters.push({ items: [item] });
+    }
+  });
+
+  clusters
+    .filter((cluster) => cluster.items.length > 1)
+    .forEach((cluster) => {
+      cluster.items
+        .sort((left, right) => {
+          if (left.coordinate[1] !== right.coordinate[1]) {
+            return right.coordinate[1] - left.coordinate[1];
+          }
+          return left.coordinate[0] - right.coordinate[0];
+        })
+        .forEach((item, index) => {
+          const currentMeta = item.feature.get("area_label_cluster_meta") || {};
+          item.feature.set("area_label_cluster_meta", {
+            ...currentMeta,
+            [item.key]: {
+              index,
+              count: cluster.items.length,
+            },
+          });
+        });
     });
 };
 
@@ -961,15 +1078,21 @@ const getDistrictLabelStyle = (
   isWallDisplay = false
 ) => {
   if (labelGroup === "po") {
-    const poNames = getFeaturePoNames(feature);
-    const offsets = getPoLabelOffsets(poNames.length, compactLabels, isWallDisplay);
+    const poNames = getFeaturePoLabelNames(feature);
     const fontSize = isWallDisplay ? 18 : compactLabels ? 10 : 11;
 
     return poNames
       .map((poName, index) => {
         const label = wrapMapLabel(poName, true);
         if (!label) return null;
-        const [offsetX, offsetY] = offsets[index] || [0, 0];
+        const [offsetX, offsetY] = getPoLabelOffset(
+          feature,
+          poName,
+          index,
+          poNames.length,
+          compactLabels,
+          isWallDisplay
+        );
 
         return new Style({
           zIndex: districtDetailMode ? 70 : 50,
