@@ -17,13 +17,13 @@ import {
 } from "../../districts/js/operationalDistrictsPanel.utils";
 import { getOperationalPoSlug } from "../../../../../utils/operationalFilialRoutes";
 
-const isMediumVoltageLineOutage = (row) => {
+const countMediumVoltageLines = (row) => {
   const raw = row?.data?.data ?? row?.data ?? row ?? {};
   const line110 = toNumber(raw.LINE110_ALL ?? pick(row, "LINE110_ALL"));
   const line35 = toNumber(raw.LINE35_ALL ?? pick(row, "LINE35_ALL"));
   const linesn = toNumber(raw.LINESN_ALL ?? pick(row, "LINESN_ALL"));
   const linenn = toNumber(raw.LINENN_ALL ?? pick(row, "LINENN_ALL"));
-  return line110 + line35 + linesn + linenn > 0;
+  return line110 + line35 + linesn + linenn;
 };
 
 const durationHours = (row, now) => {
@@ -82,9 +82,9 @@ export const buildDurationDonutData = (rows, now = dayjs(), options = {}) => {
   const { filialName = "", poName = "", poSlug = "" } = options;
   const source = Array.isArray(rows) ? rows : [];
   const buckets = {
-    under2h: [],
-    over2h: [],
-    over4h: [],
+    under2h: 0,
+    over2h: 0,
+    over4h: 0,
   };
 
   source
@@ -96,22 +96,23 @@ export const buildDurationDonutData = (rows, now = dayjs(), options = {}) => {
         isRowInFilial(row, filialName) &&
         isRowInPo(row, poName, poSlug) &&
         Boolean(getOperationalBranchByRow(row)) &&
-        isMediumVoltageLineOutage(row)
+        countMediumVoltageLines(row) > 0
     )
     .forEach((row) => {
       const hours = durationHours(row, now);
-      if (hours == null) return;
-      if (hours > 4) buckets.over4h.push(row);
-      else if (hours > 2) buckets.over2h.push(row);
-      else buckets.under2h.push(row);
+      const lineCount = countMediumVoltageLines(row);
+      if (hours == null || lineCount <= 0) return;
+      if (hours > 4) buckets.over4h += lineCount;
+      else if (hours > 2) buckets.over2h += lineCount;
+      else buckets.under2h += lineCount;
     });
 
   return {
-    total: buckets.under2h.length + buckets.over2h.length + buckets.over4h.length,
+    total: buckets.under2h + buckets.over2h + buckets.over4h,
     values: {
-      under2h: buckets.under2h.length,
-      over2h: buckets.over2h.length,
-      over4h: buckets.over4h.length,
+      under2h: buckets.under2h,
+      over2h: buckets.over2h,
+      over4h: buckets.over4h,
     },
   };
 };
