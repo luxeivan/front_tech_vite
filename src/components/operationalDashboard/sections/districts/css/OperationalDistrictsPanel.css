@@ -1,6 +1,6 @@
 .operational-districts-panel {
-  --operational-branches-table-font-size: 11px;
-  --operational-branches-table-header-font-size: 10px;
+  --operational-branches-table-font-size: 12px;
+  --operational-branches-table-header-font-size: 11px;
   display: flex;
 }
 
@@ -201,8 +201,8 @@
 }
 
 .operational-districts-panel--filial {
-  --operational-branches-table-font-size: 8px;
-  --operational-branches-table-header-font-size: 7px;
+  --operational-branches-table-font-size: 10px;
+  --operational-branches-table-header-font-size: 9px;
   --operational-branches-table-min-width: 0;
 }
 
@@ -247,8 +247,8 @@
 }
 
 .operational-districts-panel--po {
-  --operational-branches-table-font-size: 9px;
-  --operational-branches-table-header-font-size: 8px;
+  --operational-branches-table-font-size: 10px;
+  --operational-branches-table-header-font-size: 9px;
 }
 
 .operational-districts-panel--po .operational-dashboard__panel-body {
@@ -315,32 +315,36 @@
 
 @media (width: 1920px) and (height: 1080px) {
   .operational-districts-panel {
-    --operational-branches-table-font-size: 12px;
-    --operational-branches-table-header-font-size: 11px;
+    --operational-branches-table-font-size: 13px;
+    --operational-branches-table-header-font-size: 12px;
   }
 
   .operational-districts-panel__header-title--compact {
-    font-size: 9px;
+    font-size: 10px;
   }
 
   .operational-districts-panel__table .ant-table-cell {
-    padding: 5px 2px;
+    padding: 6px 3px;
   }
 
   .operational-districts-panel--filial {
-    --operational-branches-table-font-size: 10px;
-    --operational-branches-table-header-font-size: 9px;
+    --operational-branches-table-font-size: 11px;
+    --operational-branches-table-header-font-size: 10px;
   }
 
   .operational-districts-panel--filial
     .operational-districts-panel__table
     .ant-table-cell {
-    padding: 4px 2px;
+    padding: 5px 3px;
   }
 
   .operational-districts-panel--po {
-    --operational-branches-table-font-size: 10px;
-    --operational-branches-table-header-font-size: 9px;
+    --operational-branches-table-font-size: 11px;
+    --operational-branches-table-header-font-size: 10px;
+  }
+
+  .operational-districts-panel--po .operational-dashboard__panel-body {
+    padding: 10px 8px 8px;
   }
 
   .operational-districts-panel--po
@@ -348,7 +352,7 @@
     .ant-table-thead
     > tr
     > th {
-    height: 56px;
+    height: 58px;
   }
 
   .operational-districts-panel--po
@@ -356,7 +360,7 @@
     .ant-table-tbody
     > tr
     > td {
-    height: 44px;
+    height: 46px;
   }
 }
 
