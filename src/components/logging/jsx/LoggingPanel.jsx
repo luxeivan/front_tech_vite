@@ -18,8 +18,10 @@ import ruRU from "antd/locale/ru_RU";
 import dayjs from "dayjs";
 import "dayjs/locale/ru";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import * as XLSX from "xlsx";
 import { fetchAuditEvents, fetchAuditUsers } from "../js/fetchAuditLogs";
 import BrandSunLoader from "../../ui/BrandSunLoader";
+import useAuth from "../../../stores/useAuth";
 import styles from "../css/LoggingPanel.module.css";
 
 const { RangePicker } = DatePicker;
@@ -160,6 +162,133 @@ function isPesPage(page) {
   return page === "/pes";
 }
 
+const EXPORT_USER_EMAIL = "yanutst@yandex.ru";
+
+function parseDetailsJson(row) {
+  const source = row?.details_json ?? row?.details;
+  if (source == null) return null;
+  if (typeof source === "object") return source;
+  if (typeof source === "string" && source.trim().startsWith("{")) {
+    try {
+      return JSON.parse(source);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+function buildPesTimeline(allData) {
+  const eventsByPes = new Map();
+
+  for (const row of allData) {
+    const details = parseDetailsJson(row);
+    if (!details) continue;
+    const pesList = Array.isArray(details.pes) ? details.pes : [];
+    const eventTime = row?.created_at ? new Date(row.created_at).getTime() : null;
+    if (!Number.isFinite(eventTime)) continue;
+
+    for (const p of pesList) {
+      const key = String(p.number || p.id || "").trim();
+      if (!key) continue;
+      if (!eventsByPes.has(key)) eventsByPes.set(key, []);
+      eventsByPes.get(key).push({
+        time: eventTime,
+        timeStr: toReadableTime(row.created_at),
+        action: details.action_ru || details.action || "",
+        result: details.result === "success" ? "Успех" : details.result === "error" ? "Ошибка" : details.result || "",
+        source: details.source === "max" ? "MAX" : details.source === "web" ? "Веб" : details.source || "",
+        role: row?.role || "",
+        username: row?.username || "",
+        pesName: p.name || "",
+        pesBranch: p.branch || "",
+        pesPo: p.po || "",
+        destination: details.destination
+          ? [details.destination.title, details.destination.address].filter(Boolean).join(", ")
+          : "",
+        comment: details.comment || "",
+      });
+    }
+  }
+
+  eventsByPes.forEach((events) => events.sort((a, b) => a.time - b.time));
+  return eventsByPes;
+}
+
+function exportAuditToXlsx(data, exportColumns) {
+  const header = exportColumns.map((c) => c.title);
+  const rows = data.map((row) =>
+    exportColumns.map((c) => {
+      if (c.dataIndex === "created_at") return toReadableTime(row[c.dataIndex]);
+      if (c.dataIndex === "username") return isAutoSendRow(row) ? "Автоотправка" : row?.username || "—";
+      if (c.dataIndex === "role") return isAutoSendRow(row) ? "system" : row?.role || "—";
+      if (c.dataIndex === "status_event") return row?.status_event || "—";
+      if (c.dataIndex === "page") return prettyPage(row[c.dataIndex]);
+      if (c.dataIndex === "entity_id") return row?.entity_id || "—";
+      if (c.dataIndex === "details") return detailsAsText(row);
+      return row[c.dataIndex] || "—";
+    })
+  );
+
+  const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+  ws["!cols"] = exportColumns.map(() => ({ wch: 20 }));
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Журнал");
+  const ts = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(wb, `audit-export-${ts}.xlsx`);
+}
+
+function exportPesTimelineToXlsx(timeline) {
+  const COLS = [
+    { header: "ПЭС", width: 10 },
+    { header: "Название", width: 22 },
+    { header: "Филиал", width: 18 },
+    { header: "ПО", width: 20 },
+    { header: "Время", width: 20 },
+    { header: "Действие", width: 22 },
+    { header: "Результат", width: 10 },
+    { header: "Источник", width: 10 },
+    { header: "Роль", width: 14 },
+    { header: "Пользователь", width: 24 },
+    { header: "Назначение", width: 28 },
+    { header: "Комментарий", width: 28 },
+  ];
+
+  const wsData = [];
+
+  timeline.forEach((events, pesNumber) => {
+    events.forEach((ev) => {
+      wsData.push([
+        pesNumber,
+        ev.pesName,
+        ev.pesBranch,
+        ev.pesPo,
+        ev.timeStr,
+        ev.action,
+        ev.result,
+        ev.source,
+        ev.role,
+        ev.username,
+        ev.destination,
+        ev.comment,
+      ]);
+    });
+
+    wsData.push(new Array(COLS.length).fill(""));
+  });
+
+  if (wsData.length > 0) wsData.pop();
+
+  const ws = XLSX.utils.aoa_to_sheet([COLS.map((c) => c.header), ...wsData]);
+  ws["!cols"] = COLS.map((c) => ({ wch: c.width }));
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "ПЭС таймлайн");
+  const ts = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(wb, `pes-timeline-${ts}.xlsx`);
+}
+
 function buildRequestFilters(filters, pagination) {
   const [from, to] = Array.isArray(filters.period) ? filters.period : [];
   const shouldFilterTn = isTnPage(filters.page);
@@ -215,6 +344,7 @@ function normalizeUserOptions(rows) {
 }
 
 export default function LoggingPanel() {
+  const user = useAuth((store) => store.user);
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState([]);
   const [errorText, setErrorText] = useState("");
@@ -237,6 +367,9 @@ export default function LoggingPanel() {
   const isFirstAutoApplyRef = useRef(true);
   const userSearchTimerRef = useRef(null);
   const userSearchSeqRef = useRef(0);
+  const [exporting, setExporting] = useState(false);
+  const showExportButton =
+    String(user?.email || "").trim().toLowerCase() === EXPORT_USER_EMAIL;
 
   const loadUsers = useCallback(
     async (query = "") => {
@@ -391,6 +524,61 @@ export default function LoggingPanel() {
     await loadUsers("");
   };
 
+  const handleExportAll = async () => {
+    if (exporting) return;
+    setExporting(true);
+    const jwt = localStorage.getItem("jwt") || "";
+    const PAGE_SIZE = 100;
+    let allData = [];
+    let page = 1;
+    let hasMore = true;
+
+    try {
+      while (hasMore) {
+        const reqFilters = buildRequestFilters(filters, { page, pageSize: PAGE_SIZE });
+        const resp = await fetchAuditEvents(reqFilters, jwt);
+        const data = Array.isArray(resp?.data) ? resp.data : [];
+        const meta = resp?.meta || {};
+        allData = allData.concat(data);
+        const total = Number(meta.total) || 0;
+        hasMore = data.length === PAGE_SIZE && allData.length < total;
+        page += 1;
+      }
+
+      if (allData.length === 0) {
+        alert("Нет данных для выгрузки по выбранным фильтрам.");
+        return;
+      }
+
+      const isPes = isPesPage(filters.page);
+
+      if (isPes) {
+        const timeline = buildPesTimeline(allData);
+        if (timeline.size === 0) {
+          alert("Нет данных по ПЭС для выгрузки.");
+          return;
+        }
+        exportPesTimelineToXlsx(timeline);
+      } else {
+        const exportColumns = [
+          { title: "Время", dataIndex: "created_at" },
+          { title: "Пользователь", dataIndex: "username" },
+          { title: "Роль", dataIndex: "role" },
+          { title: "Статус", dataIndex: "status_event" },
+          { title: "Раздел", dataIndex: "page" },
+          { title: "ID / ТН", dataIndex: "entity_id" },
+          { title: "Детали", dataIndex: "details" },
+        ];
+        exportAuditToXlsx(allData, exportColumns);
+      }
+    } catch (e) {
+      const msg = e?.response?.data?.message || e?.message || "Ошибка выгрузки";
+      alert(`Ошибка выгрузки: ${msg}`);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const handlePageChange = (page) => {
     updateFilters((s) => ({
       ...s,
@@ -489,6 +677,19 @@ export default function LoggingPanel() {
   return (
     <ConfigProvider locale={ruRU}>
       <div className={styles.root}>
+        <div className={styles.header}>
+          <h2 className={styles.headerTitle}>Журнал действий</h2>
+          {showExportButton && (
+            <Button
+              type="primary"
+              onClick={handleExportAll}
+              loading={exporting}
+              disabled={loading}
+            >
+              {exporting ? "Выгружаем..." : "Выгрузить в Excel"}
+            </Button>
+          )}
+        </div>
         {errorText && <Alert type="error" showIcon message={errorText} />}
 
         <Alert type="info" showIcon message={formatPeriodText(filters.period)} />
