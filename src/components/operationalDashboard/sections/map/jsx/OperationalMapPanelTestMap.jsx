@@ -1211,7 +1211,7 @@ export default function OperationalMapPanel({
       viewportPaddingPx: 28,
       isCoordinateAllowed: isPesCoordinateInsideDistricts,
       iconSvgRaw: pesKamazVectorSvgRaw,
-      scaleMultiplier: 0.028,
+      scaleMultiplier: 0.034,
       recolorAllFills: true,
       showLabels: false,
     });

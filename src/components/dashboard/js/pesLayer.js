@@ -11,17 +11,17 @@ import Stroke from "ol/style/Stroke";
 import pesIconSvgRaw from "../../../assets/PES.svg?raw";
 import { formatPowerKw, statusLabel } from "../../pes/js/pesModuleMeta";
 
-const PES_ICON_SCALE_MULT = 0.04;
+const PES_ICON_SCALE_MULT = 0.055;
 
 export const PES_POLL_MS_DEFAULT = 120_000;
 
 const PES_MOVING_SPEED_THRESHOLD = 0;
-const PES_ICON_COLOR_READY = "#52c41a";
-const PES_ICON_COLOR_COMMAND_SENT = "#4096ff";
-const PES_ICON_COLOR_DELAY = "#4096ff";
-const PES_ICON_COLOR_EN_ROUTE = "#fadb14";
-const PES_ICON_COLOR_CONNECTED = "#ff4d4f";
-const PES_ICON_COLOR_REPAIR = "#bfbfbf";
+const PES_ICON_COLOR_READY = "#39e600";
+const PES_ICON_COLOR_COMMAND_SENT = "#1a6bff";
+const PES_ICON_COLOR_DELAY = "#1a6bff";
+const PES_ICON_COLOR_EN_ROUTE = "#ffbf00";
+const PES_ICON_COLOR_CONNECTED = "#ff1a1a";
+const PES_ICON_COLOR_REPAIR = "#737373";
 const PES_ICON_COLOR_MOVING = PES_ICON_COLOR_EN_ROUTE;
 const PES_ICON_COLOR_IDLE = PES_ICON_COLOR_READY;
 const PES_HALO_COLOR_CONNECTED = "#722ed1";
@@ -55,7 +55,10 @@ const extractPesId = (row) => {
 };
 
 async function fetchPesAllowlistIds(signal) {
-  const base = String(import.meta.env.VITE_URL_BACKEND || "").replace(/\/$/, "");
+  const base = String(import.meta.env.VITE_URL_BACKEND || "").replace(
+    /\/$/,
+    "",
+  );
   if (!base) return new Set();
 
   const headers = {};
@@ -199,11 +202,15 @@ const extractVehiclePesNumber = (vehicle) => {
 };
 
 async function fetchPesModuleStatusMap(signal) {
-  const base = String(import.meta.env.VITE_URL_BACKEND || "").replace(/\/$/, "");
+  const base = String(import.meta.env.VITE_URL_BACKEND || "").replace(
+    /\/$/,
+    "",
+  );
   if (!base) return new Map();
 
   const resp = await fetch(`${base}/services/pes/module/items`, { signal });
-  if (!resp.ok) throw new Error(`PES module status fetch failed: ${resp.status}`);
+  if (!resp.ok)
+    throw new Error(`PES module status fetch failed: ${resp.status}`);
 
   const json = await resp.json();
   const rows = Array.isArray(json?.items) ? json.items : [];
@@ -272,7 +279,8 @@ export const buildPesPopupHtml = ({
     .toLowerCase();
   const destinationLabel = getDestinationLabel(destination);
   const formattedPower = formatPowerKw(powerKw);
-  const powerLabel = formattedPower === "—" ? formattedPower : `${formattedPower} кВт`;
+  const powerLabel =
+    formattedPower === "—" ? formattedPower : `${formattedPower} кВт`;
   const destinationLine =
     destinationLabel && PES_ACTIVE_DESTINATION_STATUSES.has(status)
       ? `<br/>Объект подключения: ${escapeHtml(destinationLabel)}`
@@ -359,7 +367,10 @@ export const createPesLayer = ({
       ) {
         return undefined;
       }
-      if (Array.isArray(coordinate) && isCoordinateAllowed?.(coordinate) === false) {
+      if (
+        Array.isArray(coordinate) &&
+        isCoordinateAllowed?.(coordinate) === false
+      ) {
         return undefined;
       }
       const pixel = Array.isArray(coordinate)
@@ -391,14 +402,13 @@ export const createPesLayer = ({
         Number.isFinite(speed) && speed > PES_MOVING_SPEED_THRESHOLD;
       const showLabel = showLabels && z >= 12;
       const iconSrc =
-        iconSrcByStatus[moduleStatus] ||
-        (moving ? iconSrcMoving : iconSrcIdle);
+        iconSrcByStatus[moduleStatus] || (moving ? iconSrcMoving : iconSrcIdle);
 
       const iconStyle = new Style({
         image: new Icon({
           src: iconSrc,
           imgSize: [64, 64],
-          opacity: 0.6,
+          opacity: 1,
           scale:
             (z < 10
               ? 0.55
@@ -433,16 +443,7 @@ export const createPesLayer = ({
       return [
         new Style({
           image: new CircleStyle({
-            radius:
-              z < 10
-                ? 11
-                : z < 12
-                  ? 13
-                  : z < 14
-                    ? 15
-                    : z < 16
-                      ? 17
-                      : 19,
+            radius: z < 10 ? 11 : z < 12 ? 13 : z < 14 ? 15 : z < 16 ? 17 : 19,
             fill: new Fill({ color: "rgba(255, 255, 255, 0.9)" }),
             stroke: new Stroke({
               color: PES_HALO_COLOR_CONNECTED,
