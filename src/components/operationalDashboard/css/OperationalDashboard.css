@@ -408,69 +408,39 @@
   }
 }
 
-/* --- Мобильные стили отключены по задаче: на мобилках показываем десктопную версию --- */
-/*
-@media (max-width: 900px), (max-width: 1200px) and (orientation: portrait) {
-  .operational-dashboard__header {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas:
-      "title"
-      "topline";
-    justify-items: center;
-    gap: 8px;
-  }
-
-  .operational-dashboard__topline.operational-map-panel__topline {
-    --weather-card-width: min(100%, 340px);
-    justify-self: center;
-    align-items: center;
-    width: min(100%, var(--weather-card-width));
-    max-width: 100%;
-  }
-
-  .operational-dashboard__topline .operational-map-panel__time {
-    justify-content: center;
-    text-align: center;
-  }
-
-  .operational-dashboard__grid {
-    grid-template-columns: 1fr;
-    grid-template-areas:
-      "map"
-      "donuts"
-      "districts"
-      "charts";
-    grid-template-rows: minmax(520px, 52vh) auto auto auto;
-    height: auto;
-    min-height: auto;
-  }
-
-  .operational-dashboard:not(.operational-filial-page) .operational-dashboard__grid {
-    grid-template-rows: minmax(520px, 52vh) auto auto auto;
-    min-height: auto;
-  }
-}
-
-@media (max-width: 768px) {
-  .operational-dashboard { padding: 10px; }
-  .operational-dashboard__header { gap: 6px; margin-bottom: 8px; }
-  .operational-dashboard__title { margin-bottom: 8px; font-size: 24px; }
-  .operational-dashboard__topline.operational-map-panel__topline { --weather-card-width: min(100%, 320px); }
-  .operational-dashboard__topline .operational-map-panel__time strong,
-  .operational-dashboard__topline .operational-map-panel__time span { font-size: 13px; }
-  .operational-dashboard__topline .operational-map-panel__weather { min-height: 58px; padding: 7px 8px; }
-  .operational-dashboard__topline .operational-map-panel__weather-parts { grid-template-columns: repeat(4, minmax(24px, 1fr)); }
-  .operational-dashboard__grid { gap: 10px; min-height: auto; }
-}
-
+/* ─── Мобилка: zoom десктопной верстки ─────────────────────────────── */
 @media (max-width: 430px) {
-  .operational-dashboard__topline.operational-map-panel__topline { --weather-card-width: min(100%, 300px); }
-  .operational-dashboard__topline .operational-map-panel__weather-content { grid-template-columns: minmax(0, 1fr); gap: 5px; }
-  .operational-dashboard__topline .operational-map-panel__weather-main { justify-content: center; }
-  .operational-dashboard__topline .operational-map-panel__weather-parts { gap: 2px; }
-  .operational-dashboard__topline .operational-map-panel__weather-part b { font-size: 7px; }
-  .operational-dashboard__topline .operational-map-panel__weather-part i { font-size: 11px; }
-  .operational-dashboard__topline .operational-map-panel__weather-part em { font-size: 8px; }
-  .operational-dashboard__topline .operational-map-panel__weather-details { justify-content: center; }
+  .operational-dashboard { zoom: 0.45; }
+  .operational-dashboard__grid,
+  .operational-dashboard:not(.operational-filial-page) .operational-dashboard__grid {
+    min-height: auto !important;
+    grid-template-rows: auto !important;
+  }
 }
-*/
+
+@media (min-width: 431px) and (max-width: 600px) {
+  .operational-dashboard { zoom: 0.52; }
+  .operational-dashboard__grid,
+  .operational-dashboard:not(.operational-filial-page) .operational-dashboard__grid {
+    min-height: auto !important;
+    grid-template-rows: auto !important;
+  }
+}
+
+@media (min-width: 601px) and (max-width: 900px) {
+  .operational-dashboard { zoom: 0.7; }
+  .operational-dashboard__grid,
+  .operational-dashboard:not(.operational-filial-page) .operational-dashboard__grid {
+    min-height: auto !important;
+    grid-template-rows: auto !important;
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1200px) and (orientation: portrait) {
+  .operational-dashboard { zoom: 0.82; }
+  .operational-dashboard__grid,
+  .operational-dashboard:not(.operational-filial-page) .operational-dashboard__grid {
+    min-height: auto !important;
+    grid-template-rows: auto !important;
+  }
+}
