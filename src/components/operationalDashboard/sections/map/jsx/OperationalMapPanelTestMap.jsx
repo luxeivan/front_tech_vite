@@ -1899,18 +1899,18 @@ export default function OperationalMapPanel({
           </div>
           <div className="operational-map-panel__legend">
             <div>
-              <h4>Обесточено населения:</h4>
+              <h4>Окраска по населению и СЗО:</h4>
               <span>
-                <i style={{ background: OPERATIONAL_MAP_COLORS.low }} />- до
-                5000 чел.
+                <i style={{ background: OPERATIONAL_MAP_COLORS.low }} />- до 1000
+                чел. и без СЗО
               </span>
               <span>
-                <i style={{ background: OPERATIONAL_MAP_COLORS.medium }} />- от
-                5000 до 20000 чел.
+                <i style={{ background: OPERATIONAL_MAP_COLORS.medium }} />- до
+                5000 чел. и/или СЗО до 5
               </span>
               <span>
                 <i style={{ background: OPERATIONAL_MAP_COLORS.high }} />- более
-                20000 чел.
+                5000 чел. и/или СЗО более 5
               </span>
             </div>
           </div>

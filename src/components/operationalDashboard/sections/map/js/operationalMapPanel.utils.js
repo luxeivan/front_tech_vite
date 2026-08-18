@@ -4,6 +4,7 @@ import {
   isOpenTN,
   pick,
   getTnPoName,
+  getRowSzoCounts,
   toNumber,
 } from "../../../../dashboard/js/dashboardCommon";
 import {
@@ -18,6 +19,7 @@ import {
   OPERATIONAL_BRANCH_DISTRICT_ALIASES,
   OPERATIONAL_BRANCH_POINTS,
   OPERATIONAL_MAP_COLORS,
+  OPERATIONAL_MAP_SZO_FIELDS,
 } from "./operationalMapPanel.config";
 
 export const formatMapNumber = (value, digits = 0) => {
@@ -29,16 +31,21 @@ export const formatMapNumber = (value, digits = 0) => {
   });
 };
 
-export const getPopulationSeverity = (people) => {
+export const getPopulationSeverity = (people, szoCount = 0) => {
   const value = Number(people || 0);
-  if (value > 20000) return "high";
-  if (value >= 5000) return "medium";
+  const szo = Number(szoCount || 0);
+
+  // Red: население > 5000 ИЛИ СЗО > 5
+  if (value > 5000 || szo > 5) return "high";
+  // Yellow: население 1001–5000 ИЛИ СЗО 1–5
+  if (value > 1000 || szo > 0) return "medium";
+  // Green: население ≤ 1000 И нет СЗО
   if (value > 0) return "low";
   return "empty";
 };
 
-export const getPopulationColor = (people) =>
-  OPERATIONAL_MAP_COLORS[getPopulationSeverity(people)] || OPERATIONAL_MAP_COLORS.empty;
+export const getPopulationColor = (people, szoCount = 0) =>
+  OPERATIONAL_MAP_COLORS[getPopulationSeverity(people, szoCount)] || OPERATIONAL_MAP_COLORS.empty;
 
 export const normalizeOperationalMapAreaName = (value) =>
   String(value || "")
@@ -147,8 +154,8 @@ export const buildOperationalMapBranchData = (rows) => {
     .map((item) => ({
       ...item,
       point: OPERATIONAL_BRANCH_POINTS[item.branch] || null,
-      severity: getPopulationSeverity(item.people),
-      color: getPopulationColor(item.people),
+      severity: getPopulationSeverity(item.people, item.szo),
+      color: getPopulationColor(item.people, item.szo),
     }))
     .filter((item) => item.point);
 };
@@ -158,6 +165,7 @@ const createAreaData = (areaName) => ({
   people: 0,
   outages: 0,
   lines: 0,
+  szo: 0,
 });
 
 const addRowToAreaData = (item, row) => {
@@ -168,6 +176,11 @@ const addRowToAreaData = (item, row) => {
     toNumber(pick(row, "LINE35_ALL")) +
     toNumber(pick(row, "LINESN_ALL")) +
     toNumber(pick(row, "LINENN_ALL"));
+  const szoCounts = getRowSzoCounts(row);
+  item.szo += OPERATIONAL_MAP_SZO_FIELDS.reduce(
+    (sum, field) => sum + toNumber(szoCounts[field]),
+    0
+  );
 };
 
 export const buildOperationalMapAreaData = (rows, getAreaName) => {
@@ -187,8 +200,8 @@ export const buildOperationalMapAreaData = (rows, getAreaName) => {
   return Array.from(areaMap.entries()).map(([key, item]) => ({
     ...item,
     key,
-    severity: getPopulationSeverity(item.people),
-    color: getPopulationColor(item.people),
+    severity: getPopulationSeverity(item.people, item.szo),
+    color: getPopulationColor(item.people, item.szo),
   }));
 };
 
@@ -245,8 +258,8 @@ export const buildOperationalMapDistrictData = (
   return Array.from(areaMap.entries()).map(([key, item]) => ({
     ...item,
     key,
-    severity: getPopulationSeverity(item.people),
-    color: getPopulationColor(item.people),
+    severity: getPopulationSeverity(item.people, item.szo),
+    color: getPopulationColor(item.people, item.szo),
   }));
 };
 

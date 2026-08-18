@@ -54,3 +54,19 @@ export const OPERATIONAL_MAP_COLORS = {
   high: "#ff171f",
   empty: "#ffffff",
 };
+
+// Пороги для раскрашивания карты по населению + СЗО.
+// Green:  население ≤ 1000 И нет СЗО
+// Yellow: население 1001–5000 И/ИЛИ СЗО 1–5
+// Red:    население > 5000 И/ИЛИ СЗО > 5
+export const OPERATIONAL_MAP_SZO_FIELDS = [
+  "boilers",
+  "ctp",
+  "vzu",
+  "vns",
+  "kns",
+  "hosp",
+  "clinics",
+  "schools",
+  "kindergartens",
+];
