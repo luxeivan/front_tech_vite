@@ -20,6 +20,8 @@ const formatNumber = (value) => Number(value || 0).toLocaleString("ru-RU");
 const CHART_PADDING = [24, 16, 38, 16];
 const TABLET_LANDSCAPE_CHART_PADDING = [18, 8, 44, 8];
 
+const COMPACT_PO_CHART_FILIALS = new Set(["Одинцовский филиал"]);
+
 const useTabletLandscape = () => {
   const getValue = () =>
     typeof window !== "undefined" &&
@@ -80,7 +82,9 @@ const getNextRefreshText = (value) => {
 
   const hours = Math.floor(minutes / 60);
   const restMinutes = minutes % 60;
-  return restMinutes ? `через ${hours} ч ${restMinutes} мин` : `через ${hours} ч`;
+  return restMinutes
+    ? `через ${hours} ч ${restMinutes} мин`
+    : `через ${hours} ч`;
 };
 
 export default function OperationalChartsPanel({
@@ -90,24 +94,43 @@ export default function OperationalChartsPanel({
   poName = "",
   poSlug = "",
 }) {
-  const isStatsLoading = useOperationalDashboardStore((store) => store.isStatsLoading);
+  const isStatsLoading = useOperationalDashboardStore(
+    (store) => store.isStatsLoading,
+  );
   const statsError = useOperationalDashboardStore((store) => store.statsError);
   const hasLoaded = useOperationalDashboardStore((store) => store.hasLoaded);
-  const hasStatsLoaded = useOperationalDashboardStore((store) => store.hasStatsLoaded);
-  const rowsCurrentYear = useOperationalDashboardStore((store) => store.rowsCurrentYear);
-  const rowsCurrentYearByPo = useOperationalDashboardStore((store) => store.rowsCurrentYearByPo);
+  const hasStatsLoaded = useOperationalDashboardStore(
+    (store) => store.hasStatsLoaded,
+  );
+  const rowsCurrentYear = useOperationalDashboardStore(
+    (store) => store.rowsCurrentYear,
+  );
+  const rowsCurrentYearByPo = useOperationalDashboardStore(
+    (store) => store.rowsCurrentYearByPo,
+  );
   const statsMeta = useOperationalDashboardStore((store) => store.statsMeta);
-  const reloadStats = useOperationalDashboardStore((store) => store.reloadStats);
+  const reloadStats = useOperationalDashboardStore(
+    (store) => store.reloadStats,
+  );
   const isTabletLandscape = useTabletLandscape();
   const isWallDisplay = useWallDisplay();
   const isPoChart = Boolean(filialName);
+  const isCompactPoChart =
+    isPoChart && COMPACT_PO_CHART_FILIALS.has(filialName);
   const requestedPoStatsRefreshRef = useRef(false);
   const hasPoStats =
     (Array.isArray(rowsCurrentYearByPo) && rowsCurrentYearByPo.length > 0) ||
     statsMeta?.hasPoRows === true;
 
   useEffect(() => {
-    if (!isPoChart || !hasLoaded || !hasStatsLoaded || isStatsLoading || hasPoStats) return;
+    if (
+      !isPoChart ||
+      !hasLoaded ||
+      !hasStatsLoaded ||
+      isStatsLoading ||
+      hasPoStats
+    )
+      return;
     if (requestedPoStatsRefreshRef.current) return;
 
     requestedPoStatsRefreshRef.current = true;
@@ -125,26 +148,36 @@ export default function OperationalChartsPanel({
     () =>
       isPoChart
         ? buildPoTechViolationChartData({
-          filialName,
-          filialRows,
-          poName,
-          poSlug,
-          rowsCurrentYearByPo,
-          statsMeta,
-        })
+            filialName,
+            filialRows,
+            poName,
+            poSlug,
+            rowsCurrentYearByPo,
+            statsMeta,
+          })
         : buildBranchTechViolationChartData(rowsCurrentYear, statsMeta),
-    [filialName, filialRows, isPoChart, poName, poSlug, rowsCurrentYear, rowsCurrentYearByPo, statsMeta]
+    [
+      filialName,
+      filialRows,
+      isPoChart,
+      poName,
+      poSlug,
+      rowsCurrentYear,
+      rowsCurrentYearByPo,
+      statsMeta,
+    ],
   );
   const chartBranchCount = useMemo(
     () => new Set(chartData.map((item) => item.branch)).size,
-    [chartData]
+    [chartData],
   );
   const isSparseChart = chartBranchCount > 0 && chartBranchCount <= 2;
   const totals = useMemo(() => getBranchChartTotals(chartData), [chartData]);
   const chartTitle = `${OPERATIONAL_CHART_TITLE_PREFIX} ${statsMeta?.periodLabel || "за 6 месяцев"}`;
   const statsDate = formatStatsDate(statsMeta?.calculatedAt);
   const nextRefresh = getNextRefreshText(statsMeta?.nextCalculatedAt);
-  const shouldShowLoader = hasLoaded && !isPoChart && (isStatsLoading || !hasStatsLoaded);
+  const shouldShowLoader =
+    hasLoaded && !isPoChart && (isStatsLoading || !hasStatsLoaded);
 
   const config = {
     data: chartData,
@@ -185,7 +218,13 @@ export default function OperationalChartsPanel({
     axis: {
       x: {
         title: false,
-        labelFontSize: isWallDisplay ? 18 : isTabletLandscape ? 8 : 10,
+        labelFontSize: isWallDisplay
+          ? 18
+          : isTabletLandscape
+            ? 2
+            : isCompactPoChart
+              ? 8
+              : 10,
         labelFill: "#0072c6",
         labelFillOpacity: 1,
         labelOpacity: 1,
@@ -210,7 +249,9 @@ export default function OperationalChartsPanel({
         "operational-dashboard__panel--charts",
         "operational-charts-panel",
         className,
-      ].filter(Boolean).join(" ")}
+      ]
+        .filter(Boolean)
+        .join(" ")}
     >
       <div className="operational-dashboard__panel-body">
         <div className="operational-charts-panel__content">
@@ -235,8 +276,12 @@ export default function OperationalChartsPanel({
               <div
                 className={[
                   "operational-charts-panel__chart",
-                  isSparseChart ? "operational-charts-panel__chart--sparse" : "",
-                ].filter(Boolean).join(" ")}
+                  isSparseChart
+                    ? "operational-charts-panel__chart--sparse"
+                    : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
               >
                 <div className="operational-charts-panel__chart-inner">
                   <Column {...config} />
