@@ -375,8 +375,11 @@
 
 }
 
+/* --- Мобильные стили отключены: на мобилках показываем десктопную версию --- */
+/*
 @media (max-width: 920px) {
   .operational-donuts-panel__grid {
     grid-template-columns: 1fr;
   }
 }
+*/

@@ -321,56 +321,19 @@
   }
 }
 
+/* --- Мобильные стили отключены: на мобилках показываем десктопную версию --- */
+/*
 @media (max-width: 900px), (max-width: 1200px) and (orientation: portrait) {
-  .operational-filial-page__header {
-    grid-template-columns: 1fr;
-    grid-template-areas:
-      "nav"
-      "title"
-      "topline";
-    align-items: center;
-    justify-items: stretch;
-    gap: 8px;
-  }
-
-  .operational-filial-page__heading {
-    justify-items: center;
-  }
-
-  .operational-filial-page__nav {
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    padding-top: 10px;
-  }
-
-  .operational-navigation-steps {
-    width: auto;
-  }
-
-  .operational-filial-page .operational-navigation-steps.ant-steps .ant-steps-item-title {
-    max-width: none;
-    font-size: 10px !important;
-  }
-
-  .operational-filial-page__topline.operational-map-panel__topline {
-    --weather-card-width: min(100%, 340px);
-
-    justify-self: center;
-    align-items: center;
-    width: min(100%, var(--weather-card-width));
-    max-width: 100%;
-    margin-top: 2px;
-  }
-
-  .operational-filial-page__topline .operational-map-panel__time {
-    justify-content: center;
-    text-align: center;
-  }
+  .operational-filial-page__header { grid-template-columns: 1fr; grid-template-areas: "nav" "title" "topline"; align-items: center; justify-items: stretch; gap: 8px; }
+  .operational-filial-page__heading { justify-items: center; }
+  .operational-filial-page__nav { align-items: center; justify-content: center; gap: 4px; padding-top: 10px; }
+  .operational-navigation-steps { width: auto; }
+  .operational-filial-page .operational-navigation-steps.ant-steps .ant-steps-item-title { max-width: none; font-size: 10px !important; }
+  .operational-filial-page__topline.operational-map-panel__topline { --weather-card-width: min(100%, 340px); justify-self: center; align-items: center; width: min(100%, var(--weather-card-width)); max-width: 100%; margin-top: 2px; }
+  .operational-filial-page__topline .operational-map-panel__time { justify-content: center; text-align: center; }
 }
 
 @media (max-width: 640px) {
-  .operational-filial-page__topline.operational-map-panel__topline {
-    --weather-card-width: min(100%, 320px);
-  }
+  .operational-filial-page__topline.operational-map-panel__topline { --weather-card-width: min(100%, 320px); }
 }
+*/
