@@ -71,15 +71,20 @@ const WEATHER_PLACE_BY_PO_KEY = new Map(
     ["дзержинское", "Дзержинский"],
     ["долгопрудненское", "Долгопрудный"],
     ["домодедовское", "Домодедово"],
-    ["зарайское", "Зарайск"],
+    ["дубненское", "Дубна"],
+    ["егорьевское", "Егорьевск"],
     ["звенигородское", "Звенигород"],
+    ["ильинское", "Ильинское"],
     ["истринское", "Истра"],
     ["каширское", "Кашира"],
     ["клинское", "Клин"],
     ["коломенское", "Коломна"],
+    ["королёвское", "Королёв"],
     ["красногорское", "Красногорск"],
+    ["краснознаменское", "Краснознаменск"],
     ["луховицкое", "Луховицы"],
     ["люберецкое", "Люберцы"],
+    ["мытищинское", "Мытищи"],
     ["наро-фоминское", "Наро-Фоминск"],
     ["ногинское", "Ногинск"],
     ["одинцовское", "Одинцово"],
@@ -92,18 +97,40 @@ const WEATHER_PLACE_BY_PO_KEY = new Map(
     ["рузское", "Руза"],
     ["сергиево-посадское", "Сергиев Посад"],
     ["серпуховское", "Серпухов"],
-    ["солнечногорское", "Солнечногорск"],
     ["ступинское", "Ступино"],
+    ["талдомский", "Талдом"],
     ["фрязинское", "Фрязино"],
     ["химкинское", "Химки"],
     ["чеховское", "Чехов"],
+    ["шатурское", "Шатура"],
     ["щелковское", "Щёлково"],
+    ["электростальское", "Электросталь"],
+  ].map(([key, value]) => [normalizeLookupName(key), value])
+);
+
+const WEATHER_PLACE_BY_FILIAL_KEY = new Map(
+  [
+    ["домодедовский", "Домодедово"],
+    ["коломенский", "Коломна"],
+    ["красногорский", "Красногорск"],
+    ["мытищинский", "Мытищи"],
+    ["одинцовский", "Одинцово"],
+    ["орехово-зуевский", "Орехово-Зуево"],
+    ["павлово-посадский", "Павловский Посад"],
+    ["раменский", "Раменское"],
+    ["сергиево-посадский", "Сергиев Посад"],
+    ["щелковский", "Щёлково"],
   ].map(([key, value]) => [normalizeLookupName(key), value])
 );
 
 const getWeatherPlaceFromPoName = (poName) => {
   const cleaned = cleanWeatherPlaceName(poName);
   return WEATHER_PLACE_BY_PO_KEY.get(normalizeLookupName(cleaned)) || cleaned;
+};
+
+const getWeatherPlaceFromFilialName = (filialName) => {
+  const cleaned = cleanWeatherPlaceName(filialName);
+  return WEATHER_PLACE_BY_FILIAL_KEY.get(normalizeLookupName(cleaned)) || cleaned;
 };
 
 const getRowAffectedPopulation = (row) =>
@@ -159,7 +186,7 @@ const buildFilialWeatherContext = ({ rows, filialName, poName, isPoLevel }) => {
 
   const fallbackPlace = isPoLevel
     ? getWeatherPlaceFromPoName(poName)
-    : getWeatherPlaceFromPoName(filialName);
+    : getWeatherPlaceFromFilialName(filialName);
 
   return fallbackPlace
     ? {
