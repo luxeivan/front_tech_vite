@@ -321,37 +321,4 @@
   }
 }
 
-/* --- Мобильная верстка отключена: zoom из OperationalDashboard.css --- */
-
-/* ─── Мобилка 2/3 уровень: zoom десктопной верстки ────────────────── */
-@media (max-width: 430px) {
-  .operational-filial-page { zoom: 0.45; }
-  .operational-filial-page .operational-dashboard__grid {
-    min-height: auto !important;
-    grid-template-rows: auto !important;
-  }
-}
-
-@media (min-width: 431px) and (max-width: 600px) {
-  .operational-filial-page { zoom: 0.52; }
-  .operational-filial-page .operational-dashboard__grid {
-    min-height: auto !important;
-    grid-template-rows: auto !important;
-  }
-}
-
-@media (min-width: 601px) and (max-width: 900px) {
-  .operational-filial-page { zoom: 0.7; }
-  .operational-filial-page .operational-dashboard__grid {
-    min-height: auto !important;
-    grid-template-rows: auto !important;
-  }
-}
-
-@media (min-width: 901px) and (max-width: 1200px) and (orientation: portrait) {
-  .operational-filial-page { zoom: 0.82; }
-  .operational-filial-page .operational-dashboard__grid {
-    min-height: auto !important;
-    grid-template-rows: auto !important;
-  }
-}
+/* Мобильный скролл: десктопная вёрстка как есть, скролл по обеим осям */

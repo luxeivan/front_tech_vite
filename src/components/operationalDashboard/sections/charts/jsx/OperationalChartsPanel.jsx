@@ -199,7 +199,7 @@ export default function OperationalChartsPanel({
       },
     },
     style: {
-      maxWidth: isWallDisplay ? 34 : isTabletLandscape ? 14 : 18,
+      maxWidth: isWallDisplay ? 34 : isTabletLandscape ? 14 : undefined,
     },
     label: {
       text: "value",

@@ -8,7 +8,6 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   min-height: 100%;
-  overflow: hidden;
 }
 
 .operational-donuts-panel__item {

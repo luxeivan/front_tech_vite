@@ -203,20 +203,6 @@
 .operational-districts-panel--filial {
   --operational-branches-table-font-size: 10px;
   --operational-branches-table-header-font-size: 9px;
-  --operational-branches-table-min-width: 0;
-}
-
-.operational-districts-panel--filial
-  .operational-districts-panel__table
-  .ant-table-content {
-  overflow-x: hidden !important;
-}
-
-.operational-districts-panel--filial
-  .operational-districts-panel__table
-  .ant-table-content
-  > table {
-  width: 100% !important;
 }
 
 .operational-districts-panel--filial
@@ -275,18 +261,8 @@
   height: auto;
 }
 
-.operational-districts-panel--po
-  .operational-districts-panel__table
-  .ant-table-content {
-  overflow-x: hidden !important;
-}
-
-.operational-districts-panel--po
-  .operational-districts-panel__table
-  .ant-table-content
-  > table {
+.operational-districts-panel--po .operational-districts-panel__table .ant-table-content > table {
   min-width: 0;
-  width: 100% !important;
 }
 
 .operational-districts-panel--po

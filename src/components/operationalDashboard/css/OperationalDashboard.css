@@ -147,7 +147,6 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  overflow: hidden;
   border: var(--operational-dashboard-panel-border);
   border-radius: var(--operational-dashboard-panel-radius);
   background: rgba(255, 255, 255, 0.16);
@@ -405,42 +404,5 @@
     grid-template-rows: minmax(520px, 62vh) auto auto minmax(360px, auto);
     height: auto;
     min-height: auto;
-  }
-}
-
-/* ─── Мобилка: zoom десктопной верстки ─────────────────────────────── */
-@media (max-width: 430px) {
-  .operational-dashboard { zoom: 0.45; }
-  .operational-dashboard__grid,
-  .operational-dashboard:not(.operational-filial-page) .operational-dashboard__grid {
-    min-height: auto !important;
-    grid-template-rows: auto !important;
-  }
-}
-
-@media (min-width: 431px) and (max-width: 600px) {
-  .operational-dashboard { zoom: 0.52; }
-  .operational-dashboard__grid,
-  .operational-dashboard:not(.operational-filial-page) .operational-dashboard__grid {
-    min-height: auto !important;
-    grid-template-rows: auto !important;
-  }
-}
-
-@media (min-width: 601px) and (max-width: 900px) {
-  .operational-dashboard { zoom: 0.7; }
-  .operational-dashboard__grid,
-  .operational-dashboard:not(.operational-filial-page) .operational-dashboard__grid {
-    min-height: auto !important;
-    grid-template-rows: auto !important;
-  }
-}
-
-@media (min-width: 901px) and (max-width: 1200px) and (orientation: portrait) {
-  .operational-dashboard { zoom: 0.82; }
-  .operational-dashboard__grid,
-  .operational-dashboard:not(.operational-filial-page) .operational-dashboard__grid {
-    min-height: auto !important;
-    grid-template-rows: auto !important;
   }
 }
