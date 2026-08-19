@@ -414,18 +414,16 @@ export default function PlannedTable() {
             value={numberQuery}
             onChange={(e) => setNumberQuery(e.target.value)}
           />
-          {showFreshSortButton && (
-            <Tooltip title="Свежие поступления">
-              <Button
-                className="planned-toolbar__fresh"
-                size="small"
-                type={sorter.field === "strapiId" ? "primary" : "default"}
-                onClick={() => setSorter({ field: "strapiId", order: "descend" })}
-              >
-                ↓ID
-              </Button>
-            </Tooltip>
-          )}
+          <Tooltip title="Свежие поступления">
+            <Button
+              className={`planned-toolbar__fresh${showFreshSortButton ? "" : " planned-toolbar__fresh--hidden"}`}
+              size="small"
+              type={sorter.field === "strapiId" ? "primary" : "default"}
+              onClick={() => setSorter({ field: "strapiId", order: "descend" })}
+            >
+              ↓ID
+            </Button>
+          </Tooltip>
           <Button
             className="planned-toolbar__export"
             type="primary"

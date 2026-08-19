@@ -72,6 +72,11 @@
   padding-inline: 0;
 }
 
+.planned-toolbar__fresh--hidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 @media (max-width: 1500px) {
   .planned-toolbar {
     grid-template-columns:
