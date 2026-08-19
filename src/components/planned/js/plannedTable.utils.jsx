@@ -8,6 +8,7 @@ export const PLANNED_STATUS_VALUES = [
   "начата",
   "закрыта",
   "удалена",
+  "отменена",
 ];
 
 export const PLANNED_STATUS_OPTIONS = [
@@ -15,6 +16,7 @@ export const PLANNED_STATUS_OPTIONS = [
   { label: "Начата", value: "начата" },
   { label: "Закрыта", value: "закрыта" },
   { label: "Удалена", value: "удалена" },
+  { label: "Отменена", value: "отменена" },
 ];
 
 export function s(v) {
