@@ -81,6 +81,7 @@
   justify-self: end;
   align-items: flex-end;
   width: var(--weather-card-width);
+  margin-right: 14px;
   pointer-events: auto;
 }
 
