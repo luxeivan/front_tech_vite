@@ -36,7 +36,7 @@
     minmax(280px, 1.35fr)
     132px
     44px
-    max-content
+    minmax(140px, auto)
     max-content
     max-content
     40px;
