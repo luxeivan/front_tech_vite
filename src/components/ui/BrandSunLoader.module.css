@@ -24,6 +24,20 @@
   white-space: nowrap;
 }
 
+@media (max-width: 900px) and (orientation: portrait) {
+  .text {
+    font-size: 14px;
+    white-space: normal;
+    text-align: center;
+    max-width: 200px;
+  }
+
+  .loader {
+    flex-direction: column;
+    gap: 6px;
+  }
+}
+
 .fullscreen {
   position: fixed;
   inset: 0;

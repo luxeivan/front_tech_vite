@@ -55,6 +55,7 @@
   align-items: start;
   gap: 16px;
   margin-bottom: 8px;
+  position: relative;
 }
 
 .operational-dashboard__title {
@@ -405,5 +406,20 @@
     grid-template-rows: minmax(520px, 62vh) auto auto minmax(360px, auto);
     height: auto;
     min-height: auto;
+  }
+}
+
+@media (max-width: 900px) and (orientation: portrait) {
+  .operational-dashboard__header {
+    grid-template-columns: 1fr;
+    grid-template-areas: "title";
+    justify-items: center;
+    gap: 0;
+  }
+
+  .operational-dashboard__header .operational-dashboard__topline {
+    position: absolute;
+    top: 0;
+    right: 14px;
   }
 }
