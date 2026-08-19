@@ -215,7 +215,7 @@ function DurationDonut({ data, groupBy = "filial", compact = false, isWallDispla
         ? [8, 56, 8, 56]
         : isFilialView
           ? [14, 108, 14, 108]
-          : [20, 118, 20, 118],
+          : [20, Math.max(40, Math.min(118, window.innerWidth * 0.1)), 20, Math.max(40, Math.min(118, window.innerWidth * 0.1))],
     labelPosition: "spider",
     labelFontSize: isWallDisplay ? (compact ? 16 : 20) : compact ? 9 : 11,
     labelOffset: isWallDisplay ? (compact ? 16 : 24) : compact ? 8 : 14,
@@ -287,7 +287,7 @@ function PopulationDonut({ data, groupBy = "filial", compact = false, isWallDisp
         ? [8, 72, 8, 72]
         : isFilialView
           ? [14, 140, 14, 140]
-          : [18, 160, 54, 160],
+          : [18, Math.max(40, Math.min(160, window.innerWidth * 0.12)), 54, Math.max(40, Math.min(160, window.innerWidth * 0.12))],
     labelPosition: "spider",
     labelHeight: isWallDisplay
       ? isFilialView

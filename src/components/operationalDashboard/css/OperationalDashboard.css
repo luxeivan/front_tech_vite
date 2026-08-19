@@ -17,7 +17,7 @@
 .operational-dashboard__grid {
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(560px, 1.2fr) minmax(520px, 1fr);
+  grid-template-columns: minmax(920px, 1.2fr) minmax(520px, 1fr);
   grid-template-rows: minmax(300px, 0.9fr) minmax(170px, 0.52fr) minmax(300px, 0.9fr);
   grid-template-areas:
     "donuts map"
@@ -33,7 +33,7 @@
 }
 
 .operational-dashboard:not(.operational-filial-page) .operational-dashboard__grid {
-  grid-template-columns: minmax(560px, 1.2fr) minmax(520px, 1fr);
+  grid-template-columns: minmax(920px, 1.2fr) minmax(520px, 1fr);
   grid-template-rows: minmax(285px, 0.86fr) minmax(150px, 0.46fr) minmax(275px, 0.82fr);
   gap: 14px 5px;
   min-height: calc(100vh - 204px);
@@ -347,7 +347,7 @@
   }
 
   .operational-dashboard__grid {
-    grid-template-columns: minmax(500px, 1.08fr) minmax(460px, 1fr);
+    grid-template-columns: minmax(920px, 1.08fr) minmax(460px, 1fr);
     grid-template-rows: minmax(250px, 0.82fr) minmax(130px, 0.42fr) minmax(250px, 0.78fr);
     grid-template-areas:
       "donuts map"

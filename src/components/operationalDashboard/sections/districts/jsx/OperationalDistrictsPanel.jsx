@@ -368,7 +368,7 @@ export default function OperationalDistrictsPanel({
           onRow={(record) => getHoverHandlers(record)}
           size="small"
           scroll={
-            groupBy === "po" || groupBy === "filial" || groupBy === "okrug"
+            groupBy === "po" || groupBy === "okrug"
               ? undefined
               : { x: OPERATIONAL_BRANCH_TABLE_SCROLL_X }
           }
