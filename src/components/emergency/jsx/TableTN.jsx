@@ -395,7 +395,7 @@ function normalizeChannelName(raw) {
   if (x.includes("едд")) return "edds"; // ЕДДС
   if (x.includes("мэс")) return "mes";  
   if (x.includes("мин") && x.includes("энерг")) return "minenergo"; 
-  if (x.includes("сбыт") || x.includes("мосэнергосб")) return "mosenergosbyt"; 
+  if (x.includes("сбыт") || x.includes("мосэнергосб")) return "site"; 
   return null;
 }
 
@@ -407,7 +407,7 @@ function extractJournalGuid(line) {
 }
 
 function parseJournalStatuses(lines) {
-  // returns { byGuid: {guid: {edds?:boolean,mes?:boolean,minenergo?:boolean,mosenergosbyt?:boolean}}, byNumber: {num: same} }
+  // returns { byGuid: {guid: {edds?:boolean,mes?:boolean,minenergo?:boolean,site?:boolean}}, byNumber: {num: same} }
   const byGuid = {};
   const byNumber = {};
   const upsert = (dict, key, ch, ok, ts) => {
@@ -452,9 +452,9 @@ function parseJournalStatuses(lines) {
 
 const SEND_CHANNELS = [
   { key: "edds", label: "ЕДДС" },
-  { key: "mes", label: "МЭС" },
-  { key: "minenergo", label: "МинЭ" },
-  { key: "mosenergosbyt", label: "МосЭсб" },
+  { key: "mes", label: "Мосэнергосбыт" },
+  { key: "minenergo", label: "Мин. Энергетики" },
+  { key: "site", label: "Мособлэнерго сайт" },
 ];
 
 function StatusDot({ ok, label }) {
@@ -781,7 +781,11 @@ export default function TableTN() {
       ? sendStatus.byGuid[String(resolvedGuid).toLowerCase()]
       : null;
     const sendByNumber = numKey ? sendStatus.byNumber[numKey] : null;
-    const send = sendByGuid || sendByNumber || null;
+    const send = {
+      ...(sendByGuid || sendByNumber || {}),
+      minenergo: true,
+      site: true,
+    };
     const durationClass = getDurationHighlightClass(item);
 
     return {
