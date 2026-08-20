@@ -4,7 +4,6 @@ import {
   isOpenTN,
   pick,
   getTnPoName,
-  getRowSzoCounts,
   toNumber,
 } from "../../../../dashboard/js/dashboardCommon";
 import {
@@ -19,7 +18,6 @@ import {
   OPERATIONAL_BRANCH_DISTRICT_ALIASES,
   OPERATIONAL_BRANCH_POINTS,
   OPERATIONAL_MAP_COLORS,
-  OPERATIONAL_MAP_SZO_FIELDS,
 } from "./operationalMapPanel.config";
 
 export const formatMapNumber = (value, digits = 0) => {
@@ -176,11 +174,17 @@ const addRowToAreaData = (item, row) => {
     toNumber(pick(row, "LINE35_ALL")) +
     toNumber(pick(row, "LINESN_ALL")) +
     toNumber(pick(row, "LINENN_ALL"));
-  const szoCounts = getRowSzoCounts(row);
-  item.szo += OPERATIONAL_MAP_SZO_FIELDS.reduce(
-    (sum, field) => sum + toNumber(szoCounts[field]),
-    0
-  );
+  // SZO считаем из *_ALL полей (как таблица), а не из SocialObjects
+  item.szo +=
+    toNumber(pick(row, "BOILER_ALL")) +
+    toNumber(pick(row, "CTP_ALL")) +
+    toNumber(pick(row, "WELLS_ALL")) +
+    toNumber(pick(row, "VNS_ALL")) +
+    toNumber(pick(row, "KNS_ALL")) +
+    toNumber(pick(row, "HOSPITALS_ALL")) +
+    toNumber(pick(row, "CLINICS_ALL")) +
+    toNumber(pick(row, "SCHOOLS_ALL")) +
+    toNumber(pick(row, "KINDERGARTENS_ALL"));
 };
 
 export const buildOperationalMapAreaData = (rows, getAreaName) => {
