@@ -289,33 +289,45 @@
   line-height: 1.05;
 }
 
-@media (width: 1920px) and (height: 1080px) {
+/* 24" Full HD displays: browser chrome/taskbar usually make the viewport lower than 1080px. */
+@media (min-width: 1800px) and (min-height: 850px) and (max-width: 2600px) {
   .operational-districts-panel {
-    --operational-branches-table-font-size: 13px;
-    --operational-branches-table-header-font-size: 12px;
+    --operational-branches-table-font-size: 14px;
+    --operational-branches-table-header-font-size: 10px;
   }
 
   .operational-districts-panel__header-title--compact {
-    font-size: 10px;
+    font-size: 9px;
   }
 
   .operational-districts-panel__table .ant-table-cell {
-    padding: 6px 3px;
+    padding: 4px 1px;
+  }
+
+  .operational-districts-panel__table .ant-table-thead > tr > th:not(:first-child) {
+    white-space: nowrap;
+    word-break: normal;
+    overflow-wrap: normal;
+  }
+
+  .operational-districts-panel__table .operational-districts-panel__branch-cell {
+    padding-left: 4px;
+    padding-right: 2px;
   }
 
   .operational-districts-panel--filial {
-    --operational-branches-table-font-size: 11px;
+    --operational-branches-table-font-size: 13px;
     --operational-branches-table-header-font-size: 10px;
   }
 
   .operational-districts-panel--filial
     .operational-districts-panel__table
     .ant-table-cell {
-    padding: 5px 3px;
+    padding: 3px 1px;
   }
 
   .operational-districts-panel--po {
-    --operational-branches-table-font-size: 11px;
+    --operational-branches-table-font-size: 13px;
     --operational-branches-table-header-font-size: 10px;
   }
 
