@@ -288,7 +288,7 @@ export function normalizeChannelName(raw) {
   if (x.includes("едд")) return "edds";
   if (x.includes("мэс")) return "mes";
   if (x.includes("мин") && x.includes("энерг")) return "minenergo";
-  if (x.includes("сбыт") || x.includes("мосэнергосб")) return "mosenergosbyt";
+  if (x.includes("сбыт") || x.includes("мосэнергосб")) return "site";
   return null;
 }
 

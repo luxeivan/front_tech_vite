@@ -63,7 +63,7 @@ function SendDots({ st }) {
   const s = st || {};
   return (
     <Space size={8}>
-      {SEND_CHANNELS.map((c) => (
+      {SEND_CHANNELS.filter((c) => !c.hidden).map((c) => (
         <StatusDot key={c.key} ok={s[c.key]} label={c.label} />
       ))}
     </Space>
@@ -203,7 +203,7 @@ export default function PlannedTable() {
         "Описание": mapped.description,
         "Статус": mapped.statusName,
         "Отправки": mapped.send
-          ? SEND_CHANNELS.map((ch) => `${ch.label}: ${mapped.send[ch.key] === true ? "да" : mapped.send[ch.key] === false ? "нет" : "—"}`).join("; ")
+          ? SEND_CHANNELS.filter((ch) => !ch.hidden).map((ch) => `${ch.label}: ${mapped.send[ch.key] === true ? "да" : mapped.send[ch.key] === false ? "нет" : "—"}`).join("; ")
           : "—",
       };
     });
