@@ -594,6 +594,8 @@ export default function TNModal({ open, documentId, onClose, mode = "unplanned" 
                               value={descriptionEffective}
                               handlerUpdateTn={(_, v) => handlerUpdateDescription(v)}
                               originalBuilder={() => {
+                                const raw = tn?.data?.raw_description ?? tn?.data?.data?.raw_description ?? null;
+                                if (raw && typeof raw === "string") return raw;
                                 const fromApi = tn?.data?.description ?? null;
                                 return typeof fromApi === "string" ? fromApi : "";
                               }}
