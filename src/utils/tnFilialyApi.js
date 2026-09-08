@@ -463,3 +463,35 @@ export const buildTnFilialyTopologyOkrugaRows = (
     (left, right) => Number(left?.sort_order || 0) - Number(right?.sort_order || 0)
   );
 };
+
+const normalizeDistrictKey = (value) =>
+  String(value || "")
+    .replace(/ё/g, "е")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+
+export const buildDistrictToPoMap = (filialRows) => {
+  const map = new Map();
+
+  (Array.isArray(filialRows) ? filialRows : []).forEach((filialRow) => {
+    if (filialRow?.is_active === false) return;
+    const poRows = getTnFilialyAreaPoRows(filialRow).filter(
+      (poRow) => poRow?.is_active !== false && poRow?.name && !isTnFilialyVirtualPoRow(poRow)
+    );
+
+    poRows.forEach((poRow) => {
+      const poName = poRow.name;
+      getTnFilialyPoOkrugaRows(poRow).forEach((okrugRow) => {
+        const okrugName = okrugRow?.name || okrugRow?.source_name || "";
+        if (!okrugName) return;
+        const key = normalizeDistrictKey(okrugName);
+        if (key && !map.has(key)) {
+          map.set(key, poName);
+        }
+      });
+    });
+  });
+
+  return map;
+};

@@ -7,7 +7,7 @@ import BrandSunLoader from "../../../../ui/BrandSunLoader";
 import useAuth from "../../../../../stores/useAuth";
 import useOperationalDashboardStore from "../../../../../stores/operationalDashboard/useOperationalDashboardStore";
 import usePesModuleDataStore from "../../../../../stores/pes/usePesModuleDataStore";
-import { fetchTnFilialyRows, fetchTnPoOkrugLinkRows } from "../../../../../utils/tnFilialyApi";
+import { fetchTnFilialyRows, fetchTnPoOkrugLinkRows, buildDistrictToPoMap } from "../../../../../utils/tnFilialyApi";
 import {
   getOperationalFilialPathForBase,
   getOperationalPoPath,
@@ -214,6 +214,8 @@ export default function OperationalDistrictsPanel({
     [filialRows, pesAssemblyDestinations, pesItems]
   );
 
+  const districtToPoMap = useMemo(() => buildDistrictToPoMap(filialRows), [filialRows]);
+
   const dataSource = useMemo(() => {
     let branchRows;
     if (groupBy === "okrug") {
@@ -224,7 +226,8 @@ export default function OperationalDistrictsPanel({
         poName,
         poSlug,
         pesCountMaps,
-        poOkrugLinkRows
+        poOkrugLinkRows,
+        districtToPoMap
       );
       return [...branchRows, buildOperationalOkrugSummary(branchRows)];
     } else if (groupBy === "po") {
@@ -233,13 +236,14 @@ export default function OperationalDistrictsPanel({
         filialRows,
         filialName,
         pesCountMaps,
-        poOkrugLinkRows
+        poOkrugLinkRows,
+        districtToPoMap
       );
     } else {
       branchRows = buildOperationalBranchRows(rows, filialRows, pesCountMaps);
     }
     return [...branchRows, buildOperationalBranchSummary(branchRows)];
-  }, [filialName, filialRows, groupBy, pesCountMaps, poName, poOkrugLinkRows, poSlug, rows]);
+  }, [districtToPoMap, filialName, filialRows, groupBy, pesCountMaps, poName, poOkrugLinkRows, poSlug, rows]);
 
   const getHoverHandlers = (record) =>
     typeof onBranchHover === "function" && record?.key !== "summary"

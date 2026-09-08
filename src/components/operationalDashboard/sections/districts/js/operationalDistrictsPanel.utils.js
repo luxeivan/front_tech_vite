@@ -15,6 +15,7 @@ import {
   OPERATIONAL_BRANCHES,
 } from "./operationalDistrictsPanel.config";
 import {
+  buildDistrictToPoMap,
   getTnFilialyAreaPoRows,
   getTnFilialyOkrugaRows,
   getTnFilialyPoOkrugaRows,
@@ -334,8 +335,23 @@ const isRowInBranch = (row, branchName) => {
   return isSameNormalizedName(getOperationalBranchByRow(row), branch);
 };
 
-const isRowInPo = (row, poName, poSlug = "") => {
-  const rowPoName = getOperationalPoByRow(row);
+const getCorrectedPoName = (row, districtToPoMap) => {
+  const rawPoName = getOperationalPoByRow(row);
+  if (!districtToPoMap?.size) return rawPoName;
+
+  const districtName = getOperationalDistrictByRow(row);
+  const districtKey = normalizeDistrictLookupName(districtName) || normalizeLookupName(districtName);
+  if (!districtKey) return rawPoName;
+
+  const topologyPoName = districtToPoMap.get(districtKey);
+  if (!topologyPoName) return rawPoName;
+
+  if (normalizeLookupName(rawPoName) === normalizeLookupName(topologyPoName)) return rawPoName;
+  return topologyPoName;
+};
+
+const isRowInPo = (row, poName, poSlug = "", districtToPoMap = null) => {
+  const rowPoName = districtToPoMap ? getCorrectedPoName(row, districtToPoMap) : getOperationalPoByRow(row);
   const normalizedPoName = normalizeLookupName(poName);
   const normalizedPoSlug = String(poSlug || "").trim();
   if (!normalizedPoName && !normalizedPoSlug) return true;
@@ -529,7 +545,8 @@ export const buildOperationalPoRows = (
   filialRows = [],
   filialName = "",
   pesCountMaps = null,
-  poOkrugLinkRows = []
+  poOkrugLinkRows = [],
+  districtToPoMap = null
 ) => {
   const filialRow = getFilialRowByName(filialRows, filialName);
   const filteredPoRows = getTnFilialyAreaPoRows(filialRow);
@@ -550,7 +567,7 @@ export const buildOperationalPoRows = (
   (Array.isArray(rows) ? rows : [])
     .filter((row) => isOperationalDashboardRow(row) && isOpenTN(row) && isRowInBranch(row, filialName))
     .forEach((row) => {
-      const poName = getOperationalPoByRow(row);
+      const poName = districtToPoMap ? getCorrectedPoName(row, districtToPoMap) : getOperationalPoByRow(row);
       const poKey = normalizeLookupName(poName);
       if (!poKey) return;
 
@@ -591,7 +608,8 @@ export const buildOperationalOkrugRows = (
   poName = "",
   poSlug = "",
   pesCountMaps = null,
-  poOkrugLinkRows = []
+  poOkrugLinkRows = [],
+  districtToPoMap = null
 ) => {
   const filialRow = getFilialRowByName(filialRows, filialName);
   const selectedPoRows = getTnFilialyAreaPoRows(filialRow).filter(
@@ -625,7 +643,8 @@ export const buildOperationalOkrugRows = (
     filialRows,
     filialName,
     pesCountMaps,
-    poOkrugLinkRows
+    poOkrugLinkRows,
+    districtToPoMap
   );
   const selectedPoDataRow =
     poRows.find((row) => isPoRowSelected({ name: row.branch }, selectedPoName, poSlug)) ||
@@ -642,7 +661,7 @@ export const buildOperationalOkrugRows = (
         isOperationalDashboardRow(row) &&
         isOpenTN(row) &&
         isRowInBranch(row, filialName) &&
-        isRowInPo(row, selectedPoName, poSlug)
+        isRowInPo(row, selectedPoName, poSlug, districtToPoMap)
     )
     .forEach((row) => {
       const rawDistrictName = getOperationalDistrictByRow(row);
