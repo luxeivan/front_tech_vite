@@ -18,6 +18,9 @@ dist-ssr
 !.vscode/extensions.json
 .idea
 .DS_Store
+
+# MiMoCode
+.mimocode/
 *.suo
 *.ntvs*
 *.njsproj

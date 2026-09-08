@@ -3,6 +3,56 @@ import { Flex, Typography, Input, Button } from "antd";
 import React, { useEffect, useState } from "react";
 import styles from "../css/EditableField.module.css";
 
+// Ключевые слова, которые выделяются жирным при отображении шаблона
+const BOLD_KEYWORDS = [
+  "Без напряжения:",
+  "ТП, РП полностью:",
+  "ТП, РП по одной секции:",
+  "МКД:",
+  "Чел:",
+  "Абонентов:",
+  "СЗО полностью:",
+  "СЗО по одной секции:",
+  "Адреса отключенных объектов:",
+  "Направлено ПЭС:",
+  "Задействовано:",
+];
+
+export function renderWithBold(text) {
+  if (!text) return text;
+  const raw = String(text);
+  const lines = raw.split("\n");
+
+  return lines.map((line, i) => {
+    // Ищем ключевое слово в начале строки (новый формат) или после "АО «Мособлэнерго»..." (старый формат)
+    const matched = BOLD_KEYWORDS.find((kw) => {
+      const trimmed = line.trimStart();
+      return trimmed.startsWith(kw) || line.includes(kw);
+    });
+    if (matched) {
+      const idx = line.indexOf(matched);
+      if (idx >= 0) {
+        const before = line.slice(0, idx);
+        const after = line.slice(idx + matched.length);
+        return (
+          <React.Fragment key={i}>
+            {i > 0 && "\n"}
+            {before}
+            <strong>{matched}</strong>
+            {after}
+          </React.Fragment>
+        );
+      }
+    }
+    return (
+      <React.Fragment key={i}>
+        {i > 0 && "\n"}
+        {line}
+      </React.Fragment>
+    );
+  });
+}
+
 export default function EditableField({
   handlerUpdateTn,
   name,
@@ -13,6 +63,7 @@ export default function EditableField({
   textAreaProps, // 👈 новое: можно прокинуть настройки TextArea
   onBeforeSave,
   placeholder = "—",
+  displayFormatter, // (value: string) => React.ReactNode — рендер для display-режима
 }) {
   const safeValue = value ?? "";
   const [isEdit, setIsEdit] = useState(false);
@@ -114,7 +165,11 @@ export default function EditableField({
       ) : editable && canEdit ? (
         <>
           <Typography.Text>
-            {safeValue !== "" ? safeValue : placeholder}
+            {safeValue !== ""
+              ? displayFormatter
+                ? displayFormatter(safeValue)
+                : safeValue
+              : placeholder}
           </Typography.Text>
           <EditOutlined
             className={styles.editIcon}
@@ -128,7 +183,11 @@ export default function EditableField({
         </>
       ) : (
         <Typography.Text>
-          {safeValue !== "" ? safeValue : placeholder}
+          {safeValue !== ""
+            ? displayFormatter
+              ? displayFormatter(safeValue)
+              : safeValue
+            : placeholder}
         </Typography.Text>
       )}
     </Flex>

@@ -4,7 +4,7 @@ import axios from "axios";
 
 import useData from "../../../stores/useData";
 import useAuth from "../../../stores/useAuth";
-import EditableField from "./EditableField";
+import EditableField, { renderWithBold } from "./EditableField";
 import SendBlock from "./SendBlock";
 import { buildDescriptionTemplate } from "../../../utils/descriptionTemplate";
 import { logAuditEvent } from "../../../utils/auditLogger";
@@ -591,6 +591,7 @@ export default function TNModal({ open, documentId, onClose, mode = "unplanned" 
                                 autoSize: { minRows: 18, maxRows: 60 },
                                 style: { width: "100%", minHeight: 320, lineHeight: 1.5 },
                               }}
+                              displayFormatter={renderWithBold}
                             />
                           ),
                         },
