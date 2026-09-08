@@ -183,6 +183,34 @@ function tpRpSectionTotal(raw) {
   return tpS + rpsnS;
 }
 
+// Обрезает дома из адресов и убирает строки-СЗО (названия организаций без улиц)
+function stripHousesAndSzo(addressList) {
+  return addressList
+    .split(";")
+    .map((item) => {
+      let t = item.trim();
+      if (!t) return "";
+      // Убираем дома: "д.8 корп 1", "д 21а", ", д.21," и т.п. — всё после запятой перед "д." или в конце
+      t = t.replace(/,?\s*д\.?\s*[\d].*$/i, "");
+      t = t.replace(/,?\s*дом\.?\s*[\d].*$/i, "");
+      t = t.replace(/,\s*$/, "").trim();
+      return t;
+    })
+    .filter((t) => {
+      if (!t) return false;
+      // Убираем строки-СЗО: если нет типичных адресных ключей (ул, пер, ш, б-р, пр, км, мкр, г.)
+      // и при этом похоже на название организации — пропускаем
+      const hasStreet = /(ул\.|улица|пер\.|переулок|ш\.|шоссе|б-р|бульвар|пр\.|проспект|км|мкр|г\.|город)/i.test(t);
+      if (!hasStreet) {
+        // Проверяем, похоже ли на название организации (contains кавычки, "МУП", "ООО", "АО" и т.д.)
+        const looksLikeOrg = /("|«|»|МУП|ООО|ОАО|АО|ПАО|УП|ФГБУ|ГБУ|МБУ|МКУ|ФКР)/i.test(t);
+        if (looksLikeOrg) return false;
+      }
+      return true;
+    })
+    .join("; ");
+}
+
 export function buildDescriptionTemplate(raw = {}) {
   // --- Шапка ---
   const sc = s(raw.SC_PO);
@@ -228,10 +256,13 @@ export function buildDescriptionTemplate(raw = {}) {
     sectStr !== "0" ? `СЗО по одной секции: ${sectStr}` : null,
   ].filter(Boolean);
 
-  // --- Адреса отключённых объектов ---
+  // --- Адреса отключённых объектов (только улицы, без домов и СЗО) ---
   const addressList = s(raw.ADDRESS_LIST);
   if (addressList) {
-    outageLines.push(`Адреса отключенных объектов: ${addressList}`);
+    const streetsOnly = stripHousesAndSzo(addressList);
+    if (streetsOnly) {
+      outageLines.push(`Адреса отключенных объектов: ${streetsOnly}`);
+    }
   }
 
   // --- Блок ПЭС и бригад ---

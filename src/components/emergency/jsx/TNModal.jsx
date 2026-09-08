@@ -46,8 +46,10 @@ export default function TNModal({ open, documentId, onClose, mode = "unplanned" 
   }, [documentId]);
 
   const [overrideDescription, setOverrideDescription] = useState(null);
+  const [showOriginal, setShowOriginal] = useState(false);
   useEffect(() => {
     setOverrideDescription(null);
+    setShowOriginal(false);
   }, [documentId]);
 
   const [overridePesCount, setOverridePesCount] = useState(null);
@@ -72,9 +74,16 @@ export default function TNModal({ open, documentId, onClose, mode = "unplanned" 
 
   const descriptionEffective = useMemo(() => {
     if (overrideDescription != null) return overrideDescription;
+    if (showOriginal) {
+      const fromApi = tn?.data?.description ?? null;
+      return typeof fromApi === "string" ? fromApi : "";
+    }
+    // По умолчанию — новый шаблон
+    const raw = tn?.data?.data || {};
+    const generated = buildDescriptionTemplate(raw);
     const fromApi = tn?.data?.description ?? null;
-    return typeof fromApi === "string" ? fromApi : "";
-  }, [overrideDescription, tn]);
+    return generated || (typeof fromApi === "string" ? fromApi : "");
+  }, [overrideDescription, showOriginal, tn]);
 
   const pesCountEffective = useMemo(() => {
     if (overridePesCount != null) return String(overridePesCount);
@@ -584,14 +593,15 @@ export default function TNModal({ open, documentId, onClose, mode = "unplanned" 
                               name="description"
                               value={descriptionEffective}
                               handlerUpdateTn={(_, v) => handlerUpdateDescription(v)}
-                              templateBuilder={() =>
-                                buildDescriptionTemplate(tn?.data?.data || {})
-                              }
+                              originalBuilder={() => {
+                                const fromApi = tn?.data?.description ?? null;
+                                return typeof fromApi === "string" ? fromApi : "";
+                              }}
                               textAreaProps={{
                                 autoSize: { minRows: 18, maxRows: 60 },
                                 style: { width: "100%", minHeight: 320, lineHeight: 1.5 },
                               }}
-                              displayFormatter={renderWithBold}
+                              displayFormatter={showOriginal ? null : renderWithBold}
                             />
                           ),
                         },

@@ -24,7 +24,6 @@ export function renderWithBold(text) {
   const lines = raw.split("\n");
 
   return lines.map((line, i) => {
-    // Ищем ключевое слово в начале строки (новый формат) или после "АО «Мособлэнерго»..." (старый формат)
     const matched = BOLD_KEYWORDS.find((kw) => {
       const trimmed = line.trimStart();
       return trimmed.startsWith(kw) || line.includes(kw);
@@ -38,7 +37,7 @@ export function renderWithBold(text) {
           <React.Fragment key={i}>
             {i > 0 && "\n"}
             {before}
-            <strong>{matched}</strong>
+            <strong style={{ fontWeight: 700 }}>{matched}</strong>
             {after}
           </React.Fragment>
         );
@@ -59,7 +58,7 @@ export default function EditableField({
   value,
   editable,
   canEdit = true,
-  templateBuilder, // функция, которая возвращает текст шаблона
+  originalBuilder, // функция, которая возвращает исходное (старое) описание из БД
   textAreaProps, // 👈 новое: можно прокинуть настройки TextArea
   onBeforeSave,
   placeholder = "—",
@@ -137,17 +136,17 @@ export default function EditableField({
               Изменить
             </Button>
 
-            {typeof templateBuilder === "function" && (
+            {typeof originalBuilder === "function" && (
               <Button
                 disabled={saving}
                 onClick={() => {
                   try {
-                    const t = templateBuilder();
+                    const t = originalBuilder();
                     if (t) setNewValue(String(t));
                   } catch {}
                 }}
               >
-                Шаблон
+                Исходник
               </Button>
             )}
 
@@ -164,13 +163,15 @@ export default function EditableField({
         </Flex>
       ) : editable && canEdit ? (
         <>
-          <Typography.Text>
-            {safeValue !== ""
-              ? displayFormatter
-                ? displayFormatter(safeValue)
-                : safeValue
-              : placeholder}
-          </Typography.Text>
+          {displayFormatter ? (
+            <span style={{ whiteSpace: "pre-wrap" }}>
+              {safeValue !== "" ? displayFormatter(safeValue) : placeholder}
+            </span>
+          ) : (
+            <Typography.Text>
+              {safeValue !== "" ? safeValue : placeholder}
+            </Typography.Text>
+          )}
           <EditOutlined
             className={styles.editIcon}
             title="Редактировать"
@@ -182,13 +183,15 @@ export default function EditableField({
           />
         </>
       ) : (
-        <Typography.Text>
-          {safeValue !== ""
-            ? displayFormatter
-              ? displayFormatter(safeValue)
-              : safeValue
-            : placeholder}
-        </Typography.Text>
+        displayFormatter ? (
+          <span style={{ whiteSpace: "pre-wrap" }}>
+            {safeValue !== "" ? displayFormatter(safeValue) : placeholder}
+          </span>
+        ) : (
+          <Typography.Text>
+            {safeValue !== "" ? safeValue : placeholder}
+          </Typography.Text>
+        )
       )}
     </Flex>
   );
