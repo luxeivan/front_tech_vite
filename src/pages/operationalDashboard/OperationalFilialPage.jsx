@@ -17,6 +17,7 @@ import {
   toNumber,
 } from "../../components/dashboard/js/dashboardCommon";
 import {
+  getCorrectedPoName,
   getOperationalBranchByRow,
   getOperationalDistrictByRow,
   getOperationalPoByRow,
@@ -29,6 +30,7 @@ import {
   getOperationalPoSlug,
 } from "../../utils/operationalFilialRoutes";
 import {
+  buildDistrictToPoMap,
   fetchTnFilialyRows,
   getTnFilialyAreaPoRows,
 } from "../../utils/tnFilialyApi";
@@ -70,6 +72,7 @@ const WEATHER_PLACE_BY_PO_KEY = new Map(
     ["голицынское", "Голицыно"],
     ["дзержинское", "Дзержинский"],
     ["долгопрудненское", "Долгопрудный"],
+    ["долгопруднинское", "Долгопрудный"],
     ["домодедовское", "Домодедово"],
     ["дубненское", "Дубна"],
     ["егорьевское", "Егорьевск"],
@@ -136,7 +139,7 @@ const getWeatherPlaceFromFilialName = (filialName) => {
 const getRowAffectedPopulation = (row) =>
   toNumber(pick(row, "POPULATION_COUNT") ?? pick(row, "PONT_ALL"));
 
-const buildFilialWeatherContext = ({ rows, filialName, poName, isPoLevel }) => {
+const buildFilialWeatherContext = ({ rows, filialName, poName, isPoLevel, districtToPoMap }) => {
   const normalizedFilial = normalizeLookupName(normalizeFilialName(filialName));
   const normalizedPo = normalizeLookupName(poName);
   const districtMap = new Map();
@@ -147,7 +150,7 @@ const buildFilialWeatherContext = ({ rows, filialName, poName, isPoLevel }) => {
     const rowFilial = normalizeLookupName(normalizeFilialName(getOperationalBranchByRow(row)));
     if (normalizedFilial && rowFilial !== normalizedFilial) return;
 
-    const rowPo = normalizeLookupName(getOperationalPoByRow(row));
+    const rowPo = normalizeLookupName(districtToPoMap?.size ? getCorrectedPoName(row, districtToPoMap) : getOperationalPoByRow(row));
     if (isPoLevel && normalizedPo && rowPo !== normalizedPo) return;
 
     const districtName = getOperationalDistrictByRow(row);
@@ -223,11 +226,12 @@ export default function OperationalFilialPage({
   );
   const poTitle = poName || (poSlug ? "ПО" : "");
   const isPoLevel = Boolean(poSlug);
+  const districtToPoMap = useMemo(() => buildDistrictToPoMap(filialRows), [filialRows]);
   const filialPath = `${basePath}/${filialSlug}`;
   const backPath = isPoLevel ? `${basePath}/${filialSlug}` : basePath;
   const weatherContext = useMemo(
-    () => buildFilialWeatherContext({ rows, filialName, poName, isPoLevel }),
-    [filialName, isPoLevel, poName, rows]
+    () => buildFilialWeatherContext({ rows, filialName, poName, isPoLevel, districtToPoMap }),
+    [filialName, districtToPoMap, isPoLevel, poName, rows]
   );
 
   useEffect(() => {

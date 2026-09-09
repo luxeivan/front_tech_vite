@@ -335,7 +335,7 @@ const isRowInBranch = (row, branchName) => {
   return isSameNormalizedName(getOperationalBranchByRow(row), branch);
 };
 
-const getCorrectedPoName = (row, districtToPoMap) => {
+export const getCorrectedPoName = (row, districtToPoMap) => {
   const rawPoName = getOperationalPoByRow(row);
   if (!districtToPoMap?.size) return rawPoName;
 
