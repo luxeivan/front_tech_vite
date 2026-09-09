@@ -67,8 +67,6 @@ const getRecoveryDate = (item) =>
   item?.attributes?.recoveryFactDateTime ??
   item?.data?.recoveryFactDateTime ??
   item?.data?.data?.recoveryFactDateTime ??
-  item?.data?.data?.F81_290_RECOVERYDATETIME ??
-  item?.attributes?.data?.data?.F81_290_RECOVERYDATETIME ??
   null;
 
 const getBaseType = (item) => {
