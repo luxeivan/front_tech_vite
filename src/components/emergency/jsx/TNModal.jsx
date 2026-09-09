@@ -184,12 +184,17 @@ export default function TNModal({ open, documentId, onClose, mode = "unplanned" 
         key: "planned_end_plan",
         label: "Окончание работ: план",
         children: formatDateTime(
-          getField(source, "F81_070_RESTOR_SUPPLAYDATETIME")
+          getField(source, "REPAIRDATETIME") || getField(source, "F81_070_RESTOR_SUPPLAYDATETIME")
         ),
       },
       {
         key: "planned_end_fact",
         label: "Окончание работ: факт",
+        children: formatDateTime(getField(source, "F81_070_RESTOR_SUPPLAYDATETIME")),
+      },
+      {
+        key: "normalization",
+        label: "Нормализация",
         children: formatDateTime(getField(source, "F81_290_RECOVERYDATETIME")),
       },
       {

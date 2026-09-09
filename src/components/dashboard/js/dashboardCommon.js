@@ -89,8 +89,10 @@ export const startDate = (row) =>
   pick(row, "F81_060_EVENTDATETIME") ?? pick(row, "createDateTime") ?? null;
 
 export const recoveryDate = (row) =>
-  pick(row, "F81_290_RECOVERYDATETIME") ??
+  pick(row, "factRestoreDateTime") ??
   pick(row, "F81_070_RESTOR_SUPPLAYDATETIME") ??
+  pick(row, "recoveryFactDateTime") ??
+  pick(row, "F81_290_RECOVERYDATETIME") ??
   null;
 
 export const formatDateTime = (v) => (v ? dayjs(v).format("DD.MM.YYYY HH:mm:ss") : "—");

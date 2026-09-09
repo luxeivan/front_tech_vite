@@ -122,11 +122,33 @@ function toIso(v) {
   return d.toISOString();
 }
 
+function toIsoPlus2h(v) {
+  if (!v) return null;
+  const d = dayjs(v);
+  if (!d.isValid()) return null;
+  return d.add(2, 'hour').toISOString();
+}
+
 function formatMskDateTime(v) {
   if (!v) return null;
   const d = dayjs(v);
   if (!d.isValid()) return null;
   return d.toDate().toLocaleString("ru-RU", {
+    timeZone: "Europe/Moscow",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+
+function formatMskDateTimePlus2h(v) {
+  if (!v) return null;
+  const d = dayjs(v);
+  if (!d.isValid()) return null;
+  return d.add(2, 'hour').toDate().toLocaleString("ru-RU", {
     timeZone: "Europe/Moscow",
     year: "numeric",
     month: "2-digit",
@@ -296,7 +318,7 @@ function buildCommentText(raw) {
     formatMskDateTime(raw?.STARTDATETIME || raw?.F81_060_EVENTDATETIME) ||
     "дата не указана";
   const planAt =
-    formatMskDateTime(raw?.F81_070_RESTOR_SUPPLAYDATETIME) ||
+    formatMskDateTimePlus2h(raw?.REPAIRDATETIME) ||
     "дата не указана";
   const workDescription =
     clean(raw?.F81_042_DISPNAME) || "Описание работ не указано";
@@ -450,10 +472,10 @@ export function buildEddsNewPayload(tn, mappings, accidentLocation = null) {
     errors.push("Не удалось определить shutdownInfo.disabledAt (F81_060_EVENTDATETIME).");
   }
 
-  const plannedInclusionAt = toIso(raw?.F81_070_RESTOR_SUPPLAYDATETIME || obj?.recoveryPlanDateTime);
+  const plannedInclusionAt = toIsoPlus2h(raw?.REPAIRDATETIME || obj?.repairDateTime);
   if (!plannedInclusionAt) {
     errors.push(
-      "Не удалось определить shutdownInfo.plannedInclusionAt (F81_070_RESTOR_SUPPLAYDATETIME)."
+      "Не удалось определить shutdownInfo.plannedInclusionAt (REPAIRDATETIME)."
     );
   }
 

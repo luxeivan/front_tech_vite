@@ -8,6 +8,14 @@ function toDate(v, withTime = false) {
   return withTime ? d.format("YYYY-MM-DD HH:mm:ss") : d.format("YYYY-MM-DD");
 }
 
+function toDatePlus2h(v, withTime = false) {
+  if (!v) return null;
+  const d = dayjs(v);
+  if (!d.isValid()) return null;
+  const d2 = d.add(2, 'hour');
+  return withTime ? d2.format("YYYY-MM-DD HH:mm:ss") : d2.format("YYYY-MM-DD");
+}
+
 function clean(v) {
   if (v === "—" || v === undefined || v === null || v === "") return null;
   return String(v);
@@ -52,8 +60,8 @@ export function buildMosEnergoSbytPayload(tn) {
     toDate(raw.F81_060_EVENTDATETIME || obj.createDateTime, true) || null;
 
   const date_on_plan =
-    toDate(
-      raw.F81_070_RESTOR_SUPPLAYDATETIME || obj.recoveryPlanDateTime,
+    toDatePlus2h(
+      raw.REPAIRDATETIME || raw.F81_070_RESTOR_SUPPLAYDATETIME || obj.recoveryPlanDateTime,
       true
     ) || null;
 

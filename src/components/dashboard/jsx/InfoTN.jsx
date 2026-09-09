@@ -270,7 +270,7 @@ export default function InfoTN({ rows = [], rows7d = [] }) {
     };
 
     const factRecoveryDate = (r) =>
-      pickAny(r, ["recoveryFactDateTime", "F81_290_RECOVERYDATETIME"]);
+      pickAny(r, ["factRestoreDateTime", "F81_070_RESTOR_SUPPLAYDATETIME", "recoveryFactDateTime", "F81_290_RECOVERYDATETIME"]);
 
     const durationHoursOf = (r) => {
       const startTs = dayjs(startDate(r)).valueOf();

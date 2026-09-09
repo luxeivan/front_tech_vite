@@ -57,6 +57,12 @@ const getCreateDate = (item) =>
   null;
 
 const getRecoveryDate = (item) =>
+  item?.factRestoreDateTime ??
+  item?.attributes?.factRestoreDateTime ??
+  item?.data?.factRestoreDateTime ??
+  item?.data?.data?.factRestoreDateTime ??
+  item?.data?.data?.F81_070_RESTOR_SUPPLAYDATETIME ??
+  item?.attributes?.data?.data?.F81_070_RESTOR_SUPPLAYDATETIME ??
   item?.recoveryFactDateTime ??
   item?.attributes?.recoveryFactDateTime ??
   item?.data?.recoveryFactDateTime ??
