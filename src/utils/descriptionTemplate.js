@@ -125,40 +125,40 @@ const SZO_SHORT = {
   vns: "ВНС",
 };
 
-// Подсчёт и краткая сводка СЗО: сколько всего + типы в скобках
+// Подсчёт и краткая сводка СЗО: общее число объектов + типы в скобках
 function buildSzoSummary(countsRaw, sectionCountsRaw) {
   const full = [];
   const sect = [];
+  let fullTotal = 0;
+  let sectTotal = 0;
 
-  const pushType = (arr, key, countRaw) => {
+  const pushType = (arr, key, countRaw, addCount) => {
     const c = num(countRaw);
     if (!c) return;
     const short = SZO_SHORT[key];
     arr.push(c === 1 ? short : `${short} (${c})`);
+    addCount(c);
   };
 
-  pushType(full, "polyclinic", countsRaw.CLINICS_ALL);
-  pushType(full, "hospital", countsRaw.HOSPITALS_ALL);
-  pushType(full, "school", countsRaw.SCHOOLS_ALL);
-  pushType(full, "kindergarten", countsRaw.KINDERGARTENS_ALL);
-  pushType(full, "boiler", countsRaw.BOILER_ALL);
-  pushType(full, "ctp", countsRaw.CTP_ALL);
-  pushType(full, "kns", countsRaw.KNS_ALL);
-  pushType(full, "wells", countsRaw.WELLS_ALL);
-  pushType(full, "vns", countsRaw.VNS_ALL);
+  pushType(full, "polyclinic", countsRaw.CLINICS_ALL, (c) => { fullTotal += c; });
+  pushType(full, "hospital", countsRaw.HOSPITALS_ALL, (c) => { fullTotal += c; });
+  pushType(full, "school", countsRaw.SCHOOLS_ALL, (c) => { fullTotal += c; });
+  pushType(full, "kindergarten", countsRaw.KINDERGARTENS_ALL, (c) => { fullTotal += c; });
+  pushType(full, "boiler", countsRaw.BOILER_ALL, (c) => { fullTotal += c; });
+  pushType(full, "ctp", countsRaw.CTP_ALL, (c) => { fullTotal += c; });
+  pushType(full, "kns", countsRaw.KNS_ALL, (c) => { fullTotal += c; });
+  pushType(full, "wells", countsRaw.WELLS_ALL, (c) => { fullTotal += c; });
+  pushType(full, "vns", countsRaw.VNS_ALL, (c) => { fullTotal += c; });
 
-  pushType(sect, "polyclinic", sectionCountsRaw.CLINICS_SECTION);
-  pushType(sect, "hospital", sectionCountsRaw.HOSPITALS_SECTION);
-  pushType(sect, "school", sectionCountsRaw.SCHOOLS_SECTION);
-  pushType(sect, "kindergarten", sectionCountsRaw.KINDERGARTENS_SECTION);
-  pushType(sect, "boiler", sectionCountsRaw.BOILER_SECTION);
-  pushType(sect, "ctp", sectionCountsRaw.CTP_SECTION);
-  pushType(sect, "kns", sectionCountsRaw.KNS_SECTION);
-  pushType(sect, "wells", sectionCountsRaw.WELLS_SECTION);
-  pushType(sect, "vns", sectionCountsRaw.VNS_SECTION);
-
-  const fullTotal = full.length;
-  const sectTotal = sect.length;
+  pushType(sect, "polyclinic", sectionCountsRaw.CLINICS_SECTION, (c) => { sectTotal += c; });
+  pushType(sect, "hospital", sectionCountsRaw.HOSPITALS_SECTION, (c) => { sectTotal += c; });
+  pushType(sect, "school", sectionCountsRaw.SCHOOLS_SECTION, (c) => { sectTotal += c; });
+  pushType(sect, "kindergarten", sectionCountsRaw.KINDERGARTENS_SECTION, (c) => { sectTotal += c; });
+  pushType(sect, "boiler", sectionCountsRaw.BOILER_SECTION, (c) => { sectTotal += c; });
+  pushType(sect, "ctp", sectionCountsRaw.CTP_SECTION, (c) => { sectTotal += c; });
+  pushType(sect, "kns", sectionCountsRaw.KNS_SECTION, (c) => { sectTotal += c; });
+  pushType(sect, "wells", sectionCountsRaw.WELLS_SECTION, (c) => { sectTotal += c; });
+  pushType(sect, "vns", sectionCountsRaw.VNS_SECTION, (c) => { sectTotal += c; });
 
   const fullStr = fullTotal
     ? `${fullTotal} (${full.join(", ")})`
