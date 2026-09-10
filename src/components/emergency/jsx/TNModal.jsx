@@ -78,11 +78,12 @@ export default function TNModal({ open, documentId, onClose, mode = "unplanned" 
       const fromApi = tn?.data?.description ?? null;
       return typeof fromApi === "string" ? fromApi : "";
     }
-    // По умолчанию — новый шаблон
-    const raw = tn?.data?.data || {};
-    const generated = buildDescriptionTemplate(raw);
+    // Показываем сохранённое описание (включая ручные правки),
+    // шаблон — fallback только для пустых записей
     const fromApi = tn?.data?.description ?? null;
-    return generated || (typeof fromApi === "string" ? fromApi : "");
+    if (typeof fromApi === "string" && fromApi) return fromApi;
+    const raw = tn?.data?.data || {};
+    return buildDescriptionTemplate(raw);
   }, [overrideDescription, showOriginal, tn]);
 
   const pesCountEffective = useMemo(() => {
