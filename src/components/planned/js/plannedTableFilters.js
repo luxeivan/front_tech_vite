@@ -209,7 +209,7 @@ export function mapPlannedRow(item, sendStatus) {
     startPlan: formatDateTime(getField(item, "F81_060_EVENTDATETIME")),
     startFact: formatDateTime(getField(item, "STARTDATETIME")),
     endPlan: formatDateTime(getField(item, "REPAIRDATETIME") || getField(item, "F81_070_RESTOR_SUPPLAYDATETIME")),
-    endFact: formatDateTime(getField(item, "F81_070_RESTOR_SUPPLAYDATETIME")),
+    endFact: formatDateTime(getField(item, "F81_290_RECOVERYDATETIME")),
     branch: getTnFilialName(item) ?? "—",
     po: getTnPoName(item) ?? "—",
     objectName: getField(item, "F81_041_ENERGOOBJECTNAME") ?? "—",
