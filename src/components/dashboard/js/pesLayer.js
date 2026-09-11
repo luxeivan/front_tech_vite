@@ -345,7 +345,7 @@ export const createPesLayer = ({
     source,
     zIndex: 9999,
     declutter: true,
-    renderBuffer: 0,
+    // renderBuffer: 0,
     style: (feature) => {
       const coordinate = feature.getGeometry?.()?.getCoordinates?.();
       const visibleExtent = getVisibleExtent?.();
