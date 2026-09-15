@@ -1,6 +1,10 @@
 import dayjs from "dayjs";
 
 import {
+  getTnFilialName,
+  getTnPoName,
+} from "../../dashboard/js/dashboardCommon";
+import {
   buildSzoSummaryFromItem,
   extractGuid,
   formatDateTime,
@@ -205,10 +209,10 @@ export function mapPlannedRow(item, sendStatus) {
     violationType: Number(getField(item, "BASE_TYPE")) === 1 ? "Плановая" : "—",
     startPlan: formatDateTime(getField(item, "F81_060_EVENTDATETIME")),
     startFact: formatDateTime(getField(item, "STARTDATETIME")),
-    endPlan: formatDateTime(getField(item, "REPAIRDATETIME")),
+    endPlan: formatDateTime(getField(item, "REPAIRDATETIME") || getField(item, "F81_070_RESTOR_SUPPLAYDATETIME")),
     endFact: formatDateTime(getField(item, "F81_290_RECOVERYDATETIME")),
-    branch: getField(item, "SC_FILIAL") ?? "—",
-    po: getField(item, "SC_PO") ?? "—",
+    branch: getTnFilialName(item) ?? "—",
+    po: getTnPoName(item) ?? "—",
     objectName: getField(item, "F81_041_ENERGOOBJECTNAME") ?? "—",
     addressList: getField(item, "ADDRESS_LIST") ?? "—",
     description: getField(item, "BRIGADE_ACTION") ?? "—",
