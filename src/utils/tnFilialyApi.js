@@ -486,8 +486,13 @@ export const buildDistrictToPoMap = (filialRows) => {
         const okrugName = okrugRow?.name || okrugRow?.source_name || "";
         if (!okrugName) return;
         const key = normalizeDistrictKey(okrugName);
-        if (key && !map.has(key)) {
-          map.set(key, poName);
+        if (key) {
+          const existing = map.get(key);
+          if (!existing) {
+            map.set(key, [poName]);
+          } else if (!existing.includes(poName)) {
+            map.set(key, [...existing, poName]);
+          }
         }
       });
     });

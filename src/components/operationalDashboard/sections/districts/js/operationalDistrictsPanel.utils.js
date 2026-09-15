@@ -343,11 +343,13 @@ export const getCorrectedPoName = (row, districtToPoMap) => {
   const districtKey = normalizeDistrictLookupName(districtName) || normalizeLookupName(districtName);
   if (!districtKey) return rawPoName;
 
-  const topologyPoName = districtToPoMap.get(districtKey);
-  if (!topologyPoName) return rawPoName;
+  const topologyPoNames = districtToPoMap.get(districtKey);
+  if (!topologyPoNames?.length) return rawPoName;
 
-  if (normalizeLookupName(rawPoName) === normalizeLookupName(topologyPoName)) return rawPoName;
-  return topologyPoName;
+  if (topologyPoNames.some((name) => normalizeLookupName(name) === normalizeLookupName(rawPoName))) {
+    return rawPoName;
+  }
+  return topologyPoNames[0];
 };
 
 const isRowInPo = (row, poName, poSlug = "", districtToPoMap = null) => {
