@@ -67,7 +67,7 @@ import {
   startPesPolling,
 } from "../../../../dashboard/js/pesLayer";
 import { createPopupOverlay } from "../../../../dashboard/js/olLayers";
-import pesKamazVectorSvgRaw from "../../../../../assets/pes-kamaz-vector.svg?raw";
+import pesKamazVectorSvgRaw from "../../../../../assets/pes-kamaz-vector_two.svg?raw";
 import "../css/OperationalMapPanel.css";
 import "../css/OperationalMapPanelTestMap.css";
 
@@ -1211,7 +1211,7 @@ export default function OperationalMapPanel({
       viewportPaddingPx: 28,
       isCoordinateAllowed: isPesCoordinateInsideDistricts,
       iconSvgRaw: pesKamazVectorSvgRaw,
-      scaleMultiplier: 0.034,
+      scaleMultiplier: 0.0476,
       recolorAllFills: true,
       showLabels: false,
     });

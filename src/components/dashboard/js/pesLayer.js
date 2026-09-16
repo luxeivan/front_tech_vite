@@ -116,10 +116,18 @@ export const pesIconDataUrl = (
   { svgRaw = pesIconSvgRaw, recolorAllFills = false } = {},
 ) => {
   const svg = String(svgRaw || "");
+  const colorValuePattern =
+    "(?:#[0-9a-f]{3,8}|rgb\\([^)]*\\)|rgba\\([^)]*\\))";
   const patched = recolorAllFills
     ? svg
-        .replace(/fill:\s*#[0-9a-f]{3,8}/gi, `fill:${fillColor}`)
-        .replace(/fill="#[0-9a-f]{3,8}"/gi, `fill="${fillColor}"`)
+        .replace(
+          new RegExp(`fill:\\s*${colorValuePattern}`, "gi"),
+          `fill:${fillColor}`,
+        )
+        .replace(
+          new RegExp(`fill="${colorValuePattern}"`, "gi"),
+          `fill="${fillColor}"`,
+        )
     : svg
         .replace(/fill:\s*#000000/gi, `fill:${fillColor}`)
         .replace(/fill="#000000"/gi, `fill="${fillColor}"`);

@@ -19,7 +19,7 @@ import Text from "ol/style/Text";
 import GeoJSON from "ol/format/GeoJSON";
 import "ol/ol.css";
 
-import pesKamazVectorSvgRaw from "../../../../../assets/pes-kamaz-vector.svg?raw";
+import pesKamazVectorSvgRaw from "../../../../../assets/pes-kamaz-vector_two.svg?raw";
 import useOperationalDashboardStore from "../../../../../stores/operationalDashboard/useOperationalDashboardStore";
 import usePesModuleDataStore from "../../../../../stores/pes/usePesModuleDataStore";
 import useAuth from "../../../../../stores/useAuth";
@@ -812,7 +812,7 @@ const getPesMarkerStyle = (feature) => {
   const key = `${compact ? "compact" : "default"}:${status}:${priority ? "priority" : "regular"}`;
   if (PES_MARKER_STYLE_CACHE.has(key)) return PES_MARKER_STYLE_CACHE.get(key);
 
-  const scale = compact ? 0.036 : 0.048;
+  const scale = compact ? 0.0504 : 0.0672;
   const style = new Style({
     image: new Icon({
       src: PES_MARKER_ICON_BY_STATUS[status] || PES_MARKER_ICON_BY_STATUS.ready,
