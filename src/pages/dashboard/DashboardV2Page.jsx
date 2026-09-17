@@ -1,0 +1,325 @@
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Typography, Card, Space, Spin, Skeleton } from "antd";
+import dayjs from "dayjs";
+import axios from "axios";
+
+import MapPanel from "../../components/dashboard/jsx/MapPanel";
+import InfoTN from "../../components/dashboard/jsx/InfoTN";
+import PotrebiteliSZO from "../../components/dashboard/jsx/PotrebiteliSZO";
+import PowerMosOblEnergo from "../../components/dashboard/jsx/PowerMosOblEnergo";
+import Dinamica7Days from "../../components/dashboard/jsx/Dinamica";
+import RegionSZO from "../../components/dashboard/jsx/RegionSZO";
+import {
+  extractFiasFromRow,
+  FIAS_COLLECTION,
+  fetchDashboardRows,
+  MAP_SCALE,
+  tnNumber,
+  URL,
+} from "../../components/dashboard/js/dashboardPage.utils";
+import "../../components/dashboard/css/DashboardPage.css";
+
+const { Title } = Typography;
+
+const WEATHER_URL = "https://api.open-meteo.com/v1/forecast";
+const WEATHER_DEFAULT = {
+  latitude: 55.7558,
+  longitude: 37.6173,
+  label: "Москва",
+};
+
+const fmtWeatherNumber = (value, digits = 0) => {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "—";
+  return n.toFixed(digits).replace(".", ",");
+};
+
+const getWeatherView = (code) => {
+  const n = Number(code);
+  if ([0].includes(n)) return { icon: "☀️", label: "Ясно" };
+  if ([1, 2].includes(n)) return { icon: "🌤️", label: "Переменная облачность" };
+  if ([3].includes(n)) return { icon: "☁️", label: "Облачно" };
+  if ([45, 48].includes(n)) return { icon: "🌫️", label: "Туман" };
+  if ([51, 53, 55, 56, 57].includes(n)) return { icon: "🌦️", label: "Морось" };
+  if ([61, 63, 65, 66, 67, 80, 81, 82].includes(n)) return { icon: "🌧️", label: "Дождь" };
+  if ([71, 73, 75, 77, 85, 86].includes(n)) return { icon: "🌨️", label: "Снег" };
+  if ([95, 96, 99].includes(n)) return { icon: "⛈️", label: "Гроза" };
+  return { icon: "🌡️", label: "Погода" };
+};
+
+function WeatherWidget({ weather }) {
+  if (!weather) {
+    return (
+      <div className="dashboard-page__weather dashboard-page__weather--loading">
+        <div className="dashboard-page__weather-main">Погода загружается</div>
+      </div>
+    );
+  }
+
+  const temp = Number(weather.temperature);
+  const tempText = Number.isFinite(temp)
+    ? `${temp > 0 ? "+" : ""}${Math.round(temp)}°C`
+    : "—";
+  const weatherView = getWeatherView(weather.weatherCode);
+
+  return (
+    <div className="dashboard-page__weather" aria-label="Текущая погода">
+      <div className="dashboard-page__weather-main">
+        <span className="dashboard-page__weather-icon" aria-hidden="true">
+          {weatherView.icon}
+        </span>
+        <div className="dashboard-page__weather-summary">
+          <div>
+            <span className="dashboard-page__weather-temp">{tempText}</span>
+            <span className="dashboard-page__weather-city">{weather.label}</span>
+          </div>
+          <span>{weatherView.label}</span>
+        </div>
+      </div>
+      <div className="dashboard-page__weather-metrics">
+        <div>
+          <i aria-hidden="true">💨</i>
+          <span>Ветер</span>
+          <b>{fmtWeatherNumber(weather.windSpeed, 1)} м/с</b>
+        </div>
+        <div>
+          <i aria-hidden="true">☁️</i>
+          <span>Облачность</span>
+          <b>{fmtWeatherNumber(weather.cloudCover)}%</b>
+        </div>
+        <div>
+          <i aria-hidden="true">💧</i>
+          <span>Осадки</span>
+          <b>{fmtWeatherNumber(weather.precipitation, 1)} мм</b>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function DashboardV2Page() {
+  const headerRef = useRef(null);
+  const [mapHeight, setMapHeight] = useState(420);
+
+  const [compact, setCompact] = useState(false);
+  useEffect(() => {
+    const onResize = () => {
+      const h = window.innerHeight;
+      const w = window.innerWidth;
+      setCompact(h < 900 || w < 1280);
+      const headerH = headerRef.current ? headerRef.current.getBoundingClientRect().height : 0;
+      const paddingY = 32;
+      const base = Math.max(300, Math.floor(h - headerH - paddingY));
+      const scaled = Math.max(200, Math.floor(base * MAP_SCALE));
+      setMapHeight(scaled);
+    };
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  const [now, setNow] = useState(dayjs());
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [rows, setRows] = useState([]);
+  const [rows7d, setRows7d] = useState([]);
+  const [weather, setWeather] = useState(null);
+  const esRef = useRef(null);
+
+  const fiasCodes = useMemo(
+    () => Array.from(new Set(rows.flatMap((r) => extractFiasFromRow(r)).filter(Boolean))),
+    [rows]
+  );
+
+  const fiasOwners = useMemo(() => {
+    const map = new Map();
+    rows.forEach((r) => {
+      const num = tnNumber(r);
+      if (!num) return;
+      const list = extractFiasFromRow(r);
+      list.forEach((code) => {
+        if (!code) return;
+        if (!map.has(code)) map.set(code, new Set());
+        map.get(code).add(num);
+      });
+    });
+    const obj = {};
+    map.forEach((set, key) => {
+      obj[key] = Array.from(set);
+    });
+    return obj;
+  }, [rows]);
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(dayjs()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const jwt = localStorage.getItem("jwt");
+      const data = await fetchDashboardRows({ axios, jwt });
+      setRows(data.rows);
+      setRows7d(data.rows7d);
+    } catch (e) {
+      setError(e?.message || "Ошибка загрузки данных");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadWeather = async () => {
+      try {
+        const { data } = await axios.get(WEATHER_URL, {
+          params: {
+            latitude: WEATHER_DEFAULT.latitude,
+            longitude: WEATHER_DEFAULT.longitude,
+            current: "temperature_2m,wind_speed_10m,cloud_cover,precipitation,weather_code",
+            wind_speed_unit: "ms",
+            timezone: "Europe/Moscow",
+          },
+          timeout: 8000,
+        });
+        if (cancelled) return;
+        const current = data?.current || {};
+        setWeather({
+          label: WEATHER_DEFAULT.label,
+          temperature: current.temperature_2m,
+          windSpeed: current.wind_speed_10m,
+          cloudCover: current.cloud_cover,
+          precipitation: current.precipitation,
+          weatherCode: current.weather_code,
+        });
+      } catch {
+        if (!cancelled) setWeather(null);
+      }
+    };
+
+    loadWeather();
+    const timer = window.setInterval(loadWeather, 10 * 60 * 1000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!URL) return;
+    try {
+      const es = new EventSource(`${URL}/services/event`);
+      esRef.current = es;
+      es.onmessage = () => setTimeout(loadData, 350);
+      es.onerror = () => {
+        es.close();
+        esRef.current = null;
+        setTimeout(loadData, 5000);
+      };
+      return () => {
+        es.close();
+        esRef.current = null;
+      };
+    } catch {
+      return undefined;
+    }
+  }, []);
+
+  return (
+    <div className="dashboard-page">
+      <div ref={headerRef} className="dashboard-page__hero">
+        <div className="dashboard-page__container">
+          <div className="dashboard-page__hero-grid">
+            <div />
+            <Title level={2} className="dashboard-page__title">
+              ТЕХНОЛОГИЧЕСКИЕ НАРУШЕНИЯ В ЭЛЕКТРИЧЕСКИХ СЕТЯХ АО «МОСОБЛЭНЕРГО»
+            </Title>
+            <div className="dashboard-page__status-panel">
+              <WeatherWidget weather={weather} />
+              <div className="dashboard-page__clock" aria-label="Текущее время">
+                <div className="dashboard-page__clock-date">{now.format("DD.MM.YYYY")}</div>
+                <div className="dashboard-page__clock-time">{now.format("HH:mm")}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="dashboard-page__content">
+        <div
+          className="dashboard-page__grid"
+          style={{
+            gridTemplateColumns: compact
+              ? "1fr"
+              : "minmax(700px, 1.4fr) minmax(560px, 1.6fr)",
+            gap: compact ? 10 : 14,
+          }}
+        >
+          <div className="dashboard-page__left-column">
+            {loading && !error && (
+              <Space className="dashboard-page__loading">
+                <Spin size="large" />
+              </Space>
+            )}
+            {error && (
+              <Title level={4} type="danger" className="dashboard-page__error">
+                {error}
+              </Title>
+            )}
+
+            {!loading && !error && (
+              <div className="dashboard-page__left-stack">
+                <InfoTN rows={rows} rows7d={rows7d} />
+                <PotrebiteliSZO />
+                <div className="dashboard-page__left-fill">
+                  <PowerMosOblEnergo />
+                </div>
+              </div>
+            )}
+
+            {rows.length === 0 && loading && (
+              <Skeleton active paragraph={{ rows: 4 }} style={{ marginTop: 24 }} />
+            )}
+          </div>
+
+          <div className="dashboard-page__right-column">
+            <Card
+              className="dashboard-page__map-card"
+              styles={{ body: { padding: 0 } }}
+              title={<div className="dashboard-page__map-title">Карта отключённых потребителей</div>}
+            >
+              <div
+                style={{
+                  width: "100%",
+                  height: mapHeight,
+                  minHeight: compact ? 180 : 220,
+                  position: "relative",
+                }}
+              >
+                <MapPanel
+                  height="100%"
+                  initialState={{ center: [55.751244, 37.618423], zoom: 8 }}
+                  fiasCodes={fiasCodes}
+                  url={URL}
+                  fiasCollection={FIAS_COLLECTION}
+                  fiasOwners={fiasOwners}
+                />
+              </div>
+            </Card>
+            <div className="dashboard-page__dynamics">
+              <Dinamica7Days />
+            </div>
+          </div>
+        </div>
+
+        {!loading && !error && <RegionSZO rowsOpen={rows} loadingExternal={loading} />}
+      </div>
+    </div>
+  );
+}
