@@ -50,6 +50,25 @@ const STATUS_CHIPS = [
   { key: "repair", label: "В ремонте", className: "dashboard-v2-chip--default", powerStatuses: ["repair"] },
 ];
 
+const DASHBOARD_V2_BRANCH_GROUPS = [
+  {
+    title: "Север и северо-восток",
+    branches: ["Мытищинский", "Сергиево-Посадский", "Щёлковский"],
+  },
+  {
+    title: "Восток и юго-восток",
+    branches: ["Павлово-Посадский", "Орехово-Зуевский", "Раменский"],
+  },
+  {
+    title: "Юг",
+    branches: ["Домодедовский", "Коломенский"],
+  },
+  {
+    title: "Запад",
+    branches: ["Красногорский", "Одинцовский"],
+  },
+];
+
 function sumPower(items, statuses = null) {
   const allowed = Array.isArray(statuses) ? new Set(statuses) : null;
   return (items || []).reduce((acc, item) => {
@@ -451,6 +470,7 @@ export default function DashboardV2Page() {
           <Button
             size="small"
             icon={<DownloadOutlined />}
+            className="dashboard-v2-excel-button"
             onClick={() => exportPesToXlsx(pes.filteredItems)}
             disabled={!pes.filteredItems.length}
           >
@@ -488,6 +508,8 @@ export default function DashboardV2Page() {
               onToggle={pes.toggleSelected}
               selectable={pes.canManage}
               className="pes-board--dashboard-v2"
+              branchGroups={DASHBOARD_V2_BRANCH_GROUPS}
+              showGroupTitles={false}
             />
           )}
         </div>
@@ -496,7 +518,7 @@ export default function DashboardV2Page() {
           <Card className="dashboard-v2-card dashboard-v2-map-card" size="small" title="Карта отключённых потребителей">
             <div className="dashboard-v2-map-box">
               <MapPanel
-                height="330px"
+                height="360px"
                 initialState={{ center: [55.751244, 37.618423], zoom: 8 }}
                 fiasCodes={fiasCodes}
                 url={URL}
