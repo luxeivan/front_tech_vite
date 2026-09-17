@@ -1,143 +1,247 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Typography, Card, Space, Spin, Skeleton } from "antd";
+import { Alert, Button, Card, Skeleton, Space, Spin, message } from "antd";
+import {
+  CheckSquareOutlined,
+  DownloadOutlined,
+  LinkOutlined,
+  ReloadOutlined,
+} from "@ant-design/icons";
+import * as XLSX from "xlsx";
 import dayjs from "dayjs";
 import axios from "axios";
 
 import MapPanel from "../../components/dashboard/jsx/MapPanel";
-import InfoTN from "../../components/dashboard/jsx/InfoTN";
-import PotrebiteliSZO from "../../components/dashboard/jsx/PotrebiteliSZO";
-import PowerMosOblEnergo from "../../components/dashboard/jsx/PowerMosOblEnergo";
 import Dinamica7Days from "../../components/dashboard/jsx/Dinamica";
 import RegionSZO from "../../components/dashboard/jsx/RegionSZO";
 import {
   extractFiasFromRow,
   FIAS_COLLECTION,
   fetchDashboardRows,
-  MAP_SCALE,
   tnNumber,
   URL,
 } from "../../components/dashboard/js/dashboardPage.utils";
-import "../../components/dashboard/css/DashboardPage.css";
+import {
+  districtName,
+  isDashboardBaseType,
+  isOpenTN,
+  pick,
+  pickAny,
+  recoveryDate,
+  startDate,
+  toNumber,
+} from "../../components/dashboard/js/dashboardCommon";
+import { engineeringDayKey } from "../../components/dashboard/js/engineeringDay";
+import pesModuleLogic from "../../components/pes/js/pesModuleLogic";
+import { formatDateTime, formatPowerKw, STATUS_META, statusLabel } from "../../components/pes/js/pesModuleMeta";
+import PesCommandCard from "../../components/pes/jsx/PesCommandCard";
+import PesFiltersCard from "../../components/pes/jsx/PesFiltersCard";
+import PesHistoryDrawer from "../../components/pes/jsx/PesHistoryDrawer";
+import PesTilesBoard from "../../components/pes/jsx/PesTilesBoard";
+import "../../components/pes/css/PesModule.css";
+import "./DashboardV2Page.css";
 
-const { Title } = Typography;
+const STATUS_CHIPS = [
+  { key: "total", label: "Всего", className: "dashboard-v2-chip--default", powerStatuses: null },
+  { key: "ready", label: "Готова", className: "dashboard-v2-chip--ready", powerStatuses: ["ready"] },
+  { key: "commandSent", label: "Команда", className: "dashboard-v2-chip--command", powerStatuses: ["command_sent"] },
+  { key: "delay", label: "Задержка", className: "dashboard-v2-chip--delay", powerStatuses: ["delay"] },
+  { key: "enRoute", label: "В пути", className: "dashboard-v2-chip--route", powerStatuses: ["en_route"] },
+  { key: "connected", label: "В работе", className: "dashboard-v2-chip--work", powerStatuses: ["connected"] },
+  { key: "repair", label: "В ремонте", className: "dashboard-v2-chip--default", powerStatuses: ["repair"] },
+];
 
-const WEATHER_URL = "https://api.open-meteo.com/v1/forecast";
-const WEATHER_DEFAULT = {
-  latitude: 55.7558,
-  longitude: 37.6173,
-  label: "Москва",
-};
+function sumPower(items, statuses = null) {
+  const allowed = Array.isArray(statuses) ? new Set(statuses) : null;
+  return (items || []).reduce((acc, item) => {
+    if (allowed && !allowed.has(item?.effectiveStatus)) return acc;
+    const value = Number(item?.powerKw);
+    return Number.isFinite(value) ? acc + value : acc;
+  }, 0);
+}
 
-const fmtWeatherNumber = (value, digits = 0) => {
-  const n = Number(value);
-  if (!Number.isFinite(n)) return "—";
-  return n.toFixed(digits).replace(".", ",");
-};
+function buildPesExportRows(items) {
+  return (items || []).map((item) => ({
+    "Номер": item.number || "",
+    "Мощность, кВт": formatPowerKw(item.powerKw),
+    "Статус": statusLabel(item.effectiveStatus),
+    "Филиал": item.branch || "",
+    "ПО": item.po || "",
+    "Место базирования": item.baseAddress || item.parkingAddress || item.locationAddress || "",
+    "Место назначения": item.destination?.address || item.destination?.title || item.destination?.name || "",
+    "Время команды": formatDateTime(item.commandSentAt),
+    "Фактический выезд": formatDateTime(item.actualDepartureAt),
+    "Подключение": formatDateTime(item.connectedAt),
+    "Диспетчер": item.dispatcherPhone || "",
+  }));
+}
 
-const getWeatherView = (code) => {
-  const n = Number(code);
-  if ([0].includes(n)) return { icon: "☀️", label: "Ясно" };
-  if ([1, 2].includes(n)) return { icon: "🌤️", label: "Переменная облачность" };
-  if ([3].includes(n)) return { icon: "☁️", label: "Облачно" };
-  if ([45, 48].includes(n)) return { icon: "🌫️", label: "Туман" };
-  if ([51, 53, 55, 56, 57].includes(n)) return { icon: "🌦️", label: "Морось" };
-  if ([61, 63, 65, 66, 67, 80, 81, 82].includes(n)) return { icon: "🌧️", label: "Дождь" };
-  if ([71, 73, 75, 77, 85, 86].includes(n)) return { icon: "🌨️", label: "Снег" };
-  if ([95, 96, 99].includes(n)) return { icon: "⛈️", label: "Гроза" };
-  return { icon: "🌡️", label: "Погода" };
-};
-
-function WeatherWidget({ weather }) {
-  if (!weather) {
-    return (
-      <div className="dashboard-page__weather dashboard-page__weather--loading">
-        <div className="dashboard-page__weather-main">Погода загружается</div>
-      </div>
-    );
+function exportPesToXlsx(items) {
+  const rows = buildPesExportRows(items);
+  if (!rows.length) {
+    message.warning("Нет ПЭС для выгрузки по текущим фильтрам.");
+    return;
   }
 
-  const temp = Number(weather.temperature);
-  const tempText = Number.isFinite(temp)
-    ? `${temp > 0 ? "+" : ""}${Math.round(temp)}°C`
-    : "—";
-  const weatherView = getWeatherView(weather.weatherCode);
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws["!cols"] = [
+    { wch: 10 },
+    { wch: 14 },
+    { wch: 24 },
+    { wch: 22 },
+    { wch: 24 },
+    { wch: 32 },
+    { wch: 36 },
+    { wch: 20 },
+    { wch: 20 },
+    { wch: 20 },
+    { wch: 18 },
+  ];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "ПЭС");
+  XLSX.writeFile(wb, `pes-export-${dayjs().format("YYYY-MM-DD-HH-mm")}.xlsx`);
+}
+
+function getPesDestinationDistrict(item) {
+  const dest = item?.destination || {};
+  return (
+    dest.district ||
+    dest.okrug ||
+    dest.cityDistrict ||
+    dest.municipality ||
+    dest.gorodskoyOkrug ||
+    dest.gorodskoiOkrug ||
+    item?.destinationDistrict ||
+    ""
+  );
+}
+
+function DashboardV2TodayDuration({ rows7d = [] }) {
+  const [now, setNow] = useState(() => dayjs());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(dayjs()), 60 * 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const stats = useMemo(() => {
+    const todayKey = engineeringDayKey(now);
+    const sameWorkday = (value) => (value ? engineeringDayKey(value) === todayKey : false);
+    const nowTs = now.valueOf();
+    const source = (Array.isArray(rows7d) ? rows7d : []).filter(isDashboardBaseType);
+
+    const isDeletedRow = (row) => {
+      const status = String(pick(row, "STATUS_NAME") ?? row?.STATUS_NAME ?? "").toLowerCase();
+      return status.includes("удален") || status.includes("delete");
+    };
+    const isClosedRow = (row) => {
+      if (isOpenTN(row) || isDeletedRow(row)) return false;
+      const updatedAt = pick(row, "updatedAt") ?? row?.updatedAt ?? null;
+      return sameWorkday(updatedAt) || sameWorkday(recoveryDate(row));
+    };
+    const durationHoursOf = (row) => {
+      const startTs = dayjs(startDate(row)).valueOf();
+      if (!Number.isFinite(startTs) || startTs <= 0) return null;
+      const status = String(pick(row, "STATUS_NAME") ?? row?.STATUS_NAME ?? "").toLowerCase();
+      const isFinal = ["запитана", "закрыта"].includes(status);
+      let endTs = nowTs;
+      if (isFinal) {
+        const recoveryTs = dayjs(
+          pickAny(row, ["factRestoreDateTime", "F81_070_RESTOR_SUPPLAYDATETIME", "recoveryFactDateTime"])
+        ).valueOf();
+        const updatedTs = dayjs(pick(row, "updatedAt") ?? row?.updatedAt ?? null).valueOf();
+        endTs = Number.isFinite(recoveryTs) && recoveryTs > 0 ? recoveryTs : updatedTs;
+      }
+      if (!Number.isFinite(endTs) || endTs <= startTs) return null;
+      return (endTs - startTs) / (60 * 60 * 1000);
+    };
+
+    const result = {
+      green: 0,
+      orange: 0,
+      red: 0,
+      open: 0,
+      total: 0,
+    };
+
+    source
+      .filter((row) => sameWorkday(startDate(row)) && !isDeletedRow(row))
+      .forEach((row) => {
+        result.total += 1;
+        if (!isClosedRow(row)) {
+          result.open += 1;
+          return;
+        }
+        const hours = durationHoursOf(row);
+        if (hours == null) return;
+        if (hours > 4) result.red += 1;
+        else if (hours > 2) result.orange += 1;
+        else result.green += 1;
+      });
+
+    return result;
+  }, [now, rows7d]);
+
+  const total = stats.green + stats.orange + stats.red + stats.open;
+  const deg = (value) => (total ? (value / total) * 360 : 0);
+  const greenDeg = deg(stats.green);
+  const orangeDeg = deg(stats.orange);
+  const redDeg = deg(stats.red);
+  const openDeg = deg(stats.open);
+  const ring = total
+    ? `conic-gradient(#8bd24b 0 ${greenDeg}deg, #ffc20d ${greenDeg}deg ${
+        greenDeg + orangeDeg
+      }deg, #ff1212 ${greenDeg + orangeDeg}deg ${
+        greenDeg + orangeDeg + redDeg
+      }deg, #bfbfbf ${greenDeg + orangeDeg + redDeg}deg ${
+        greenDeg + orangeDeg + redDeg + openDeg
+      }deg)`
+    : "#f0f0f0";
+
+  const legend = [
+    { color: "#8bd24b", label: "Закрытые (до 2 ч.)", value: stats.green },
+    { color: "#ffc20d", label: "Закрытые (2-4 ч.)", value: stats.orange },
+    { color: "#ff1212", label: "Закрытые (более 4 ч.)", value: stats.red },
+    { color: "#bfbfbf", label: "Открытые", value: stats.open },
+  ];
 
   return (
-    <div className="dashboard-page__weather" aria-label="Текущая погода">
-      <div className="dashboard-page__weather-main">
-        <span className="dashboard-page__weather-icon" aria-hidden="true">
-          {weatherView.icon}
-        </span>
-        <div className="dashboard-page__weather-summary">
-          <div>
-            <span className="dashboard-page__weather-temp">{tempText}</span>
-            <span className="dashboard-page__weather-city">{weather.label}</span>
+    <Card className="dashboard-v2-card dashboard-v2-donut-card" size="small" title="ТН за сегодня">
+      <div className="dashboard-v2-donut" style={{ "--dashboard-v2-ring": ring }}>
+        <div className="dashboard-v2-donut__value">{total}</div>
+      </div>
+      <div className="dashboard-v2-donut__legend">
+        {legend.map((item) => (
+          <div key={item.label} className="dashboard-v2-donut__legend-row">
+            <span style={{ background: item.color }} />
+            <b>{item.label}</b>
+            <em>{item.value}</em>
           </div>
-          <span>{weatherView.label}</span>
-        </div>
+        ))}
       </div>
-      <div className="dashboard-page__weather-metrics">
-        <div>
-          <i aria-hidden="true">💨</i>
-          <span>Ветер</span>
-          <b>{fmtWeatherNumber(weather.windSpeed, 1)} м/с</b>
-        </div>
-        <div>
-          <i aria-hidden="true">☁️</i>
-          <span>Облачность</span>
-          <b>{fmtWeatherNumber(weather.cloudCover)}%</b>
-        </div>
-        <div>
-          <i aria-hidden="true">💧</i>
-          <span>Осадки</span>
-          <b>{fmtWeatherNumber(weather.precipitation, 1)} мм</b>
-        </div>
-      </div>
-    </div>
+    </Card>
   );
 }
 
 export default function DashboardV2Page() {
-  const headerRef = useRef(null);
-  const [mapHeight, setMapHeight] = useState(420);
-
-  const [compact, setCompact] = useState(false);
-  useEffect(() => {
-    const onResize = () => {
-      const h = window.innerHeight;
-      const w = window.innerWidth;
-      setCompact(h < 900 || w < 1280);
-      const headerH = headerRef.current ? headerRef.current.getBoundingClientRect().height : 0;
-      const paddingY = 32;
-      const base = Math.max(300, Math.floor(h - headerH - paddingY));
-      const scaled = Math.max(200, Math.floor(base * MAP_SCALE));
-      setMapHeight(scaled);
-    };
-    onResize();
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
-
-  const [now, setNow] = useState(dayjs());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [rows, setRows] = useState([]);
   const [rows7d, setRows7d] = useState([]);
-  const [weather, setWeather] = useState(null);
   const esRef = useRef(null);
 
+  const pes = pesModuleLogic();
+
   const fiasCodes = useMemo(
-    () => Array.from(new Set(rows.flatMap((r) => extractFiasFromRow(r)).filter(Boolean))),
+    () => Array.from(new Set(rows.flatMap((row) => extractFiasFromRow(row)).filter(Boolean))),
     [rows]
   );
 
   const fiasOwners = useMemo(() => {
     const map = new Map();
-    rows.forEach((r) => {
-      const num = tnNumber(r);
+    rows.forEach((row) => {
+      const num = tnNumber(row);
       if (!num) return;
-      const list = extractFiasFromRow(r);
-      list.forEach((code) => {
+      extractFiasFromRow(row).forEach((code) => {
         if (!code) return;
         if (!map.has(code)) map.set(code, new Set());
         map.get(code).add(num);
@@ -150,12 +254,7 @@ export default function DashboardV2Page() {
     return obj;
   }, [rows]);
 
-  useEffect(() => {
-    const t = setInterval(() => setNow(dayjs()), 1000);
-    return () => clearInterval(t);
-  }, []);
-
-  const loadData = async () => {
+  const loadDashboardData = async () => {
     try {
       setLoading(true);
       setError(null);
@@ -171,56 +270,19 @@ export default function DashboardV2Page() {
   };
 
   useEffect(() => {
-    loadData();
+    loadDashboardData();
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    const loadWeather = async () => {
-      try {
-        const { data } = await axios.get(WEATHER_URL, {
-          params: {
-            latitude: WEATHER_DEFAULT.latitude,
-            longitude: WEATHER_DEFAULT.longitude,
-            current: "temperature_2m,wind_speed_10m,cloud_cover,precipitation,weather_code",
-            wind_speed_unit: "ms",
-            timezone: "Europe/Moscow",
-          },
-          timeout: 8000,
-        });
-        if (cancelled) return;
-        const current = data?.current || {};
-        setWeather({
-          label: WEATHER_DEFAULT.label,
-          temperature: current.temperature_2m,
-          windSpeed: current.wind_speed_10m,
-          cloudCover: current.cloud_cover,
-          precipitation: current.precipitation,
-          weatherCode: current.weather_code,
-        });
-      } catch {
-        if (!cancelled) setWeather(null);
-      }
-    };
-
-    loadWeather();
-    const timer = window.setInterval(loadWeather, 10 * 60 * 1000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!URL) return;
+    if (!URL) return undefined;
     try {
       const es = new EventSource(`${URL}/services/event`);
       esRef.current = es;
-      es.onmessage = () => setTimeout(loadData, 350);
+      es.onmessage = () => setTimeout(loadDashboardData, 350);
       es.onerror = () => {
         es.close();
         esRef.current = null;
-        setTimeout(loadData, 5000);
+        setTimeout(loadDashboardData, 5000);
       };
       return () => {
         es.close();
@@ -231,95 +293,242 @@ export default function DashboardV2Page() {
     }
   }, []);
 
+  const readyFilteredItems = useMemo(
+    () => pes.filteredItems.filter((item) => item.effectiveStatus === "ready"),
+    [pes.filteredItems]
+  );
+  const selectedSet = useMemo(() => new Set(pes.selected), [pes.selected]);
+  const selectedDutyCount = useMemo(
+    () => readyFilteredItems.filter((item) => selectedSet.has(item.id)).length,
+    [readyFilteredItems, selectedSet]
+  );
+  const allDutySelected = readyFilteredItems.length > 0 && selectedDutyCount === readyFilteredItems.length;
+
+  const handleSelectAllDuty = () => {
+    if (!pes.canManage) return;
+    const itemsToToggle = allDutySelected
+      ? readyFilteredItems
+      : readyFilteredItems.filter((item) => !selectedSet.has(item.id));
+    itemsToToggle.forEach((item) => pes.toggleSelected(item.id));
+    message.success(
+      allDutySelected
+        ? `Снят выбор дежурных ПЭС: ${readyFilteredItems.length}`
+        : `Выбрано дежурных ПЭС: ${readyFilteredItems.length}`
+    );
+  };
+
+  const handleResetFiltersAndSelection = () => {
+    pes.resetFilters();
+    pes.selected.forEach((id) => pes.toggleSelected(id));
+  };
+
+  const handleRefreshAll = async () => {
+    await Promise.all([loadDashboardData(), pes.loadItems()]);
+  };
+
+  const powerByStatuses = useMemo(() => {
+    const result = {};
+    STATUS_CHIPS.forEach((chip) => {
+      result[chip.key] = sumPower(pes.filteredItems, chip.powerStatuses);
+    });
+    return result;
+  }, [pes.filteredItems]);
+
+  const ovbByDistrict = useMemo(() => {
+    const map = new Map();
+    rows.forEach((row) => {
+      const key = districtName(row);
+      map.set(key, (map.get(key) || 0) + toNumber(pick(row, "BRIGADECOUNT")));
+    });
+    return map;
+  }, [rows]);
+
+  const pesByDistrict = useMemo(() => {
+    const map = new Map();
+    pes.items.forEach((item) => {
+      if (!["command_sent", "delay", "en_route", "connected"].includes(item?.effectiveStatus)) return;
+      const key = getPesDestinationDistrict(item);
+      if (!key) return;
+      map.set(key, (map.get(key) || 0) + 1);
+    });
+    return map;
+  }, [pes.items]);
+
+  const regionExtraColumns = useMemo(
+    () => [
+      {
+        key: "ovb",
+        title: "ОВБ",
+        getValue: (district) => ovbByDistrict.get(district) || 0,
+      },
+      {
+        key: "pes",
+        title: "ПЭС",
+        getValue: (district) => pesByDistrict.get(district) || 0,
+      },
+    ],
+    [ovbByDistrict, pesByDistrict]
+  );
+
   return (
-    <div className="dashboard-page">
-      <div ref={headerRef} className="dashboard-page__hero">
-        <div className="dashboard-page__container">
-          <div className="dashboard-page__hero-grid">
-            <div />
-            <Title level={2} className="dashboard-page__title">
-              ТЕХНОЛОГИЧЕСКИЕ НАРУШЕНИЯ В ЭЛЕКТРИЧЕСКИХ СЕТЯХ АО «МОСОБЛЭНЕРГО»
-            </Title>
-            <div className="dashboard-page__status-panel">
-              <WeatherWidget weather={weather} />
-              <div className="dashboard-page__clock" aria-label="Текущее время">
-                <div className="dashboard-page__clock-date">{now.format("DD.MM.YYYY")}</div>
-                <div className="dashboard-page__clock-time">{now.format("HH:mm")}</div>
-              </div>
-            </div>
-          </div>
+    <div className="dashboard-v2-page pes-module">
+      <section className="dashboard-v2-topbar">
+        <div className="dashboard-v2-status">
+          <span className={pes.canManage ? "dashboard-v2-mode dashboard-v2-mode--manage" : "dashboard-v2-mode"}>
+            {pes.canManage ? "Режим управления" : "Режим просмотра"}
+          </span>
+          {STATUS_CHIPS.map((chip) => (
+            <span key={chip.key} className={["dashboard-v2-chip", chip.className].join(" ")}>
+              {chip.label}: {pes.filteredSummary[chip.key]}
+              <small>{formatPowerKw(powerByStatuses[chip.key])} кВт</small>
+            </span>
+          ))}
         </div>
-      </div>
+        <Space size={6} wrap>
+          <Button
+            size="small"
+            href="https://max.ru/mosoblenergo_pes_bot"
+            target="_blank"
+            rel="noopener noreferrer"
+            icon={<LinkOutlined />}
+          >
+            MAX бот
+          </Button>
+          <Button
+            size="small"
+            href="https://web.max.ru/mosoblenergo_pes_bot"
+            target="_blank"
+            rel="noopener noreferrer"
+            icon={<LinkOutlined />}
+          >
+            MAX web
+          </Button>
+          <Button size="small" onClick={() => pes.setHistoryOpen(true)}>
+            История операций
+          </Button>
+          <Button size="small" icon={<ReloadOutlined />} onClick={handleRefreshAll} loading={loading || pes.loading}>
+            Обновить
+          </Button>
+        </Space>
+      </section>
 
-      <div className="dashboard-page__content">
-        <div
-          className="dashboard-page__grid"
-          style={{
-            gridTemplateColumns: compact
-              ? "1fr"
-              : "minmax(700px, 1.4fr) minmax(560px, 1.6fr)",
-            gap: compact ? 10 : 14,
-          }}
-        >
-          <div className="dashboard-page__left-column">
-            {loading && !error && (
-              <Space className="dashboard-page__loading">
-                <Spin size="large" />
-              </Space>
-            )}
-            {error && (
-              <Title level={4} type="danger" className="dashboard-page__error">
-                {error}
-              </Title>
-            )}
+      {pes.error && <Alert type="error" showIcon message={pes.error} className="dashboard-v2-alert" />}
+      {error && <Alert type="error" showIcon message={error} className="dashboard-v2-alert" />}
 
-            {!loading && !error && (
-              <div className="dashboard-page__left-stack">
-                <InfoTN rows={rows} rows7d={rows7d} />
-                <PotrebiteliSZO />
-                <div className="dashboard-page__left-fill">
-                  <PowerMosOblEnergo />
-                </div>
-              </div>
-            )}
+      <section className="dashboard-v2-command">
+        <PesCommandCard
+          mode={pes.mode}
+          selectedCount={pes.selected.length}
+          sending={pes.sending}
+          destinationType={pes.destinationType}
+          setDestinationType={pes.setDestinationType}
+          destinationId={pes.destinationId}
+          setDestinationId={pes.setDestinationId}
+          loadingDestinations={pes.loadingDestinations}
+          destinationOptions={pes.destinationOptions}
+          tpBranchFilter={pes.tpBranchFilter}
+          setTpBranchFilter={pes.setTpBranchFilter}
+          tpPoFilter={pes.tpPoFilter}
+          setTpPoFilter={pes.setTpPoFilter}
+          tpBranchOptions={pes.tpBranchOptions}
+          tpPoOptions={pes.tpPoOptions}
+          comment={pes.comment}
+          setComment={pes.setComment}
+          actionState={pes.actionState}
+          runAction={pes.runAction}
+        />
+        <div className="dashboard-v2-command__tools">
+          <Button
+            size="small"
+            type="primary"
+            ghost
+            icon={<CheckSquareOutlined />}
+            onClick={handleSelectAllDuty}
+            disabled={!pes.canManage || !readyFilteredItems.length}
+          >
+            {allDutySelected ? "Снять выбор дежурных ПЭС" : "Выбрать все дежурные ПЭС"}
+          </Button>
+          <Button
+            size="small"
+            icon={<DownloadOutlined />}
+            onClick={() => exportPesToXlsx(pes.filteredItems)}
+            disabled={!pes.filteredItems.length}
+          >
+            Выгрузить в Excel
+          </Button>
+        </div>
+      </section>
 
-            {rows.length === 0 && loading && (
-              <Skeleton active paragraph={{ rows: 4 }} style={{ marginTop: 24 }} />
-            )}
-          </div>
+      <PesFiltersCard
+        branchOptions={pes.branchOptions}
+        branchFilter={pes.branchFilter}
+        setBranchFilter={pes.setBranchFilter}
+        poOptions={pes.poOptions}
+        poFilter={pes.poFilter}
+        setPoFilter={pes.setPoFilter}
+        statusOptions={[
+          { label: "Все статусы", value: "__all__" },
+          ...Object.entries(STATUS_META).map(([value, meta]) => ({ label: meta.label, value })),
+        ]}
+        statusFilter={pes.statusFilter}
+        setStatusFilter={pes.setStatusFilter}
+        resetFilters={handleResetFiltersAndSelection}
+      />
 
-          <div className="dashboard-page__right-column">
-            <Card
-              className="dashboard-page__map-card"
-              styles={{ body: { padding: 0 } }}
-              title={<div className="dashboard-page__map-title">Карта отключённых потребителей</div>}
-            >
-              <div
-                style={{
-                  width: "100%",
-                  height: mapHeight,
-                  minHeight: compact ? 180 : 220,
-                  position: "relative",
-                }}
-              >
-                <MapPanel
-                  height="100%"
-                  initialState={{ center: [55.751244, 37.618423], zoom: 8 }}
-                  fiasCodes={fiasCodes}
-                  url={URL}
-                  fiasCollection={FIAS_COLLECTION}
-                  fiasOwners={fiasOwners}
-                />
-              </div>
-            </Card>
-            <div className="dashboard-page__dynamics">
-              <Dinamica7Days />
+      <section className="dashboard-v2-workspace">
+        <div className="dashboard-v2-pes-panel">
+          {pes.loading && pes.filteredItems.length === 0 ? (
+            <div className="dashboard-v2-loader">
+              <Spin />
             </div>
-          </div>
+          ) : (
+            <PesTilesBoard
+              items={pes.filteredItems}
+              selected={pes.selected}
+              onToggle={pes.toggleSelected}
+              selectable={pes.canManage}
+              className="pes-board--dashboard-v2"
+            />
+          )}
         </div>
 
-        {!loading && !error && <RegionSZO rowsOpen={rows} loadingExternal={loading} />}
-      </div>
+        <aside className="dashboard-v2-side">
+          <Card className="dashboard-v2-card dashboard-v2-map-card" size="small" title="Карта отключённых потребителей">
+            <div className="dashboard-v2-map-box">
+              <MapPanel
+                height="330px"
+                initialState={{ center: [55.751244, 37.618423], zoom: 8 }}
+                fiasCodes={fiasCodes}
+                url={URL}
+                fiasCollection={FIAS_COLLECTION}
+                fiasOwners={fiasOwners}
+              />
+            </div>
+          </Card>
+          <DashboardV2TodayDuration rows7d={rows7d} />
+          <div className="dashboard-v2-dynamics">
+            <Dinamica7Days />
+          </div>
+        </aside>
+      </section>
+
+      {loading && rows.length === 0 ? (
+        <Skeleton active paragraph={{ rows: 4 }} className="dashboard-v2-table-skeleton" />
+      ) : (
+        <RegionSZO rowsOpen={rows} loadingExternal={loading} extraColumns={regionExtraColumns} />
+      )}
+
+      <PesHistoryDrawer
+        open={pes.historyOpen}
+        onClose={() => pes.setHistoryOpen(false)}
+        historyLoading={pes.historyLoading}
+        historyItems={pes.historyItems}
+        historyPage={pes.historyPage}
+        historyPageSize={pes.historyPageSize}
+        historyTotal={pes.historyTotal}
+        onRefresh={() => pes.refreshHistory({ nextPage: 1, nextPageSize: pes.historyPageSize })}
+        onPageChange={(page, pageSize) => pes.refreshHistory({ nextPage: page, nextPageSize: pageSize })}
+      />
     </div>
   );
 }

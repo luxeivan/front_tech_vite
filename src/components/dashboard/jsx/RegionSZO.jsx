@@ -10,7 +10,7 @@ import {
 } from "../js/dashboardCommon"; // Общие хелперы dashboard.
 
 /* -------- Компонент блока 5 -------- */
-export default function RegionSZO({ rowsOpen, loadingExternal }) {
+export default function RegionSZO({ rowsOpen, loadingExternal, extraColumns = [] }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -138,7 +138,8 @@ export default function RegionSZO({ rowsOpen, loadingExternal }) {
   };
 
   const fmtInt = (n) => new Intl.NumberFormat("ru-RU").format(Number(n || 0));
-  const columnsCount = 16;
+  const safeExtraColumns = Array.isArray(extraColumns) ? extraColumns : [];
+  const columnsCount = 16 + safeExtraColumns.length;
   const colWidth = `${100 / columnsCount}%`;
 
   return (
@@ -188,6 +189,11 @@ export default function RegionSZO({ rowsOpen, loadingExternal }) {
                 <th style={th}>ИЖС</th>
                 <th style={th}>СНТ</th>
                 <th style={th}>ОС</th>
+                {safeExtraColumns.map((column) => (
+                  <th key={column.key} style={th}>
+                    {column.title}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -214,6 +220,11 @@ export default function RegionSZO({ rowsOpen, loadingExternal }) {
                   <td style={td}>{v.izhs || 0}</td>
                   <td style={td}>{v.snt || 0}</td>
                   <td style={td}>{v.telecom || 0}</td>
+                  {safeExtraColumns.map((column) => (
+                    <td key={`${d}-${column.key}`} style={td}>
+                      {fmtInt(column.getValue?.(d, v) || 0)}
+                    </td>
+                  ))}
                 </tr>
               ))}
               {rowsView.length === 0 && (

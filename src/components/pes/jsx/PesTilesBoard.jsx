@@ -52,10 +52,10 @@ function PesTile({ item, selected, onToggle, selectable }) {
   );
 }
 
-export default function PesTilesBoard({ items, selected, onToggle, selectable }) {
+export default function PesTilesBoard({ items, selected, onToggle, selectable, className = "" }) {
   const grouped = useMemo(() => buildGroupedPes(items), [items]);
   return (
-    <div className="pes-board">
+    <div className={["pes-board", className].filter(Boolean).join(" ")}>
       {grouped.map((b) => (
         <div key={b.branch} className="pes-branch">
           <div className="pes-branch__title">
