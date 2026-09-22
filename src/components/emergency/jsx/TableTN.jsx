@@ -24,6 +24,7 @@ import TNModal from "./TNModal";
 import JournalOpenModal from "../../journalOpen/JournalOpenModal";
 import DistrictModeModal from "./DistrictModeModal";
 import { hasFeatureAccess } from "../../../config/viewRoleAccess";
+import { exportEmergencyTnPdf } from "../js/exportTnPdf";
 import ruRU from "antd/locale/ru_RU";
 import "dayjs/locale/ru";
 dayjs.locale("ru");
@@ -956,15 +957,15 @@ export default function TableTN() {
         .tn-row-duration-red > td { background: #fff1f0 !important; }
         .tn-row-new > td { animation: tnNewBlink 1.2s ease-in-out infinite; }
         .tn-export-button.ant-btn:not(:disabled) {
-          border-color: #52c41a;
+          border-color: #ff4d4f;
           background: transparent;
-          color: #52c41a;
+          color: #ff4d4f;
           font-weight: 700;
         }
         .tn-export-button.ant-btn:not(:disabled):hover {
-          border-color: #73d13d !important;
-          background: rgba(82, 196, 26, 0.08) !important;
-          color: #73d13d !important;
+          border-color: #ff7875 !important;
+          background: rgba(255, 77, 79, 0.08) !important;
+          color: #ff7875 !important;
         }
         @property --tn-mode-beam-angle {
           syntax: "<angle>";
@@ -1040,9 +1041,11 @@ export default function TableTN() {
             <Button
               icon={<DownloadOutlined />}
               className="tn-export-button"
-              onClick={() => {}}
+              onClick={() => {
+                exportEmergencyTnPdf(listFiltered);
+              }}
             >
-              Выгрузка Excel
+              Выгрузка в PDF
             </Button>
             <Button
               onClick={() => {

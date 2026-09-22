@@ -19,6 +19,7 @@
     "framer-motion": "^12.23.12",
     "leaflet": "^1.9.4",
     "ol": "^10.7.0",
+    "pdfmake": "^0.3.11",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-leaflet": "^5.0.0",
