@@ -26,7 +26,6 @@ dayjs.extend(timezone);
 const HEADERS = [
   { key: "branch", title: "Филиал => ПО => ГО", width: 145 },
   { key: "population", title: "Население", width: 48 },
-  { key: "mkd", title: "МКД", width: 34 },
   { key: "boilerCtp", title: "Котел. ЦТП", width: 48 },
   { key: "vzuVns", title: "ВЗУ ВНС", width: 46 },
   { key: "kns", title: "КНС", width: 32 },
@@ -39,7 +38,6 @@ const HEADERS = [
 
 const SUM_FIELDS = [
   "population",
-  "mkd",
   "boilerCtp",
   "vzuVns",
   "kns",
@@ -61,7 +59,6 @@ function addFields(row, fields) {
 function emptyTotals() {
   return {
     population: 0,
-    mkd: 0,
     boilerCtp: 0,
     vzuVns: 0,
     kns: 0,
@@ -75,7 +72,6 @@ function emptyTotals() {
 
 function addRowToTotals(totals, row) {
   totals.population += toNumber(pick(row, "POPULATION_COUNT"));
-  totals.mkd += toNumber(pick(row, "MKD_ALL"));
   totals.boilerCtp += addFields(row, ["BOILER_ALL", "CTP_ALL"]);
   totals.vzuVns += addFields(row, ["WELLS_ALL", "VNS_ALL"]);
   totals.kns += toNumber(pick(row, "KNS_ALL"));
@@ -170,7 +166,7 @@ function writePdf(dataRows) {
 
 /**
  * Выгрузка аварийных в PDF:
- * Филиал => ПО => ГО | Население | МКД | Котел. ЦТП | ВЗУ ВНС | КНС |
+ * Филиал => ПО => ГО | Население | Котел. ЦТП | ВЗУ ВНС | КНС |
  * Больницы Поликлиники | Школы д.сады | Персонал | ПЭС | ОВБ.
  * СЗО — отдельные колонки как на /dashboard-oo.
  */
