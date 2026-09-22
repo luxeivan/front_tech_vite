@@ -84,28 +84,11 @@ function addRowToTotals(totals, row) {
   totals.staff += toNumber(pick(row, "EMPLOYEECOUNT"));
 }
 
-const stripFilialSuffix = (value) =>
-  s(value).replace(/\s+филиал\s*$/i, "").replace(/\s+/g, " ").trim();
-
-const stripPoSuffix = (value) =>
-  s(value)
-    .replace(/\s+производственное\s+отделение\s*$/i, "")
-    .replace(/\s+ПО\s*$/i, "")
-    .replace(/\s+/g, " ")
-    .trim();
-
-const stripGoSuffix = (value) =>
-  s(value)
-    .replace(/^\s*г\s*\.?\s*о\s*\.?\s*/i, "")
-    .replace(/\s+г\s*\.?\s*о\s*\.?\s*$/i, "")
-    .replace(/\s+/g, " ")
-    .trim();
-
-// «Красногорский => Истринское => Красногорск»
+// «Красногорский филиал => Истринское ПО => Красногорск г.о.» — как пришло из полей
 function buildPathLabel(row) {
-  const filial = stripFilialSuffix(getOperationalBranchByRow(row) || "");
-  const po = stripPoSuffix(getOperationalPoByRow(row) || "");
-  const go = stripGoSuffix(getOperationalDistrictByRow(row) || pick(row, "DISTRICT") || "");
+  const filial = s(getOperationalBranchByRow(row) || "");
+  const po = s(getOperationalPoByRow(row) || "");
+  const go = s(getOperationalDistrictByRow(row) || pick(row, "DISTRICT") || "");
 
   return [filial, po, go].filter(Boolean).join(" => ");
 }
@@ -215,7 +198,7 @@ export async function exportEmergencyTnPdf(items) {
     const branch = getOperationalBranchByRow(row);
     if (!branch) return;
 
-    const path = buildPathLabel(row) || stripFilialSuffix(branch);
+    const path = buildPathLabel(row) || s(branch);
     if (!pathMap.has(path)) {
       const resourceRow = resourceByBranch.get(branch);
       pathMap.set(path, {
