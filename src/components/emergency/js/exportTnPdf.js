@@ -29,7 +29,7 @@ const METRIC_COLUMNS = [
   { key: "vzuVns", title: "ВЗУ ВНС", width: 46 },
   { key: "kns", title: "КНС", width: 32 },
   { key: "medical", title: "Больницы Поликлиники", width: 58 },
-  { key: "schools", title: "Школы д.сады", width: 52 },
+  { key: "schools", title: "Школы\nДет.Сады", width: 52 },
   { key: "staff", title: "Персонал", width: 44 },
   { key: "pes", title: "ПЭС", width: 32 },
 ];
@@ -88,6 +88,29 @@ function metricCells(totals) {
   });
 }
 
+// Цвета как на /dashboard-oo.
+const COLORS = {
+  headerBg: "#285a9c",
+  headerText: "#ffffff",
+  // между шапкой (#285a9c) и ПО (#e2eef9)
+  filialBg: "#4d7db5",
+  filialText: "#ffffff",
+  poBg: "#e2eef9",
+  poText: "#0a5f9e",
+  goBg: "#e2eef9",
+  goText: "#0a5f9e",
+  totalBg: "#94add6",
+  totalText: "#101827",
+  border: "#d9d9d9",
+};
+
+function rowPalette(level, isTotal = false) {
+  if (isTotal) return { bg: COLORS.totalBg, text: COLORS.totalText };
+  if (level === 0) return { bg: COLORS.filialBg, text: COLORS.filialText };
+  if (level === 1) return { bg: COLORS.poBg, text: COLORS.poText };
+  return { bg: COLORS.goBg, text: COLORS.goText };
+}
+
 function headerRow() {
   return [
     {
@@ -95,19 +118,17 @@ function headerRow() {
       bold: true,
       alignment: "left",
       fontSize: 7,
+      color: COLORS.headerText,
+      fillColor: COLORS.headerBg,
     },
     ...METRIC_COLUMNS.map(({ title }) => ({
       text: title,
       bold: true,
       alignment: "center",
       fontSize: 7,
+      color: COLORS.headerText,
+      fillColor: COLORS.headerBg,
     })),
-    {
-      text: "ТН",
-      bold: true,
-      alignment: "center",
-      fontSize: 7,
-    },
   ];
 }
 
@@ -120,7 +141,7 @@ function outlineText(text, { id, parentId = null, expanded = true } = {}) {
   };
 }
 
-function labelCell({ level, label, id, parentId }) {
+function labelCell({ level, label, id, parentId, color }) {
   // level: 0 — филиал, 1 — ПО, 2 — ГО
   const indent = level * 12;
   const prefix = level === 0 ? "" : level === 1 ? "  " : "    ";
@@ -133,7 +154,7 @@ function labelCell({ level, label, id, parentId }) {
           expanded: true,
         }),
         fontSize: level === 0 ? 8 : 7,
-        color: level === 0 ? "#003a8c" : level === 1 ? "#1f1f1f" : "#595959",
+        color,
         margin: [indent, 0, 0, 0],
       },
     ],
@@ -141,23 +162,26 @@ function labelCell({ level, label, id, parentId }) {
   };
 }
 
-function dataRow({ level, label, totals, id, parentId, fillColor }) {
+function dataRow({ level, label, totals, id, parentId, isTotal = false }) {
+  const { bg, text: textColor } = rowPalette(level, isTotal);
+
   return [
-    labelCell({ level, label, id, parentId }),
+    labelCell({ level, label, id, parentId, color: textColor }),
     ...metricCells(totals),
-    {
-      text: String(toNumber(totals.tnCount)),
-      alignment: "right",
-      bold: level < 2,
-      fontSize: 7,
-    },
   ].map((cell, index) => {
-    if (index === 0) return { ...cell, fillColor };
+    if (index === 0) {
+      return {
+        ...cell,
+        fillColor: bg,
+        color: textColor,
+      };
+    }
     return {
       ...cell,
-      fillColor,
+      fillColor: bg,
+      color: textColor,
       fontSize: 7,
-      bold: level < 2 ? true : false,
+      bold: level < 2 || isTotal,
     };
   });
 }
@@ -241,7 +265,6 @@ function buildBody(filials) {
         totals: filial.totals,
         id: fId,
         parentId: null,
-        fillColor: "#e6f4ff",
       })
     );
     mergeTotals(grand, {
@@ -259,7 +282,6 @@ function buildBody(filials) {
           totals: po.totals,
           id: pId,
           parentId: fId,
-          fillColor: "#f5f5f5",
         })
       );
 
@@ -272,7 +294,6 @@ function buildBody(filials) {
             totals: go.totals,
             id: null,
             parentId: pId,
-            fillColor: undefined,
           })
         );
       });
@@ -286,7 +307,7 @@ function buildBody(filials) {
       totals: grand,
       id: "total",
       parentId: null,
-      fillColor: "#fff1f0",
+      isTotal: true,
     })
   );
 
@@ -294,7 +315,7 @@ function buildBody(filials) {
 }
 
 function writePdf(filials) {
-  const widths = ["*", ...METRIC_COLUMNS.map(({ width }) => width), 36];
+  const widths = ["*", ...METRIC_COLUMNS.map(({ width }) => width)];
   const body = buildBody(filials);
 
   const docDefinition = {
@@ -316,17 +337,16 @@ function writePdf(filials) {
           keepWithHeaderRows: 1,
         },
         layout: {
-          hLineColor: () => "#d9d9d9",
-          vLineColor: () => "#d9d9d9",
+          hLineColor: () => COLORS.border,
+          vLineColor: () => COLORS.border,
           hLineWidth: () => 0.4,
           vLineWidth: () => 0.4,
           paddingLeft: () => 3,
           paddingRight: () => 3,
           paddingTop: () => 2,
           paddingBottom: () => 2,
-          fillColor: (rowIndex, node, columnIndex) => {
-            // header
-            if (rowIndex === 0) return "#f0f0f0";
+          fillColor: (rowIndex, node) => {
+            if (rowIndex === 0) return COLORS.headerBg;
             const cell = node?.table?.body?.[rowIndex]?.[0];
             if (cell && typeof cell === "object" && cell.fillColor) return cell.fillColor;
             return null;
