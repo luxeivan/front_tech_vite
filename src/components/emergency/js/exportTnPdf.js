@@ -22,9 +22,8 @@ if (pdfMake && typeof pdfMake.addVirtualFileSystem === "function" && vfs) {
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
-// Как на /dashboard-oo: отдельные СЗО-колонки, без ухода за край страницы.
-const HEADERS = [
-  { key: "branch", title: "Филиал => ПО => ГО", width: 145 },
+// Метрики — те же колонки, что и раньше (без МКД).
+const METRIC_COLUMNS = [
   { key: "population", title: "Население", width: 48 },
   { key: "boilerCtp", title: "Котел. ЦТП", width: 48 },
   { key: "vzuVns", title: "ВЗУ ВНС", width: 46 },
@@ -36,16 +35,7 @@ const HEADERS = [
   { key: "ovb", title: "ОВБ", width: 32 },
 ];
 
-const SUM_FIELDS = [
-  "population",
-  "boilerCtp",
-  "vzuVns",
-  "kns",
-  "medical",
-  "schools",
-  "staff",
-  "pes",
-];
+const SUM_FIELDS = METRIC_COLUMNS.map((c) => c.key).filter((k) => k !== "ovb");
 
 function exportFilename() {
   const ts = dayjs().tz("Europe/Moscow").format("DD.MM.YYYY HH-mm-ss");
@@ -57,20 +47,23 @@ function addFields(row, fields) {
 }
 
 function emptyTotals() {
-  return {
-    population: 0,
-    boilerCtp: 0,
-    vzuVns: 0,
-    kns: 0,
-    medical: 0,
-    schools: 0,
-    staff: 0,
-    pes: 0,
-    ovb: "",
-  };
+  const totals = { tnCount: 0, ovb: "" };
+  METRIC_COLUMNS.forEach(({ key }) => {
+    if (key !== "ovb") totals[key] = 0;
+  });
+  return totals;
+}
+
+function mergeTotals(target, source) {
+  SUM_FIELDS.forEach((field) => {
+    target[field] += toNumber(source[field]);
+  });
+  target.tnCount += toNumber(source.tnCount);
+  return target;
 }
 
 function addRowToTotals(totals, row) {
+  totals.tnCount += 1;
   totals.population += toNumber(pick(row, "POPULATION_COUNT"));
   totals.boilerCtp += addFields(row, ["BOILER_ALL", "CTP_ALL"]);
   totals.vzuVns += addFields(row, ["WELLS_ALL", "VNS_ALL"]);
@@ -80,43 +73,235 @@ function addRowToTotals(totals, row) {
   totals.staff += toNumber(pick(row, "EMPLOYEECOUNT"));
 }
 
-// «Красногорский филиал => Истринское ПО => Красногорск г.о.» — как пришло из полей
-function buildPathLabel(row) {
-  const filial = s(getOperationalBranchByRow(row) || "");
-  const po = s(getOperationalPoByRow(row) || "");
-  const go = s(getOperationalDistrictByRow(row) || pick(row, "DISTRICT") || "");
-
-  return [filial, po, go].filter(Boolean).join(" => ");
+function nameOr(value, fallback) {
+  const v = s(value);
+  return v || fallback;
 }
 
-function buildSummary(rows) {
-  const summary = { branch: "ВСЕГО", ...emptyTotals() };
-  rows.forEach((row) => {
-    SUM_FIELDS.forEach((field) => {
-      summary[field] += toNumber(row[field]);
-    });
-  });
-  return summary;
-}
-
-function rowToPdfRow(row) {
-  return HEADERS.map(({ key }) => {
-    const value = row?.[key];
-    if (value === undefined || value === null) return { text: "" };
+function metricCells(totals) {
+  return METRIC_COLUMNS.map(({ key }) => {
+    const value = totals?.[key];
+    if (value === undefined || value === null || value === "") {
+      return { text: key === "ovb" ? "" : "0", alignment: "right" };
+    }
     if (typeof value === "number") return { text: String(value), alignment: "right" };
     return { text: String(value) };
   });
 }
 
-function writePdf(dataRows) {
-  const headerRow = HEADERS.map(({ title }, index) => ({
-    text: title,
-    bold: true,
-    alignment: index === 0 ? "left" : "center",
-    fontSize: 7,
-  }));
+function headerRow() {
+  return [
+    {
+      text: "Филиал / ПО / ГО",
+      bold: true,
+      alignment: "left",
+      fontSize: 7,
+    },
+    ...METRIC_COLUMNS.map(({ title }) => ({
+      text: title,
+      bold: true,
+      alignment: "center",
+      fontSize: 7,
+    })),
+    {
+      text: "ТН",
+      bold: true,
+      alignment: "center",
+      fontSize: 7,
+    },
+  ];
+}
 
-  // Сумма ширин ≈ 571 + * — влезает в A4 landscape (~800pt с полями).
+function outlineText(text, { id, parentId = null, expanded = true } = {}) {
+  return {
+    text,
+    bold: true,
+    ...(id ? { outline: true, outlineText: text, outlineExpanded: expanded } : {}),
+    ...(parentId ? { outlineParentId: parentId } : {}),
+  };
+}
+
+function labelCell({ level, label, id, parentId }) {
+  // level: 0 — филиал, 1 — ПО, 2 — ГО
+  const indent = level * 12;
+  const prefix = level === 0 ? "" : level === 1 ? "  " : "    ";
+  return {
+    stack: [
+      {
+        ...outlineText(`${prefix}${label}`, {
+          id: level < 2 ? id : undefined,
+          parentId,
+          expanded: true,
+        }),
+        fontSize: level === 0 ? 8 : 7,
+        color: level === 0 ? "#003a8c" : level === 1 ? "#1f1f1f" : "#595959",
+        margin: [indent, 0, 0, 0],
+      },
+    ],
+    margin: [0, 1, 0, 1],
+  };
+}
+
+function dataRow({ level, label, totals, id, parentId, fillColor }) {
+  return [
+    labelCell({ level, label, id, parentId }),
+    ...metricCells(totals),
+    {
+      text: String(toNumber(totals.tnCount)),
+      alignment: "right",
+      bold: level < 2,
+      fontSize: 7,
+    },
+  ].map((cell, index) => {
+    if (index === 0) return { ...cell, fillColor };
+    return {
+      ...cell,
+      fillColor,
+      fontSize: 7,
+      bold: level < 2 ? true : false,
+    };
+  });
+}
+
+function buildHierarchy(list, resourceByBranch) {
+  // filial -> { name, totals, pes, ovb, pos: Map po -> { name, totals, gos: Map } }
+  const filialMap = new Map();
+
+  list.forEach((row) => {
+    const filialName = nameOr(getOperationalBranchByRow(row), "Без филиала");
+    const poName = nameOr(getOperationalPoByRow(row), "Без ПО");
+    const goName = nameOr(
+      getOperationalDistrictByRow(row) || pick(row, "DISTRICT"),
+      "Без ГО"
+    );
+
+    if (!filialMap.has(filialName)) {
+      const resourceRow = resourceByBranch.get(getOperationalBranchByRow(row) || filialName);
+      filialMap.set(filialName, {
+        name: filialName,
+        totals: { ...emptyTotals(), pes: toNumber(resourceRow?.pes), ovb: resourceRow?.ovb ?? "" },
+        pos: new Map(),
+      });
+    }
+    const filial = filialMap.get(filialName);
+
+    if (!filial.pos.has(poName)) {
+      filial.pos.set(poName, {
+        name: poName,
+        totals: { ...emptyTotals(), ovb: "" },
+        gos: new Map(),
+      });
+    }
+    const po = filial.pos.get(poName);
+
+    if (!po.gos.has(goName)) {
+      po.gos.set(goName, {
+        name: goName,
+        totals: { ...emptyTotals(), ovb: "" },
+      });
+    }
+
+    addRowToTotals(po.gos.get(goName).totals, row);
+  });
+
+  // подытоги ПО и филиалов
+  filialMap.forEach((filial) => {
+    const filialAgg = { ...emptyTotals(), ovb: filial.totals.ovb, pes: filial.totals.pes };
+    filial.pos.forEach((po) => {
+      const poAgg = { ...emptyTotals(), ovb: "" };
+      po.gos.forEach((go) => mergeTotals(poAgg, go.totals));
+      po.totals = poAgg;
+      mergeTotals(filialAgg, poAgg);
+    });
+    filial.totals = {
+      ...filial.totals,
+      ...filialAgg,
+      ovb: filial.totals.ovb,
+      pes: filial.totals.pes,
+    };
+  });
+
+  return [...filialMap.values()].sort((a, b) =>
+    a.name.localeCompare(b.name, "ru")
+  );
+}
+
+function slug(text) {
+  return String(text)
+    .toLowerCase()
+    .replace(/[^a-zа-яё0-9]+/gi, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function buildBody(filials) {
+  const body = [headerRow()];
+  const grand = { ...emptyTotals(), ovb: "" };
+
+  filials.forEach((filial) => {
+    const fId = `f-${slug(filial.name)}`;
+    body.push(
+      dataRow({
+        level: 0,
+        label: filial.name,
+        totals: filial.totals,
+        id: fId,
+        parentId: null,
+        fillColor: "#e6f4ff",
+      })
+    );
+    mergeTotals(grand, {
+      ...filial.totals,
+      tnCount: filial.totals.tnCount,
+    });
+
+    const pos = [...filial.pos.values()].sort((a, b) => a.name.localeCompare(b.name, "ru"));
+    pos.forEach((po) => {
+      const pId = `${fId}-po-${slug(po.name)}`;
+      body.push(
+        dataRow({
+          level: 1,
+          label: po.name,
+          totals: po.totals,
+          id: pId,
+          parentId: fId,
+          fillColor: "#f5f5f5",
+        })
+      );
+
+      const gos = [...po.gos.values()].sort((a, b) => a.name.localeCompare(b.name, "ru"));
+      gos.forEach((go) => {
+        body.push(
+          dataRow({
+            level: 2,
+            label: go.name,
+            totals: go.totals,
+            id: null,
+            parentId: pId,
+            fillColor: undefined,
+          })
+        );
+      });
+    });
+  });
+
+  body.push(
+    dataRow({
+      level: 0,
+      label: "ВСЕГО",
+      totals: { ...grand, ovb: "" },
+      id: "total",
+      parentId: null,
+      fillColor: "#fff1f0",
+    })
+  );
+
+  return body;
+}
+
+function writePdf(filials) {
+  const widths = ["*", ...METRIC_COLUMNS.map(({ width }) => width), 36];
+  const body = buildBody(filials);
+
   const docDefinition = {
     pageOrientation: "landscape",
     pageSize: "A4",
@@ -130,21 +315,26 @@ function writePdf(dataRows) {
       {
         table: {
           headerRows: 1,
-          widths: HEADERS.map(({ width, title }, index) =>
-            index === 0 ? "*" : width
-          ),
-          body: [headerRow, ...dataRows],
-          layout: {
-            hLineColor: () => "#d9d9d9",
-            vLineColor: () => "#d9d9d9",
-            hLineWidth: () => 0.4,
-            vLineWidth: () => 0.4,
-            paddingLeft: () => 3,
-            paddingRight: () => 3,
-            paddingTop: () => 3,
-            paddingBottom: () => 3,
-            fillColor: (rowIndex) =>
-              rowIndex === 0 ? "#f0f0f0" : rowIndex % 2 === 0 ? "#fafafa" : null,
+          widths,
+          body,
+          dontBreakRows: false,
+          keepWithHeaderRows: 1,
+        },
+        layout: {
+          hLineColor: () => "#d9d9d9",
+          vLineColor: () => "#d9d9d9",
+          hLineWidth: () => 0.4,
+          vLineWidth: () => 0.4,
+          paddingLeft: () => 3,
+          paddingRight: () => 3,
+          paddingTop: () => 2,
+          paddingBottom: () => 2,
+          fillColor: (rowIndex, node, columnIndex) => {
+            // header
+            if (rowIndex === 0) return "#f0f0f0";
+            const cell = node?.table?.body?.[rowIndex]?.[0];
+            if (cell && typeof cell === "object" && cell.fillColor) return cell.fillColor;
+            return null;
           },
         },
         fontSize: 7,
@@ -164,17 +354,30 @@ function writePdf(dataRows) {
   pdfMake.createPdf(docDefinition).download(exportFilename());
 }
 
+function writeEmptyPdf() {
+  const docDefinition = {
+    pageOrientation: "landscape",
+    pageSize: "A4",
+    pageMargins: [24, 30, 24, 30],
+    content: [
+      { text: "Аварийные ТН", style: "header" },
+      { text: "Нет данных для выгрузки по текущему фильтру.", margin: [0, 12, 0, 0] },
+    ],
+    styles: { header: { fontSize: 13, bold: true } },
+  };
+  pdfMake.createPdf(docDefinition).download(exportFilename());
+}
+
 /**
- * Выгрузка аварийных в PDF:
- * Филиал => ПО => ГО | Население | Котел. ЦТП | ВЗУ ВНС | КНС |
- * Больницы Поликлиники | Школы д.сады | Персонал | ПЭС | ОВБ.
- * СЗО — отдельные колонки как на /dashboard-oo.
+ * Иерархическая выгрузка PDF: Филиал → ПО → ГО,
+ * подытоги на каждом уровне, bookmarks в панели оутлайнов (раскрытие),
+ * колонки СЗО/метрик как на /dashboard-oo. Масштаб от 1 до сотен строк.
  */
 export async function exportEmergencyTnPdf(items) {
   const list = (Array.isArray(items) ? items : []).filter(isOperationalDashboardRow);
 
   if (!list.length) {
-    writePdf([]);
+    writeEmptyPdf();
     return;
   }
 
@@ -189,35 +392,11 @@ export async function exportEmergencyTnPdf(items) {
     buildOperationalBranchRows(list, filialRows, null).map((row) => [row.branch, row])
   );
 
-  const pathMap = new Map();
-  list.forEach((row) => {
-    const branch = getOperationalBranchByRow(row);
-    if (!branch) return;
-
-    const path = buildPathLabel(row) || s(branch);
-    if (!pathMap.has(path)) {
-      const resourceRow = resourceByBranch.get(branch);
-      pathMap.set(path, {
-        key: path,
-        branch: path,
-        ...emptyTotals(),
-        pes: toNumber(resourceRow?.pes),
-        ovb: resourceRow?.ovb ?? "",
-      });
-    }
-    addRowToTotals(pathMap.get(path), row);
-  });
-
-  const pathRows = [...pathMap.values()].sort((a, b) =>
-    String(a.branch).localeCompare(String(b.branch), "ru")
-  );
-
-  if (!pathRows.length) {
-    writePdf([]);
+  const filials = buildHierarchy(list, resourceByBranch);
+  if (!filials.length) {
+    writeEmptyPdf();
     return;
   }
 
-  const summary = buildSummary(pathRows);
-  const dataRows = [...pathRows, summary].map(rowToPdfRow);
-  writePdf(dataRows);
+  writePdf(filials);
 }
