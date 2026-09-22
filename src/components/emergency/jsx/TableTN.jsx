@@ -17,7 +17,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import useData from "../../../stores/useData";
 import dayjs from "dayjs";
-import { ReloadOutlined } from "@ant-design/icons";
+import { DownloadOutlined, ReloadOutlined } from "@ant-design/icons";
 import useAuth from "../../../stores/useAuth";
 import TableTNActionsBar from "./TableTNActionsBar";
 import TNModal from "./TNModal";
@@ -955,6 +955,17 @@ export default function TableTN() {
         .tn-row-duration-orange > td { background: #fff7e6 !important; }
         .tn-row-duration-red > td { background: #fff1f0 !important; }
         .tn-row-new > td { animation: tnNewBlink 1.2s ease-in-out infinite; }
+        .tn-export-button.ant-btn:not(:disabled) {
+          border-color: #52c41a;
+          background: transparent;
+          color: #52c41a;
+          font-weight: 700;
+        }
+        .tn-export-button.ant-btn:not(:disabled):hover {
+          border-color: #73d13d !important;
+          background: rgba(82, 196, 26, 0.08) !important;
+          color: #73d13d !important;
+        }
         @property --tn-mode-beam-angle {
           syntax: "<angle>";
           initial-value: 0deg;
@@ -1026,6 +1037,13 @@ export default function TableTN() {
         }}
         rightExtra={
           <Flex gap={8} wrap justify="flex-end">
+            <Button
+              icon={<DownloadOutlined />}
+              className="tn-export-button"
+              onClick={() => {}}
+            >
+              Выгрузка Excel
+            </Button>
             <Button
               onClick={() => {
                 setDate(null);

@@ -474,7 +474,7 @@ export default function DashboardV2Page() {
             onClick={() => exportPesToXlsx(pes.filteredItems)}
             disabled={!pes.filteredItems.length}
           >
-            Выгрузить в Excel
+            Выгрузка Excel
           </Button>
         </div>
       </section>

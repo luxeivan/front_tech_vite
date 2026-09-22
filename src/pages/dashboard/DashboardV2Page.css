@@ -100,15 +100,15 @@
 
 .dashboard-v2-excel-button:not(:disabled) {
   border-color: #52c41a;
-  background: #52c41a;
-  color: #fff;
+  background: transparent;
+  color: #52c41a;
   font-weight: 700;
 }
 
 .dashboard-v2-excel-button:not(:disabled):hover {
   border-color: #73d13d !important;
-  background: #73d13d !important;
-  color: #fff !important;
+  background: rgba(82, 196, 26, 0.08) !important;
+  color: #73d13d !important;
 }
 
 .dashboard-v2-page .pes-card--filters {
