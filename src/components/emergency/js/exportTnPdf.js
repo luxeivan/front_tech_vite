@@ -22,7 +22,7 @@ if (pdfMake && typeof pdfMake.addVirtualFileSystem === "function" && vfs) {
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
-// Метрики — те же колонки, что и раньше (без МКД).
+// Метрики — без МКД и ОВБ.
 const METRIC_COLUMNS = [
   { key: "population", title: "Население", width: 48 },
   { key: "boilerCtp", title: "Котел. ЦТП", width: 48 },
@@ -32,10 +32,9 @@ const METRIC_COLUMNS = [
   { key: "schools", title: "Школы д.сады", width: 52 },
   { key: "staff", title: "Персонал", width: 44 },
   { key: "pes", title: "ПЭС", width: 32 },
-  { key: "ovb", title: "ОВБ", width: 32 },
 ];
 
-const SUM_FIELDS = METRIC_COLUMNS.map((c) => c.key).filter((k) => k !== "ovb");
+const SUM_FIELDS = METRIC_COLUMNS.map((c) => c.key);
 
 function exportFilename() {
   const ts = dayjs().tz("Europe/Moscow").format("DD.MM.YYYY HH-mm-ss");
@@ -47,9 +46,9 @@ function addFields(row, fields) {
 }
 
 function emptyTotals() {
-  const totals = { tnCount: 0, ovb: "" };
+  const totals = { tnCount: 0 };
   METRIC_COLUMNS.forEach(({ key }) => {
-    if (key !== "ovb") totals[key] = 0;
+    totals[key] = 0;
   });
   return totals;
 }
@@ -82,7 +81,7 @@ function metricCells(totals) {
   return METRIC_COLUMNS.map(({ key }) => {
     const value = totals?.[key];
     if (value === undefined || value === null || value === "") {
-      return { text: key === "ovb" ? "" : "0", alignment: "right" };
+      return { text: "0", alignment: "right" };
     }
     if (typeof value === "number") return { text: String(value), alignment: "right" };
     return { text: String(value) };
@@ -164,7 +163,6 @@ function dataRow({ level, label, totals, id, parentId, fillColor }) {
 }
 
 function buildHierarchy(list, resourceByBranch) {
-  // filial -> { name, totals, pes, ovb, pos: Map po -> { name, totals, gos: Map } }
   const filialMap = new Map();
 
   list.forEach((row) => {
@@ -179,7 +177,7 @@ function buildHierarchy(list, resourceByBranch) {
       const resourceRow = resourceByBranch.get(getOperationalBranchByRow(row) || filialName);
       filialMap.set(filialName, {
         name: filialName,
-        totals: { ...emptyTotals(), pes: toNumber(resourceRow?.pes), ovb: resourceRow?.ovb ?? "" },
+        totals: { ...emptyTotals(), pes: toNumber(resourceRow?.pes) },
         pos: new Map(),
       });
     }
@@ -188,7 +186,7 @@ function buildHierarchy(list, resourceByBranch) {
     if (!filial.pos.has(poName)) {
       filial.pos.set(poName, {
         name: poName,
-        totals: { ...emptyTotals(), ovb: "" },
+        totals: emptyTotals(),
         gos: new Map(),
       });
     }
@@ -197,26 +195,23 @@ function buildHierarchy(list, resourceByBranch) {
     if (!po.gos.has(goName)) {
       po.gos.set(goName, {
         name: goName,
-        totals: { ...emptyTotals(), ovb: "" },
+        totals: emptyTotals(),
       });
     }
 
     addRowToTotals(po.gos.get(goName).totals, row);
   });
 
-  // подытоги ПО и филиалов
   filialMap.forEach((filial) => {
-    const filialAgg = { ...emptyTotals(), ovb: filial.totals.ovb, pes: filial.totals.pes };
+    const filialAgg = { ...emptyTotals(), pes: filial.totals.pes };
     filial.pos.forEach((po) => {
-      const poAgg = { ...emptyTotals(), ovb: "" };
+      const poAgg = emptyTotals();
       po.gos.forEach((go) => mergeTotals(poAgg, go.totals));
       po.totals = poAgg;
       mergeTotals(filialAgg, poAgg);
     });
     filial.totals = {
-      ...filial.totals,
       ...filialAgg,
-      ovb: filial.totals.ovb,
       pes: filial.totals.pes,
     };
   });
@@ -235,7 +230,7 @@ function slug(text) {
 
 function buildBody(filials) {
   const body = [headerRow()];
-  const grand = { ...emptyTotals(), ovb: "" };
+  const grand = emptyTotals();
 
   filials.forEach((filial) => {
     const fId = `f-${slug(filial.name)}`;
@@ -288,7 +283,7 @@ function buildBody(filials) {
     dataRow({
       level: 0,
       label: "ВСЕГО",
-      totals: { ...grand, ovb: "" },
+      totals: grand,
       id: "total",
       parentId: null,
       fillColor: "#fff1f0",
