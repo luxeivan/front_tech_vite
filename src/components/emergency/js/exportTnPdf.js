@@ -314,8 +314,17 @@ function buildBody(filials) {
   return body;
 }
 
+// A4 landscape ≈ 842pt, pageMargins [16, …, 16, …] → контент ≈ 810.
+// Первый столбец: 70% «звёзды», затем −30% → ~49% от исходного (~450 → ~220).
+const TABLE_WIDTHS = (() => {
+  const metricsWidth = METRIC_COLUMNS.reduce((sum, { width }) => sum + width, 0);
+  const pageContentWidth = 841.89 - 16 - 16;
+  const firstCol = Math.round((pageContentWidth - metricsWidth) * 0.7 * 0.7);
+  return [firstCol, ...METRIC_COLUMNS.map(({ width }) => width)];
+})();
+
 function writePdf(filials) {
-  const widths = ["*", ...METRIC_COLUMNS.map(({ width }) => width)];
+  const widths = TABLE_WIDTHS;
   const body = buildBody(filials);
 
   const docDefinition = {
@@ -370,7 +379,7 @@ function writePdf(filials) {
 }
 
 function writeEmptyPdf() {
-  const widths = ["*", ...METRIC_COLUMNS.map(({ width }) => width)];
+  const widths = TABLE_WIDTHS;
   const docDefinition = {
     pageOrientation: "landscape",
     pageSize: "A4",
