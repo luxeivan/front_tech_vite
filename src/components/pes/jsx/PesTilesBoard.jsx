@@ -45,7 +45,7 @@ function PesTile({ item, selected, onToggle, selectable }) {
       >
         <div className="pes-tile__top">
           <span className="pes-tile__number">№{item.number}</span>
-          <span className="pes-tile__power">{formatPowerKw(item.powerKw)}кВт</span>
+          <span className="pes-tile__power">{formatPowerKw(item.powerKw)}</span>
         </div>
       </div>
     </Tooltip>
