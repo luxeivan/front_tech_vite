@@ -134,9 +134,14 @@
 
 .dashboard-v2-side {
   display: grid;
-  grid-template-columns: minmax(360px, 1fr) 250px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
   gap: 8px;
   align-items: stretch;
+  min-width: 0;
+}
+
+.dashboard-v2-map-card {
+  grid-column: 1 / -1;
   min-width: 0;
 }
 
@@ -159,6 +164,7 @@
 
 .dashboard-v2-map-box {
   min-height: 360px;
+  width: 100%;
 }
 
 .dashboard-v2-map-box .mo-map-wrapper > div:first-of-type {
@@ -227,12 +233,23 @@
 .dashboard-v2-donut-card {
   height: 100%;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-v2-donut-card .ant-card-body {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+  min-height: 0;
 }
 
 .dashboard-v2-donut {
   width: 122px;
   height: 122px;
-  margin: 8px auto 12px;
+  margin: 0;
+  flex: 0 0 auto;
   border-radius: 50%;
   background: var(--dashboard-v2-ring);
   position: relative;
@@ -262,6 +279,9 @@
 .dashboard-v2-donut__legend {
   display: grid;
   gap: 7px;
+  flex: 1 1 auto;
+  min-width: 0;
+  align-content: center;
 }
 
 .dashboard-v2-donut__legend-row {
@@ -289,10 +309,16 @@
 }
 
 .dashboard-v2-dynamics {
-  grid-column: 1 / -1;
+  grid-column: 2;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .dashboard-v2-dynamics .ant-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   margin-bottom: 0 !important;
   border-color: var(--dashboard-v2-border);
   border-radius: 8px !important;
@@ -303,7 +329,15 @@
 }
 
 .dashboard-v2-dynamics .ant-card-body {
+  flex: 1;
   padding: 6px 8px !important;
+  min-width: 0;
+}
+
+.dashboard-v2-dynamics .ant-card-body svg {
+  width: 100%;
+  height: auto;
+  display: block;
 }
 
 .dashboard-v2-page > .ant-card {
@@ -426,7 +460,7 @@
   }
 
   .dashboard-v2-side {
-    grid-template-columns: minmax(0, 1fr) minmax(180px, 0.35fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
   }
 
   .pes-board--dashboard-v2.pes-board--grouped {
@@ -448,6 +482,15 @@
     display: flex;
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .dashboard-v2-map-card,
+  .dashboard-v2-dynamics {
+    grid-column: auto;
+  }
+
+  .dashboard-v2-dynamics {
+    display: block;
   }
 
   .dashboard-v2-command .pes-card--command .ant-card-body {
