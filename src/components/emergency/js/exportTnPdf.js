@@ -366,7 +366,7 @@ function writePdf(filials) {
     },
   };
 
-  pdfMake.createPdf(docDefinition).download(exportFilename());
+  return pdfMake.createPdf(docDefinition).download(exportFilename());
 }
 
 function writeEmptyPdf() {
@@ -413,7 +413,7 @@ function writeEmptyPdf() {
       fontSize: 7,
     },
   };
-  pdfMake.createPdf(docDefinition).download(exportFilename());
+  return pdfMake.createPdf(docDefinition).download(exportFilename());
 }
 
 /**
@@ -425,7 +425,7 @@ export async function exportEmergencyTnPdf(items) {
   const list = (Array.isArray(items) ? items : []).filter(isOperationalDashboardRow);
 
   if (!list.length) {
-    writeEmptyPdf();
+    await writeEmptyPdf();
     return;
   }
 
@@ -442,9 +442,9 @@ export async function exportEmergencyTnPdf(items) {
 
   const filials = buildHierarchy(list, resourceByBranch);
   if (!filials.length) {
-    writeEmptyPdf();
+    await writeEmptyPdf();
     return;
   }
 
-  writePdf(filials);
+  await writePdf(filials);
 }

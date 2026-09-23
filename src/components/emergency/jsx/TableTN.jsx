@@ -521,6 +521,7 @@ export default function TableTN() {
   const canManageDistrictMode = hasFeatureAccess(user?.view_role, "districtModeManage");
   const [isDistrictModeModalOpen, setIsDistrictModeModalOpen] = useState(false);
   const [sendStatus, setSendStatus] = useState({ byGuid: {}, byNumber: {} });
+  const [exporting, setExporting] = useState(false);
   const loadSendStatus = React.useCallback(async () => {
     try {
       // обновим сессию/пользователя; интерцептор сам подмешает JWT
@@ -1041,11 +1042,19 @@ export default function TableTN() {
             <Button
               icon={<DownloadOutlined />}
               className="tn-export-button"
-              onClick={() => {
-                exportEmergencyTnPdf(listFiltered);
+              loading={exporting}
+              disabled={exporting}
+              onClick={async () => {
+                if (exporting) return;
+                setExporting(true);
+                try {
+                  await exportEmergencyTnPdf(listFiltered);
+                } finally {
+                  setExporting(false);
+                }
               }}
             >
-              Выгрузка в PDF
+              {exporting ? "Выгружаем..." : "Выгрузка в PDF"}
             </Button>
             <Button
               onClick={() => {
