@@ -479,3 +479,37 @@ export async function exportEmergencyTnPdf(items) {
 
   await writePdf(filials);
 }
+
+// Вторая выгрузка (заглушка): имя ОО_все филиалы.pdf, логика позже.
+export async function exportOoAllBranchesPdf() {
+  const docDefinition = {
+    pageOrientation: "landscape",
+    pageSize: "A4",
+    pageMargins: [16, 24, 16, 24],
+    content: [
+      {
+        text: "ОО все филиалы",
+        style: "header",
+        margin: [0, 0, 0, 8],
+      },
+    ],
+    styles: {
+      header: {
+        fontSize: 13,
+        bold: true,
+      },
+    },
+    defaultStyle: {
+      fontSize: 7,
+    },
+  };
+  return pdfMake.createPdf(docDefinition).download("ОО_все филиалы.pdf");
+}
+
+/** Обе выгрузки по одной кнопке: иерархическая ТН + ОО_все филиалы. */
+export async function exportBothTnPdf(items) {
+  await exportEmergencyTnPdf(items);
+  // Микрозадержка: браузер иногда гасит второй download без паузы.
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  await exportOoAllBranchesPdf();
+}

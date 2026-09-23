@@ -24,7 +24,7 @@ import TNModal from "./TNModal";
 import JournalOpenModal from "../../journalOpen/JournalOpenModal";
 import DistrictModeModal from "./DistrictModeModal";
 import { hasFeatureAccess } from "../../../config/viewRoleAccess";
-import { exportEmergencyTnPdf } from "../js/exportTnPdf";
+import { exportBothTnPdf } from "../js/exportTnPdf";
 import ruRU from "antd/locale/ru_RU";
 import "dayjs/locale/ru";
 dayjs.locale("ru");
@@ -1048,7 +1048,7 @@ export default function TableTN() {
                 if (exporting) return;
                 setExporting(true);
                 try {
-                  await exportEmergencyTnPdf(listFiltered);
+                  await exportBothTnPdf(listFiltered);
                 } finally {
                   setExporting(false);
                 }
