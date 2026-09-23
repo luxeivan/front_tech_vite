@@ -143,8 +143,8 @@ function outlineText(text, { id, parentId = null, expanded = true } = {}) {
 
 function labelCell({ level, label, id, parentId, color }) {
   // level: 0 — филиал, 1 — ПО, 2 — ГО
-  const indent = level * 12;
-  const prefix = level === 0 ? "" : level === 1 ? "  " : "    ";
+  const indent = level * 6;
+  const prefix = level === 0 ? "" : level === 1 ? " " : "  ";
   return {
     stack: [
       {
@@ -370,15 +370,48 @@ function writePdf(filials) {
 }
 
 function writeEmptyPdf() {
+  const widths = ["*", ...METRIC_COLUMNS.map(({ width }) => width)];
   const docDefinition = {
     pageOrientation: "landscape",
     pageSize: "A4",
-    pageMargins: [24, 30, 24, 30],
+    pageMargins: [16, 24, 16, 24],
     content: [
-      { text: "Аварийные ТН", style: "header" },
-      { text: "Нет данных для выгрузки по текущему фильтру.", margin: [0, 12, 0, 0] },
+      {
+        text: "Аварийные ТН",
+        style: "header",
+        margin: [0, 0, 0, 8],
+      },
+      {
+        table: {
+          headerRows: 1,
+          widths,
+          body: [headerRow()],
+          dontBreakRows: false,
+          keepWithHeaderRows: 1,
+        },
+        layout: {
+          hLineColor: () => COLORS.border,
+          vLineColor: () => COLORS.border,
+          hLineWidth: () => 0.4,
+          vLineWidth: () => 0.4,
+          paddingLeft: () => 3,
+          paddingRight: () => 3,
+          paddingTop: () => 2,
+          paddingBottom: () => 2,
+          fillColor: (rowIndex) => (rowIndex === 0 ? COLORS.headerBg : null),
+        },
+        fontSize: 7,
+      },
     ],
-    styles: { header: { fontSize: 13, bold: true } },
+    styles: {
+      header: {
+        fontSize: 13,
+        bold: true,
+      },
+    },
+    defaultStyle: {
+      fontSize: 7,
+    },
   };
   pdfMake.createPdf(docDefinition).download(exportFilename());
 }
