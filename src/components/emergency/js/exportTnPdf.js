@@ -11,7 +11,7 @@ import {
   isOperationalDashboardRow,
 } from "../../operationalDashboard/sections/districts/js/operationalDistrictsPanel.utils";
 import { fetchTnFilialyRows } from "../../../utils/tnFilialyApi";
-import { pick, s, toNumber } from "../../dashboard/js/dashboardCommon";
+import { pick, s, startDate, toNumber } from "../../dashboard/js/dashboardCommon";
 
 // pdfmake 0.3.x: vfs_fonts не вешается на window.pdfMake сам — регистрируем вручную.
 const vfs = pdfFonts?.default ?? pdfFonts;
@@ -22,14 +22,12 @@ if (pdfMake && typeof pdfMake.addVirtualFileSystem === "function" && vfs) {
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
-// Метрики — без МКД и ОВБ.
+// Метрики — без МКД и ОВБ; ЖВО = Котел. ЦТП + ВЗУ ВНС + КНС.
 const METRIC_COLUMNS = [
   { key: "population", title: "Население", width: 48 },
-  { key: "boilerCtp", title: "Котел. ЦТП", width: 48 },
-  { key: "vzuVns", title: "ВЗУ ВНС", width: 46 },
-  { key: "kns", title: "КНС", width: 32 },
-  { key: "medical", title: "Больницы Поликлиники", width: 58 },
-  { key: "schools", title: "Школы\nДет.Сады", width: 52 },
+  { key: "jvo", title: "ЖВО (Котел. ЦТП,\nВЗУ ВНС, КНС)", width: 90 },
+  { key: "medical", title: "Медицина\n(больницы, поликлиники)", width: 58 },
+  { key: "schools", title: "Образование\n(школы, дет.сады)", width: 52 },
   { key: "staff", title: "Персонал", width: 44 },
   { key: "pes", title: "ПЭС", width: 32 },
 ];
@@ -64,9 +62,13 @@ function mergeTotals(target, source) {
 function addRowToTotals(totals, row) {
   totals.tnCount += 1;
   totals.population += toNumber(pick(row, "POPULATION_COUNT"));
-  totals.boilerCtp += addFields(row, ["BOILER_ALL", "CTP_ALL"]);
-  totals.vzuVns += addFields(row, ["WELLS_ALL", "VNS_ALL"]);
-  totals.kns += toNumber(pick(row, "KNS_ALL"));
+  totals.jvo += addFields(row, [
+    "BOILER_ALL",
+    "CTP_ALL",
+    "WELLS_ALL",
+    "VNS_ALL",
+    "KNS_ALL",
+  ]);
   totals.medical += addFields(row, ["HOSPITALS_ALL", "CLINICS_ALL"]);
   totals.schools += addFields(row, ["SCHOOLS_ALL", "KINDERGARTENS_ALL"]);
   totals.staff += toNumber(pick(row, "EMPLOYEECOUNT"));
@@ -186,6 +188,20 @@ function dataRow({ level, label, totals, id, parentId, isTotal = false }) {
   });
 }
 
+// Момент возникновения ТН; null → 0 (такие уйдут ниже датированных).
+function rowStartMs(row) {
+  const raw = startDate(row);
+  if (!raw) return 0;
+  const ms = Date.parse(raw);
+  return Number.isNaN(ms) ? 0 : ms;
+}
+
+// Новое ТН выше ранее возникших: сначала по maxStart (убыв.), потом алфавит.
+function byNewestFirst(a, b) {
+  if (b.maxStart !== a.maxStart) return b.maxStart - a.maxStart;
+  return String(a.name).localeCompare(String(b.name), "ru");
+}
+
 function buildHierarchy(list, resourceByBranch) {
   const filialMap = new Map();
 
@@ -196,34 +212,42 @@ function buildHierarchy(list, resourceByBranch) {
       getOperationalDistrictByRow(row) || pick(row, "DISTRICT"),
       "Без ГО"
     );
+    const startMs = rowStartMs(row);
 
     if (!filialMap.has(filialName)) {
       const resourceRow = resourceByBranch.get(getOperationalBranchByRow(row) || filialName);
       filialMap.set(filialName, {
         name: filialName,
+        maxStart: 0,
         totals: { ...emptyTotals(), pes: toNumber(resourceRow?.pes) },
         pos: new Map(),
       });
     }
     const filial = filialMap.get(filialName);
+    if (startMs > filial.maxStart) filial.maxStart = startMs;
 
     if (!filial.pos.has(poName)) {
       filial.pos.set(poName, {
         name: poName,
+        maxStart: 0,
         totals: emptyTotals(),
         gos: new Map(),
       });
     }
     const po = filial.pos.get(poName);
+    if (startMs > po.maxStart) po.maxStart = startMs;
 
     if (!po.gos.has(goName)) {
       po.gos.set(goName, {
         name: goName,
+        maxStart: 0,
         totals: emptyTotals(),
       });
     }
+    const go = po.gos.get(goName);
+    if (startMs > go.maxStart) go.maxStart = startMs;
 
-    addRowToTotals(po.gos.get(goName).totals, row);
+    addRowToTotals(go.totals, row);
   });
 
   filialMap.forEach((filial) => {
@@ -240,9 +264,7 @@ function buildHierarchy(list, resourceByBranch) {
     };
   });
 
-  return [...filialMap.values()].sort((a, b) =>
-    a.name.localeCompare(b.name, "ru")
-  );
+  return [...filialMap.values()].sort(byNewestFirst);
 }
 
 function slug(text) {
@@ -272,7 +294,7 @@ function buildBody(filials) {
       tnCount: filial.totals.tnCount,
     });
 
-    const pos = [...filial.pos.values()].sort((a, b) => a.name.localeCompare(b.name, "ru"));
+    const pos = [...filial.pos.values()].sort(byNewestFirst);
     pos.forEach((po) => {
       const pId = `${fId}-po-${slug(po.name)}`;
       body.push(
@@ -285,7 +307,7 @@ function buildBody(filials) {
         })
       );
 
-      const gos = [...po.gos.values()].sort((a, b) => a.name.localeCompare(b.name, "ru"));
+      const gos = [...po.gos.values()].sort(byNewestFirst);
       gos.forEach((go) => {
         body.push(
           dataRow({
