@@ -1,16 +1,23 @@
 import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
+import axios from "axios";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
 import {
   buildOperationalBranchRows,
+  buildOperationalBranchSummary,
+  buildPesDashboardCountMaps,
   getOperationalBranchByRow,
   getOperationalDistrictByRow,
   getOperationalPoByRow,
   isOperationalDashboardRow,
 } from "../../operationalDashboard/sections/districts/js/operationalDistrictsPanel.utils";
+import { OPERATIONAL_BRANCH_COLUMNS } from "../../operationalDashboard/sections/districts/js/operationalDistrictsPanel.config";
 import { fetchTnFilialyRows } from "../../../utils/tnFilialyApi";
+import { fetchOperationalDashboardInitialRows } from "../../dashboard/js/dashboardPage.utils";
+import useAuth from "../../../stores/useAuth";
+import usePesModuleDataStore from "../../../stores/pes/usePesModuleDataStore";
 import { pick, s, startDate, toNumber } from "../../dashboard/js/dashboardCommon";
 
 // pdfmake 0.3.x: vfs_fonts не вешается на window.pdfMake сам — регистрируем вручную.
@@ -480,8 +487,147 @@ export async function exportEmergencyTnPdf(items) {
   await writePdf(filials);
 }
 
-// Вторая выгрузка (заглушка): имя ОО_все филиалы.pdf, логика позже.
-export async function exportOoAllBranchesPdf() {
+// Стили таблицы «Округа» с /dashboard-oo (OperationalDistrictsPanel).
+const OO_TABLE_COLORS = {
+  headerBg: "#285a9c",
+  headerText: "#ffffff",
+  border: "#ffffff",
+  branchText: "#0968ad",
+  dataText: "#0a5f9d",
+  oddBg: "#d3e2f4",
+  evenBg: "#e2eef9",
+  summaryBg: "#94add5",
+  summaryText: "#111827",
+};
+
+const OO_COLUMN_TITLES = {
+  branch: "Филиал",
+  lep: "ЛЭП",
+  tpRp: "ТП (РП)",
+  population: "Население",
+  mkd: "МКД",
+  boilerCtp: "Котел. ЦТП",
+  vzuVns: "ВЗУ ВНС",
+  kns: "КНС",
+  medical: "Больницы\nПоликлиники",
+  schools: "Школы\nд.сады",
+  brigades: "Бригады",
+  staff: "Персонал",
+  vehicles: "Техника",
+  pes: "ПЭС",
+  mainResource: "Осн. ресурс",
+  ovb: "ОВБ",
+};
+
+const OO_FILIAL_COLUMN_WIDTHS = {
+  lep: 34,
+  tpRp: 38,
+  population: 50,
+  mkd: 34,
+  boilerCtp: 44,
+  vzuVns: 42,
+  kns: 34,
+  medical: 56,
+  schools: 52,
+  brigades: 42,
+  staff: 44,
+  vehicles: 42,
+  pes: 34,
+  mainResource: 48,
+  ovb: 34,
+};
+
+const OO_NUMBER_FORMAT = new Intl.NumberFormat("ru-RU");
+
+function formatOoCellValue(value) {
+  if (typeof value === "number") return OO_NUMBER_FORMAT.format(value);
+  if (value === null || value === undefined || value === "") return "";
+  return String(value);
+}
+
+function getBackendBase() {
+  const a = String(import.meta.env.VITE_URL_BACKEND_SERVICES || "").trim();
+  const b = String(import.meta.env.VITE_URL_BACKEND || "").trim();
+  return (a || b).replace(/\/$/, "");
+}
+
+async function fetchPesAssemblyDestinations() {
+  const base = getBackendBase();
+  const { data } = await axios.get(`${base}/services/pes/module/destinations`, {
+    params: { destinationType: "assembly" },
+    headers: { Authorization: `Bearer ${localStorage.getItem("jwt") || ""}` },
+  });
+  return Array.isArray(data?.assembly) ? data.assembly : [];
+}
+
+/** Актуальные строки таблицы «Округа» на момент выгрузки (как на /dashboard-oo, groupBy=filial). */
+async function loadOoBranchTableRows() {
+  const jwt = localStorage.getItem("jwt");
+  const user = useAuth.getState().user;
+
+  const [rows, filialRows, pesItems, destinations] = await Promise.all([
+    fetchOperationalDashboardInitialRows({ axios, jwt }),
+    fetchTnFilialyRows({ force: true }).catch(() => []),
+    usePesModuleDataStore
+      .getState()
+      .loadItems(user, { force: true, silent: true })
+      .catch(() => []),
+    fetchPesAssemblyDestinations().catch(() => []),
+  ]);
+
+  const pesCountMaps = buildPesDashboardCountMaps(
+    Array.isArray(pesItems) ? pesItems : [],
+    destinations,
+    filialRows
+  );
+  const branchRows = buildOperationalBranchRows(rows, filialRows, pesCountMaps);
+  return [...branchRows, buildOperationalBranchSummary(branchRows)];
+}
+
+function ooHeaderRow() {
+  return OPERATIONAL_BRANCH_COLUMNS.map((column) => ({
+    text: OO_COLUMN_TITLES[column.dataIndex] || String(column.title || column.dataIndex),
+    bold: true,
+    alignment: "center",
+    fontSize: 7,
+    color: OO_TABLE_COLORS.headerText,
+    fillColor: OO_TABLE_COLORS.headerBg,
+  }));
+}
+
+function ooBodyRow(record, index, isSummary = false) {
+  const bg = isSummary
+    ? OO_TABLE_COLORS.summaryBg
+    : index % 2 === 0
+      ? OO_TABLE_COLORS.oddBg
+      : OO_TABLE_COLORS.evenBg;
+  const textColor = isSummary ? OO_TABLE_COLORS.summaryText : OO_TABLE_COLORS.dataText;
+
+  return OPERATIONAL_BRANCH_COLUMNS.map((column, colIndex) => {
+    const isBranch = column.dataIndex === "branch";
+    return {
+      text: formatOoCellValue(record[column.dataIndex]),
+      bold: isSummary || isBranch,
+      alignment: isBranch ? "left" : "center",
+      color: isBranch && !isSummary ? OO_TABLE_COLORS.branchText : textColor,
+      fillColor: bg,
+      fontSize: 7,
+      margin: colIndex === 0 ? [2, 1, 0, 1] : [0, 1, 0, 1],
+    };
+  });
+}
+
+function ooTableWidths() {
+  // A4 landscape ≈ 842pt, поля 16+16 → ~810. Филиал забирает остаток.
+  return [
+    "*",
+    ...OPERATIONAL_BRANCH_COLUMNS.slice(1).map(
+      (column) => OO_FILIAL_COLUMN_WIDTHS[column.dataIndex] || 40
+    ),
+  ];
+}
+
+function writeOoPdf(dataSource) {
   const docDefinition = {
     pageOrientation: "landscape",
     pageSize: "A4",
@@ -491,6 +637,37 @@ export async function exportOoAllBranchesPdf() {
         text: "ОО все филиалы",
         style: "header",
         margin: [0, 0, 0, 8],
+      },
+      {
+        table: {
+          headerRows: 1,
+          widths: ooTableWidths(),
+          body: [
+            ooHeaderRow(),
+            ...dataSource.map((record, index) =>
+              ooBodyRow(record, index, record?.key === "summary")
+            ),
+          ],
+          dontBreakRows: false,
+          keepWithHeaderRows: 1,
+        },
+        layout: {
+          hLineColor: () => OO_TABLE_COLORS.border,
+          vLineColor: () => OO_TABLE_COLORS.border,
+          hLineWidth: () => 0.4,
+          vLineWidth: () => 0.4,
+          paddingLeft: () => 3,
+          paddingRight: () => 3,
+          paddingTop: () => 2,
+          paddingBottom: () => 2,
+          fillColor: (rowIndex, node) => {
+            if (rowIndex === 0) return OO_TABLE_COLORS.headerBg;
+            const cell = node?.table?.body?.[rowIndex]?.[0];
+            if (cell && typeof cell === "object" && cell.fillColor) return cell.fillColor;
+            return null;
+          },
+        },
+        fontSize: 7,
       },
     ],
     styles: {
@@ -503,7 +680,28 @@ export async function exportOoAllBranchesPdf() {
       fontSize: 7,
     },
   };
+
   return pdfMake.createPdf(docDefinition).download("ОО_все филиалы.pdf");
+}
+
+/** Вторая выгрузка: таблица «Округа» с /dashboard-oo, данные — на момент клика. */
+export async function exportOoAllBranchesPdf() {
+  let dataSource = [];
+  try {
+    dataSource = await loadOoBranchTableRows();
+  } catch (error) {
+    console.warn("[export-oo] Не удалось загрузить данные таблицы ОО", error?.message || error);
+    dataSource = [];
+  }
+
+  await writeOoPdf(dataSource.length ? dataSource : [{
+    key: "empty",
+    branch: "Нет данных",
+    ...OPERATIONAL_BRANCH_COLUMNS.slice(1).reduce((acc, col) => {
+      acc[col.dataIndex] = "";
+      return acc;
+    }, {}),
+  }]);
 }
 
 /** Обе выгрузки по одной кнопке: иерархическая ТН + ОО_все филиалы. */
