@@ -234,28 +234,28 @@ function FiltersBar({
           placeholder="№ ТН…"
           value={searchNumber}
           onChange={(e) => onSearchNumberChange(e.target.value)}
-          style={{ width: 140 }}
+          style={{ width: 70 }}
         />
         <Input
           allowClear
           placeholder="GUID…"
           value={searchGuid}
           onChange={(e) => onSearchGuidChange(e.target.value)}
-          style={{ width: 240 }}
+          style={{ width: 134 }}
         />
         <Input
           allowClear
           placeholder="№ ТП…"
           value={searchTp}
           onChange={(e) => onSearchTpChange(e.target.value)}
-          style={{ width: 170 }}
+          style={{ width: 85 }}
         />
         <Input
           allowClear
           placeholder="FIAS…"
           value={searchFias}
           onChange={(e) => onSearchFiasChange(e.target.value)}
-          style={{ width: 200 }}
+          style={{ width: 160 }}
         />
       </Flex>
       {rightExtra}
@@ -1129,7 +1129,7 @@ export default function TableTN() {
               </Button>
             </Tooltip>
             {showJournal && (
-              <Button onClick={() => setIsJournalOpen(true)}>
+              <Button style={{ padding: "0 4px" }} onClick={() => setIsJournalOpen(true)}>
                 Журнал отправки
               </Button>
             )}
