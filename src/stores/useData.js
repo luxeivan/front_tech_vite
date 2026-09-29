@@ -3,9 +3,14 @@ import { create } from "zustand";
 
 const urlBackend = import.meta.env.VITE_URL_BACKEND;
 const DEFAULT_TNS_PAGE_SIZE = 100;
+// Поиск выполняется на сервере, поэтому тянем все совпавшие страницы.
+// Потолок нужен, чтобы широкий запрос (напр. "РТП") не породил сотни запросов.
+const SEARCH_MAX_PAGES = 100;
+const SEARCH_FETCH_PARALLEL = 10;
 
-const useData = create((set) => ({
+const useData = create((set, get) => ({
   tns: false,
+  tnSearch: null,
   isLoadingTns: false,
   tn: false,
   isLoadingTn: false,
@@ -15,6 +20,8 @@ const useData = create((set) => ({
       set({ isLoadingTns: true });
       const jwt = localStorage.getItem("jwt");
       const base = `${urlBackend}/api/teh-narusheniyas`;
+      // Поиск не передают вызывающие (SSE-обновление, кнопки) — тогда берём последний использованный
+      const search = "search" in opts ? opts.search : get().tnSearch;
 
       const params = {
         "pagination[page]": 1,
@@ -34,12 +41,55 @@ const useData = create((set) => ({
         params["filters[BASE_TYPE][$eq]"] = Number(opts.baseType);
       }
 
-      const { data } = await axios.get(base, {
-        params,
-        headers: { Authorization: `Bearer ${jwt}` },
-      });
+      if (search) {
+        if (search.number) params["filters[number][$containsi]"] = search.number;
+        if (search.tp) params["filters[energoObject][$containsi]"] = search.tp;
+        if (search.fias) params["filters[data][$containsi]"] = search.fias;
+        if (search.guid) {
+          params["filters[$or][0][guid][$containsi]"] = search.guid;
+          params["filters[$or][1][documentId][$containsi]"] = search.guid;
+          params["filters[$or][2][data][$containsi]"] = search.guid;
+        }
+      }
 
-      set({ tns: data, isLoadingTns: false });
+      const headers = { Authorization: `Bearer ${jwt}` };
+      const pageSize = Number(params["pagination[pageSize]"]);
+      const { data } = await axios.get(base, { params, headers });
+
+      let rows = Array.isArray(data?.data) ? data.data : [];
+      const total = Number(data?.meta?.pagination?.total ?? rows.length);
+
+      if (search && total > rows.length) {
+        const totalPages = Math.min(Math.ceil(total / pageSize), SEARCH_MAX_PAGES);
+        for (let start = 2; start <= totalPages; start += SEARCH_FETCH_PARALLEL) {
+          const pages = [];
+          for (let p = start; p < start + SEARCH_FETCH_PARALLEL && p <= totalPages; p++) {
+            pages.push(p);
+          }
+          const chunk = await Promise.all(
+            pages.map((p) =>
+              axios.get(base, { params: { ...params, "pagination[page]": p }, headers })
+            )
+          );
+          chunk.forEach((r) => {
+            const arr = Array.isArray(r.data?.data) ? r.data.data : [];
+            rows = rows.concat(arr);
+          });
+        }
+      }
+
+      const payload = search
+        ? {
+            ...data,
+            data: rows,
+            meta: {
+              ...(data?.meta || {}),
+              pagination: { ...(data?.meta?.pagination || {}), total: rows.length },
+            },
+          }
+        : data;
+
+      set({ tns: payload, tnSearch: search || null, isLoadingTns: false });
     } catch (error) {
       set({ isLoadingTns: false });
       // console.log(`Ошибка при получении всех ТН`, error);

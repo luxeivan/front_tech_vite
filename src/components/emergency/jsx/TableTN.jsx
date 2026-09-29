@@ -156,7 +156,13 @@ const STATUS_OPTIONS = [
   { label: "Закрыта", value: "закрыта" },
 ];
 
-function WelcomeHeader({ totalOpened, loadingOpened }) {
+function WelcomeHeader({
+  totalOpened,
+  loadingOpened,
+  filtersActive,
+  foundCount,
+  loadingFound,
+}) {
   return (
     <div style={{ textAlign: "center", margin: "12px 0 16px" }}>
       {/* <Typography.Title level={5} style={{ marginBottom: 4, color: "red" }}>
@@ -165,7 +171,16 @@ function WelcomeHeader({ totalOpened, loadingOpened }) {
       </Typography.Title> */}
       {/* ЗАКОМЕНТИРОВАННЫЙ КОД */}
       <Typography.Title level={4} style={{ marginTop: 0, fontWeight: 500 }}>
-        Всего открытых ТН: {loadingOpened ? <Spin size="small" /> : totalOpened}
+        {filtersActive ? (
+          <>
+            Всего найдено по фильтрам:{" "}
+            {loadingFound ? <Spin size="small" /> : foundCount}
+          </>
+        ) : (
+          <>
+            Всего открытых ТН: {loadingOpened ? <Spin size="small" /> : totalOpened}
+          </>
+        )}
       </Typography.Title>
     </div>
   );
@@ -181,6 +196,10 @@ function FiltersBar({
   onSearchNumberChange,
   searchGuid,
   onSearchGuidChange,
+  searchTp,
+  onSearchTpChange,
+  searchFias,
+  onSearchFiasChange,
 }) {
   return (
     <Flex
@@ -223,6 +242,20 @@ function FiltersBar({
           value={searchGuid}
           onChange={(e) => onSearchGuidChange(e.target.value)}
           style={{ width: 240 }}
+        />
+        <Input
+          allowClear
+          placeholder="№ ТП…"
+          value={searchTp}
+          onChange={(e) => onSearchTpChange(e.target.value)}
+          style={{ width: 170 }}
+        />
+        <Input
+          allowClear
+          placeholder="FIAS…"
+          value={searchFias}
+          onChange={(e) => onSearchFiasChange(e.target.value)}
+          style={{ width: 200 }}
         />
       </Flex>
       {rightExtra}
@@ -508,6 +541,8 @@ export default function TableTN() {
   const [refreshLocked, setRefreshLocked] = useState(false); // флажок блокировки автообновлений
   const [searchNumber, setSearchNumber] = useState("");
   const [searchGuid, setSearchGuid] = useState("");
+  const [searchTp, setSearchTp] = useState("");
+  const [searchFias, setSearchFias] = useState("");
   const [isJournalOpen, setIsJournalOpen] = useState(false);
   const [highlightGuids, setHighlightGuids] = useState(new Set());
   const [sorter, setSorter] = useState({ field: "createDateTime", order: "descend" });
@@ -560,6 +595,32 @@ export default function TableTN() {
   };
 
   // --- removed openedCount, loadingOpened, totalByDate, headerTotal memoizations
+
+  // Текстовый поиск уходит на сервер (локально видна только первая сотня ТН).
+  // Дебаунс, чтобы не дёргать API на каждое нажатие клавиши.
+  const searchQuery = React.useMemo(() => {
+    const q = {
+      number: String(searchNumber || "").trim(),
+      guid: String(searchGuid || "").trim(),
+      tp: String(searchTp || "").trim(),
+      fias: String(searchFias || "").trim(),
+    };
+    const active = Boolean(q.number || q.guid || q.tp || q.fias);
+    return active ? q : null;
+  }, [searchNumber, searchGuid, searchTp, searchFias]);
+
+  const searchKey = React.useMemo(() => JSON.stringify(searchQuery), [searchQuery]);
+  const prevSearchKeyRef = React.useRef(searchKey);
+
+  useEffect(() => {
+    if (searchKey === prevSearchKeyRef.current) return;
+    prevSearchKeyRef.current = searchKey;
+    setPagination((p) => ({ ...p, page: 1 }));
+    const timer = setTimeout(() => {
+      getTns({ date, baseType: EMERGENCY_BASE_TYPE, search: searchQuery });
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchKey, searchQuery, date, getTns]);
 
   useEffect(() => {
     getTns({ date, baseType: EMERGENCY_BASE_TYPE });
@@ -733,38 +794,10 @@ export default function TableTN() {
 
     if (!statusOk) return false;
 
-    // --- number + guid search ---
-    const src = item?.attributes ? { id: item.id, ...item.attributes } : item;
-    const numStr = (
-      src?.number != null ? String(src.number) : ""
-    ).toLowerCase();
-
-    const guidCandidates = [
-      src?.guid,
-      src?.VIOLATION_GUID_STR,
-      src?.documentId,
-      item?.guid,
-      item?.VIOLATION_GUID_STR,
-      item?.documentId,
-      item?.data?.data?.VIOLATION_GUID_STR,
-      item?.data?.data?.guid,
-    ].filter(Boolean);
-
-    const guidStr = (
-      guidCandidates[0] ? String(guidCandidates[0]) : ""
-    ).toLowerCase();
-
-    const qNum = String(searchNumber || "")
-      .trim()
-      .toLowerCase();
-    const qGuid = String(searchGuid || "")
-      .trim()
-      .toLowerCase();
-
-    const numberOk = qNum ? numStr.includes(qNum) : true;
-    const guidOk = qGuid ? guidStr.includes(qGuid) : true;
-
-    return numberOk && guidOk;
+    // Текстовый поиск (№ ТН / GUID / ТП / FIAS) выполняется на сервере в
+    // getTns(): локально он видел бы только первые 100 загруженных ТН.
+    // Локально остаются только статус и дата.
+    return true;
   });
 
   // 1) Сформировать полноценные строки (включая ключи сортировки)
@@ -1013,7 +1046,13 @@ export default function TableTN() {
         style={{ display: "none" }}
       />
       {/* Показываем всегда количество ОТКРЫТЫХ ТН (независимо от выбранных статусов), учитывая только фильтр по дате */}
-      <WelcomeHeader totalOpened={openedCount} loadingOpened={loadingOpenedCount} />
+      <WelcomeHeader
+        totalOpened={openedCount}
+        loadingOpened={loadingOpenedCount}
+        filtersActive={Boolean(searchQuery)}
+        foundCount={listFiltered.length}
+        loadingFound={isLoadingTns}
+      />
 
       <TableTNActionsBar
       />
@@ -1035,6 +1074,16 @@ export default function TableTN() {
         searchGuid={searchGuid}
         onSearchGuidChange={(v) => {
           setSearchGuid(v);
+          setPagination((p) => ({ ...p, page: 1 }));
+        }}
+        searchTp={searchTp}
+        onSearchTpChange={(v) => {
+          setSearchTp(v);
+          setPagination((p) => ({ ...p, page: 1 }));
+        }}
+        searchFias={searchFias}
+        onSearchFiasChange={(v) => {
+          setSearchFias(v);
           setPagination((p) => ({ ...p, page: 1 }));
         }}
         rightExtra={
@@ -1060,6 +1109,10 @@ export default function TableTN() {
               onClick={() => {
                 setDate(null);
                 setSelectedStatuses(["открыта"]);
+                setSearchNumber("");
+                setSearchGuid("");
+                setSearchTp("");
+                setSearchFias("");
                 setPagination({ page: 1, pageSize: defaultPageSize });
               }}
             >

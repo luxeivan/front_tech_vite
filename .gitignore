@@ -21,6 +21,9 @@ dist-ssr
 
 # MiMoCode
 .mimocode/
+
+# Playwright CLI artifacts
+.playwright-cli/
 *.suo
 *.ntvs*
 *.njsproj
