@@ -20,6 +20,7 @@ import "dayjs/locale/ru";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import * as XLSX from "xlsx";
+import axios from "axios";
 import { fetchAuditEvents, fetchAuditUsers } from "../js/fetchAuditLogs";
 import BrandSunLoader from "../../ui/BrandSunLoader";
 import useAuth from "../../../stores/useAuth";
@@ -227,6 +228,7 @@ function buildPesTimeline(allData) {
         time: eventTime,
         timeStr: toReadableTime(row.created_at),
         action: details.action_ru || details.action || "",
+        actionCode: String(details.action || "").trim().toLowerCase(),
         result: details.result === "success" ? "Успех" : details.result === "error" ? "Ошибка" : details.result || "",
         source: details.source === "max" ? "MAX" : details.source === "web" ? "Веб" : details.source || "",
         role: row?.role || "",
@@ -244,6 +246,90 @@ function buildPesTimeline(allData) {
 
   eventsByPes.forEach((events) => events.sort((a, b) => a.time - b.time));
   return eventsByPes;
+}
+
+function formatDurationHMS(ms) {
+  if (!Number.isFinite(ms) || ms < 0) return "";
+  const totalSec = Math.floor(ms / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+function findEventAfter(events, code, fromTime) {
+  return events.find((e) => e.actionCode === code && e.time >= fromTime) || null;
+}
+
+function firstEventAfter(events, codes, fromTime) {
+  return events
+    .filter((e) => codes.includes(e.actionCode) && e.time >= fromTime)
+    .sort((a, b) => a.time - b.time)[0] || null;
+}
+
+// ЧЧ:ММ:СС по переходам статусов ПЭС внутри одной группы операций.
+function computePesDurations(events, exportAtMs) {
+  const depart = events.find((e) => e.actionCode === "depart") || null;
+  const connect = events.find((e) => e.actionCode === "connect") || null;
+  const repair = events.find((e) => e.actionCode === "repair") || null;
+
+  let tripMs = null;
+  if (depart) {
+    const connectAfter = connect && connect.time >= depart.time ? connect : null;
+    if (connectAfter) {
+      tripMs = connectAfter.time - depart.time;
+    } else {
+      const end = firstEventAfter(events, ["cancel", "ready", "repair"], depart.time);
+      if (end) tripMs = end.time - depart.time;
+    }
+  }
+
+  let workMs = null;
+  if (connect) {
+    const end = firstEventAfter(events, ["ready", "repair"], connect.time);
+    if (end) workMs = end.time - connect.time;
+  }
+
+  let repairMs = null;
+  if (repair) {
+    const readyAfter = findEventAfter(events, "ready", repair.time);
+    repairMs = (readyAfter ? readyAfter.time : exportAtMs) - repair.time;
+  }
+
+  return {
+    trip: formatDurationHMS(tripMs),
+    work: formatDurationHMS(workMs),
+    repair: formatDurationHMS(repairMs),
+  };
+}
+
+function formatPowerCell(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "—";
+  const text = Number.isInteger(n) ? String(n) : String(n).replace(".", ",");
+  return `${text} кВт`;
+}
+
+async function fetchPesUnitsLookup() {
+  const base = (
+    String(import.meta.env.VITE_URL_BACKEND_SERVICES || "").trim() ||
+    String(import.meta.env.VITE_URL_BACKEND || "").trim()
+  ).replace(/\/$/, "");
+  const jwt = localStorage.getItem("jwt") || "";
+  const resp = await axios.get(`${base}/services/pes/module/items`, {
+    headers: jwt ? { Authorization: `Bearer ${jwt}` } : undefined,
+  });
+  const rows = Array.isArray(resp?.data?.items) ? resp.data.items : [];
+  const map = new Map();
+  rows.forEach((item) => {
+    const key = String(item?.number || item?.id || "").trim();
+    if (!key || map.has(key)) return;
+    map.set(key, {
+      powerKw: item?.powerKw ?? null,
+      baseAddress: item?.baseAddress || item?.parkingAddress || item?.locationAddress || "",
+    });
+  });
+  return map;
 }
 
 function exportAuditToXlsx(data, exportColumns) {
@@ -270,38 +356,53 @@ function exportAuditToXlsx(data, exportColumns) {
   XLSX.writeFile(wb, `audit-export-${ts}.xlsx`);
 }
 
-function exportPesTimelineToXlsx(timeline) {
+function exportPesTimelineToXlsx(timeline, unitsLookup) {
   const COLS = [
     { header: "ПЭС", width: 10 },
     { header: "Название", width: 22 },
+    { header: "Мощность", width: 12 },
+    { header: "Место базирования", width: 32 },
     { header: "Филиал", width: 18 },
     { header: "ПО", width: 20 },
     { header: "Время", width: 20 },
-    { header: "Действие", width: 22 },
-    { header: "Результат", width: 10 },
+    { header: "Действие (статус)", width: 22 },
+    { header: "Место назначения", width: 28 },
+    { header: "Время в пути", width: 14 },
+    { header: "Время в работе", width: 14 },
+    { header: "Время в ремонте", width: 14 },
     { header: "Источник", width: 10 },
     { header: "Роль", width: 14 },
     { header: "Пользователь", width: 24 },
-    { header: "Назначение", width: 28 },
     { header: "Комментарий", width: 28 },
   ];
 
   const wsData = [];
+  const exportAtMs = Date.now();
 
   timeline.forEach((events, pesNumber) => {
-    events.forEach((ev) => {
+    const unit = unitsLookup?.get?.(String(pesNumber)) || null;
+    const power = formatPowerCell(unit?.powerKw);
+    const baseAddress = unit?.baseAddress || "—";
+    const durations = computePesDurations(events, exportAtMs);
+
+    events.forEach((ev, index) => {
+      const isFirst = index === 0;
       wsData.push([
         pesNumber,
         ev.pesName,
+        power,
+        baseAddress,
         ev.pesBranch,
         ev.pesPo,
         ev.timeStr,
         ev.action,
-        ev.result,
+        ev.destination,
+        isFirst ? durations.trip : "",
+        isFirst ? durations.work : "",
+        isFirst ? durations.repair : "",
         ev.source,
         ev.role,
         ev.username,
-        ev.destination,
         ev.comment,
       ]);
     });
@@ -610,7 +711,8 @@ export default function LoggingPanel() {
           alert("Нет данных по ПЭС для выгрузки.");
           return;
         }
-        exportPesTimelineToXlsx(timeline);
+        const unitsLookup = await fetchPesUnitsLookup().catch(() => new Map());
+        exportPesTimelineToXlsx(timeline, unitsLookup);
       } else {
         const exportColumns = [
           { title: "Время", dataIndex: "created_at" },
