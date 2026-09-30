@@ -1,0 +1,8 @@
+/* Компактные фильтры только для 15" экранов (≤1600px). На 24" — оригинальные размеры. */
+@media (max-width: 1600px) {
+  .tn-filter-tn { width: 70px !important; }
+  .tn-filter-guid { width: 134px !important; }
+  .tn-filter-tp { width: 85px !important; }
+  .tn-filter-fias { width: 160px !important; }
+  .tn-filter-journal-btn .ant-btn { padding: 0 4px !important; }
+}
