@@ -7,8 +7,15 @@ import usePesModuleDataStore from "../../../stores/pes/usePesModuleDataStore";
 import { hasFeatureAccess } from "../../../config/viewRoleAccess";
 import { buildAuditHeaders } from "../../../utils/auditLogger";
 import { calcSummary, getActionMeta, statusLabel } from "./pesModuleMeta";
+import {
+  computePesEta,
+  fetchPesVehicles,
+  getDestinationPoint,
+  isActiveEtaStatus,
+} from "./pesEta";
 
 const PES_LIVE_POLL_MS = 10000;
+const PES_ETA_POLL_MS = 30000;
 
 function getBackendBase() {
   const a = String(import.meta.env.VITE_URL_BACKEND_SERVICES || "").trim();
@@ -49,6 +56,8 @@ export default function pesModuleLogic() {
   const [comment, setComment] = useState("");
   const [sending, setSending] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  // ETA до точки назначения для ПЭС "в пути"/"задержка".
+  const [etaById, setEtaById] = useState({});
   // UI: каскадные фильтры для поиска ТП.
   const [tpBranchFilter, setTpBranchFilter] = useState("__all__");
   const [tpPoFilter, setTpPoFilter] = useState("__all__");
@@ -277,6 +286,64 @@ export default function pesModuleLogic() {
     return () => window.clearInterval(timer);
   }, [user, sending, loading, loadItems, historyOpen, historyPageSize, refreshHistory]);
 
+  const itemsRef = useRef(items);
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
+
+  const etaTargetKey = useMemo(
+    () =>
+      items
+        .filter((x) => isActiveEtaStatus(x?.effectiveStatus) && getDestinationPoint(x))
+        .map((x) => `${x.id}:${x.effectiveStatus}:${x.destination?.id || ""}`)
+        .join("|"),
+    [items]
+  );
+
+  useEffect(() => {
+    if (!user || !etaTargetKey) {
+      setEtaById((prev) => (Object.keys(prev).length ? {} : prev));
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    const compute = async () => {
+      const targets = itemsRef.current.filter(
+        (x) => isActiveEtaStatus(x?.effectiveStatus) && getDestinationPoint(x)
+      );
+      if (!targets.length) return;
+
+      try {
+        const vehicles = await fetchPesVehicles();
+        if (cancelled) return;
+
+        const entries = await Promise.all(
+          targets.map(async (item) => {
+            const eta = await computePesEta(item, vehicles);
+            return [item.id, eta];
+          })
+        );
+        if (cancelled) return;
+
+        setEtaById((prev) => {
+          const next = { ...prev };
+          for (const [id, eta] of entries) next[id] = eta;
+          return next;
+        });
+      } catch {
+        // ETA — вспомогательная подсказка, сбои трекера/роутинга не должны ронять модуль.
+      }
+    };
+
+    compute();
+    const timer = window.setInterval(compute, PES_ETA_POLL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [user, etaTargetKey]);
+
   useEffect(() => {
     const scopedPo = parseScopedPoValue(tpPoFilter);
     let requestBranch = destinationBranch;
@@ -369,20 +436,25 @@ export default function pesModuleLogic() {
 
   const filteredItems = useMemo(
     () =>
-      items.filter((x) => {
-        if (branchFilter !== "__all__" && x.branch !== branchFilter) return false;
-        if (poFilter !== "__all__") {
-          const scoped = parseScopedPoValue(poFilter);
-          if (scoped) {
-            if (x.branch !== scoped.branch || x.po !== scoped.po) return false;
-          } else if (x.po !== poFilter) {
-            return false;
+      items
+        .filter((x) => {
+          if (branchFilter !== "__all__" && x.branch !== branchFilter) return false;
+          if (poFilter !== "__all__") {
+            const scoped = parseScopedPoValue(poFilter);
+            if (scoped) {
+              if (x.branch !== scoped.branch || x.po !== scoped.po) return false;
+            } else if (x.po !== poFilter) {
+              return false;
+            }
           }
-        }
-        if (statusFilter !== "__all__" && x.effectiveStatus !== statusFilter) return false;
-        return true;
-      }),
-    [items, branchFilter, poFilter, statusFilter]
+          if (statusFilter !== "__all__" && x.effectiveStatus !== statusFilter) return false;
+          return true;
+        })
+        .map((x) => {
+          const eta = etaById[x.id];
+          return eta ? { ...x, etaMinutes: eta.minutes } : x;
+        }),
+    [items, branchFilter, poFilter, statusFilter, etaById]
   );
 
   const filteredSummary = useMemo(() => calcSummary(filteredItems), [filteredItems]);
