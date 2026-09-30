@@ -5,6 +5,7 @@ import {
   Col,
   DatePicker,
   Input,
+  message,
   Row,
   Segmented,
   Select,
@@ -505,6 +506,7 @@ export default function LoggingPanel() {
   const userSearchTimerRef = useRef(null);
   const userSearchSeqRef = useRef(0);
   const [exporting, setExporting] = useState(false);
+  const [messageApi, messageContextHolder] = message.useMessage();
   const showExportButton =
     String(user?.email || "").trim().toLowerCase() === EXPORT_USER_EMAIL;
 
@@ -679,6 +681,14 @@ export default function LoggingPanel() {
 
   const handleExportAll = async () => {
     if (exporting) return;
+
+    const [periodFrom, periodTo] = Array.isArray(filters.period) ? filters.period : [];
+    const hasPeriod = Boolean(periodFrom || periodTo);
+    if (isPesPage(filters.page) && !hasPeriod) {
+      messageApi.warning("Сначала выберите период для выгрузки.");
+      return;
+    }
+
     setExporting(true);
     const jwt = localStorage.getItem("jwt") || "";
     const PAGE_SIZE = 100;
@@ -825,6 +835,7 @@ export default function LoggingPanel() {
 
   return (
     <ConfigProvider locale={ruRU}>
+      {messageContextHolder}
       <div className={styles.root}>
         <div className={styles.header}>
           <h2 className={styles.headerTitle}>Журнал действий</h2>
