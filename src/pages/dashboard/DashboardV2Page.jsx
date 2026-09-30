@@ -9,6 +9,7 @@ import {
 import * as XLSX from "xlsx";
 import dayjs from "dayjs";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
 import MapPanel from "../../components/dashboard/jsx/MapPanel";
 import Dinamica7Days from "../../components/dashboard/jsx/Dinamica";
@@ -32,7 +33,8 @@ import {
 } from "../../components/dashboard/js/dashboardCommon";
 import { engineeringDayKey } from "../../components/dashboard/js/engineeringDay";
 import pesModuleLogic from "../../components/pes/js/pesModuleLogic";
-import { formatDateTime, formatPowerKw, STATUS_META, statusLabel } from "../../components/pes/js/pesModuleMeta";
+// formatDateTime, statusLabel — вернуть при раскомментировании выгрузки Excel
+import { formatPowerKw, STATUS_META } from "../../components/pes/js/pesModuleMeta";
 import PesCommandCard from "../../components/pes/jsx/PesCommandCard";
 import PesFiltersCard from "../../components/pes/jsx/PesFiltersCard";
 import PesHistoryDrawer from "../../components/pes/jsx/PesHistoryDrawer";
@@ -78,47 +80,48 @@ function sumPower(items, statuses = null) {
   }, 0);
 }
 
-function buildPesExportRows(items) {
-  return (items || []).map((item) => ({
-    "Номер": item.number || "",
-    "Мощность, кВт": formatPowerKw(item.powerKw),
-    "Статус": statusLabel(item.effectiveStatus),
-    "Филиал": item.branch || "",
-    "ПО": item.po || "",
-    "Место базирования": item.baseAddress || item.parkingAddress || item.locationAddress || "",
-    "Место назначения": item.destination?.address || item.destination?.title || item.destination?.name || "",
-    "Время команды": formatDateTime(item.commandSentAt),
-    "Фактический выезд": formatDateTime(item.actualDepartureAt),
-    "Подключение": formatDateTime(item.connectedAt),
-    "Диспетчер": item.dispatcherPhone || "",
-  }));
-}
+// Шаг 1: прежняя логика выгрузки Excel закомментирована
+// function buildPesExportRows(items) {
+//   return (items || []).map((item) => ({
+//     "Номер": item.number || "",
+//     "Мощность, кВт": formatPowerKw(item.powerKw),
+//     "Статус": statusLabel(item.effectiveStatus),
+//     "Филиал": item.branch || "",
+//     "ПО": item.po || "",
+//     "Место базирования": item.baseAddress || item.parkingAddress || item.locationAddress || "",
+//     "Место назначения": item.destination?.address || item.destination?.title || item.destination?.name || "",
+//     "Время команды": formatDateTime(item.commandSentAt),
+//     "Фактический выезд": formatDateTime(item.actualDepartureAt),
+//     "Подключение": formatDateTime(item.connectedAt),
+//     "Диспетчер": item.dispatcherPhone || "",
+//   }));
+// }
 
-function exportPesToXlsx(items) {
-  const rows = buildPesExportRows(items);
-  if (!rows.length) {
-    message.warning("Нет ПЭС для выгрузки по текущим фильтрам.");
-    return;
-  }
-
-  const ws = XLSX.utils.json_to_sheet(rows);
-  ws["!cols"] = [
-    { wch: 10 },
-    { wch: 14 },
-    { wch: 24 },
-    { wch: 22 },
-    { wch: 24 },
-    { wch: 32 },
-    { wch: 36 },
-    { wch: 20 },
-    { wch: 20 },
-    { wch: 20 },
-    { wch: 18 },
-  ];
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "ПЭС");
-  XLSX.writeFile(wb, `pes-export-${dayjs().format("YYYY-MM-DD-HH-mm")}.xlsx`);
-}
+// function exportPesToXlsx(items) {
+//   const rows = buildPesExportRows(items);
+//   if (!rows.length) {
+//     message.warning("Нет ПЭС для выгрузки по текущим фильтрам.");
+//     return;
+//   }
+//
+//   const ws = XLSX.utils.json_to_sheet(rows);
+//   ws["!cols"] = [
+//     { wch: 10 },
+//     { wch: 14 },
+//     { wch: 24 },
+//     { wch: 22 },
+//     { wch: 24 },
+//     { wch: 32 },
+//     { wch: 36 },
+//     { wch: 20 },
+//     { wch: 20 },
+//     { wch: 20 },
+//     { wch: 18 },
+//   ];
+//   const wb = XLSX.utils.book_new();
+//   XLSX.utils.book_append_sheet(wb, ws, "ПЭС");
+//   XLSX.writeFile(wb, `pes-export-${dayjs().format("YYYY-MM-DD-HH-mm")}.xlsx`);
+// }
 
 function getPesDestinationDistrict(item) {
   const dest = item?.destination || {};
@@ -242,6 +245,7 @@ function DashboardV2TodayDuration({ rows7d = [] }) {
 }
 
 export default function DashboardV2Page() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [rows, setRows] = useState([]);
@@ -471,8 +475,7 @@ export default function DashboardV2Page() {
             size="small"
             icon={<DownloadOutlined />}
             className="dashboard-v2-excel-button"
-            onClick={() => exportPesToXlsx(pes.filteredItems)}
-            disabled={!pes.filteredItems.length}
+            onClick={() => navigate("/logging/pes")}
           >
             Выгрузка Excel
           </Button>

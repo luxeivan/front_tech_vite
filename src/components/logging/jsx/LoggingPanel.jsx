@@ -18,6 +18,7 @@ import ruRU from "antd/locale/ru_RU";
 import dayjs from "dayjs";
 import "dayjs/locale/ru";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { fetchAuditEvents, fetchAuditUsers } from "../js/fetchAuditLogs";
 import BrandSunLoader from "../../ui/BrandSunLoader";
@@ -52,6 +53,36 @@ const PAGE_OPTIONS = [
   { label: "Модуль ПЭС", value: "/pes" },
   { label: "Журнал действий", value: "/logging" },
 ];
+
+// URL-слаги после /logging → value фильтра «Раздел»
+const SECTION_SLUG_TO_PAGE = {
+  "": "",
+  unplanned: "/",
+  planned: "/planned",
+  dashboard: "/dashboard",
+  "dashboard-oo": "/dashboard-oo",
+  pes: "/pes",
+  actions: "/logging",
+};
+
+const PAGE_TO_SECTION_SLUG = {
+  "": "",
+  "/": "unplanned",
+  "/planned": "planned",
+  "/dashboard": "dashboard",
+  "/dashboard-oo": "dashboard-oo",
+  "/pes": "pes",
+  "/logging": "actions",
+};
+
+function pageToSectionPath(pageValue) {
+  const slug = PAGE_TO_SECTION_SLUG[String(pageValue || "")];
+  return slug ? `/logging/${slug}` : "/logging";
+}
+
+function sectionSlugToPage(slug) {
+  return SECTION_SLUG_TO_PAGE[String(slug || "").toLowerCase()] ?? "";
+}
 
 const PAGE_LABEL_MAP = {
   "/": "Аварийные отключения",
@@ -344,11 +375,16 @@ function normalizeUserOptions(rows) {
 }
 
 export default function LoggingPanel() {
+  const navigate = useNavigate();
+  const { section: sectionSlug } = useParams();
   const user = useAuth((store) => store.user);
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState([]);
   const [errorText, setErrorText] = useState("");
-  const [filters, setFilters] = useState(createDefaultFilters);
+  const [filters, setFilters] = useState(() => ({
+    ...createDefaultFilters(),
+    page: sectionSlugToPage(sectionSlug),
+  }));
   const [pagination, setPagination] = useState({
     page: 1,
     pageSize: DEFAULT_PAGE_SIZE,
@@ -517,10 +553,26 @@ export default function LoggingPanel() {
     setFilters(updater);
   };
 
+  // URL → фильтр «Раздел» (кнопки «назад/вперёд», прямой переход)
+  useEffect(() => {
+    const pageFromUrl = sectionSlugToPage(sectionSlug);
+    setFilters((s) => {
+      if (s.page === pageFromUrl) return s;
+      return {
+        ...s,
+        page: pageFromUrl,
+        tnValue: isTnPage(pageFromUrl) ? s.tnValue : "",
+        pesNumber: isPesPage(pageFromUrl) ? s.pesNumber : "",
+      };
+    });
+    setPagination((prev) => (prev.page === 1 ? prev : { ...prev, page: 1 }));
+  }, [sectionSlug]);
+
   const resetFilters = async () => {
     const next = createDefaultFilters();
     setPagination((prev) => ({ ...prev, page: 1, pageSize: DEFAULT_PAGE_SIZE }));
     setFilters(next);
+    navigate("/logging", { replace: true });
     await loadUsers("");
   };
 
@@ -580,12 +632,7 @@ export default function LoggingPanel() {
   };
 
   const handlePageChange = (page) => {
-    updateFilters((s) => ({
-      ...s,
-      page,
-      tnValue: isTnPage(page) ? s.tnValue : "",
-      pesNumber: isPesPage(page) ? s.pesNumber : "",
-    }));
+    navigate(pageToSectionPath(page));
   };
 
   const tableLoading = loading

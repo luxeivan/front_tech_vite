@@ -218,7 +218,7 @@ function App() {
               }
             />
             <Route
-              path="/logging"
+              path="/logging/:section?"
               element={
                 <Protected>
                   <FeatureOnly featureKey="auditLogging">
