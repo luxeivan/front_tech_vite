@@ -250,14 +250,14 @@
 .dashboard-v2-donut-card .ant-card-body {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   flex: 1;
   min-height: 0;
 }
 
 .dashboard-v2-donut {
-  width: 122px;
-  height: 122px;
+  width: 78px;
+  height: 78px;
   margin: 0;
   flex: 0 0 auto;
   border-radius: 50%;
@@ -268,7 +268,7 @@
 .dashboard-v2-donut::after {
   content: "";
   position: absolute;
-  inset: 27px;
+  inset: 17px;
   border-radius: 50%;
   background: #fff;
 }
@@ -281,7 +281,7 @@
   align-items: center;
   justify-content: center;
   color: #000;
-  font-size: 52px;
+  font-size: 33px;
   font-weight: 800;
   line-height: 1;
 }
@@ -296,12 +296,13 @@
 
 .dashboard-v2-donut__legend-row {
   display: grid;
-  grid-template-columns: 9px minmax(0, 1fr) auto;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   color: #5e5e5e;
   font-size: 11px;
   line-height: 1.15;
+  white-space: nowrap;
 }
 
 .dashboard-v2-donut__legend-row span {
