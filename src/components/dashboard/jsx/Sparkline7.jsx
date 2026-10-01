@@ -3,9 +3,9 @@ import React from "react";
 // Линейный мини-график 7-точечной динамики.
 export default function Sparkline7({ points }) {
   const w = 900;
-  const h = 120;
-  const padX = 24;
-  const padY = 22;
+  const h = 150;
+  const padX = 30;
+  const padY = 36;
   const max = Math.max(1, ...points.map((p) => Number(p.total || 0)));
   const step = points.length > 1 ? (w - 2 * padX) / (points.length - 1) : 0;
 
@@ -18,20 +18,20 @@ export default function Sparkline7({ points }) {
 
   return (
     <svg viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", height: 140 }}>
-      <polyline points={poly} fill="none" stroke="#ff4d4f" strokeWidth="2" />
+      <polyline points={poly} fill="none" stroke="#ff4d4f" strokeWidth="3" />
       {xy.map((pt, i) => {
         if (!pt) return null;
         const [x, y] = pt;
         const p = points[i];
         return (
           <g key={i}>
-            <circle cx={x} cy={y} r="4" fill="#ff4d4f">
+            <circle cx={x} cy={y} r="6" fill="#ff4d4f">
               <title>{`${p.label.toUpperCase()}: всего ${p.total}\n— открыто: ${p.opened}\n— закрыто: ${p.closed}\n— удалено: ${p.deleted}`}</title>
             </circle>
-            <text x={x} y={y - 8} fontSize="12" textAnchor="middle" fill="#595959">
+            <text x={x} y={y - 14} fontSize="24" fontWeight="700" textAnchor="middle" fill="#595959">
               {p.total}
             </text>
-            <text x={x} y={h - 8} fontSize="12" textAnchor="middle" fill="#8c8c8c">
+            <text x={x} y={h - 8} fontSize="24" fontWeight="600" textAnchor="middle" fill="#8c8c8c">
               {p.label}
             </text>
           </g>
