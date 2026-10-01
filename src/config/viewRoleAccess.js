@@ -10,7 +10,7 @@ const FEATURE_ROLES = {
   plannedModule: ["supergeneral", "standart", "preview"],
   operationalDashboard: ["*"],
   districtModeManage: ["standart", "preview"],
-  auditLogging: ["preview"],
+  auditLogging: ["preview", "standart"],
   journal: ["standart", "preview"],
   pesManage: ["standart", "preview"],
 };

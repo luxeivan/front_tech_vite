@@ -24,7 +24,6 @@ import * as XLSX from "xlsx";
 import axios from "axios";
 import { fetchAuditEvents, fetchAuditUsers } from "../js/fetchAuditLogs";
 import BrandSunLoader from "../../ui/BrandSunLoader";
-import useAuth from "../../../stores/useAuth";
 import styles from "../css/LoggingPanel.module.css";
 
 const { RangePicker } = DatePicker;
@@ -194,8 +193,6 @@ function isTnPage(page) {
 function isPesPage(page) {
   return page === "/pes";
 }
-
-const EXPORT_USER_EMAIL = "yanutst@yandex.ru";
 
 function parseDetailsJson(row) {
   const source = row?.details_json ?? row?.details;
@@ -479,7 +476,6 @@ function normalizeUserOptions(rows) {
 export default function LoggingPanel() {
   const navigate = useNavigate();
   const { section: sectionSlug } = useParams();
-  const user = useAuth((store) => store.user);
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState([]);
   const [errorText, setErrorText] = useState("");
@@ -507,9 +503,6 @@ export default function LoggingPanel() {
   const userSearchSeqRef = useRef(0);
   const [exporting, setExporting] = useState(false);
   const [messageApi, messageContextHolder] = message.useMessage();
-  const showExportButton =
-    String(user?.email || "").trim().toLowerCase() === EXPORT_USER_EMAIL;
-
   const loadUsers = useCallback(
     async (query = "") => {
       const seq = userSearchSeqRef.current + 1;
@@ -839,16 +832,14 @@ export default function LoggingPanel() {
       <div className={styles.root}>
         <div className={styles.header}>
           <h2 className={styles.headerTitle}>Журнал действий</h2>
-          {showExportButton && (
-            <Button
-              type="primary"
-              onClick={handleExportAll}
-              loading={exporting}
-              disabled={loading}
-            >
-              {exporting ? "Выгружаем..." : "Выгрузить в Excel"}
-            </Button>
-          )}
+          <Button
+            type="primary"
+            onClick={handleExportAll}
+            loading={exporting}
+            disabled={loading}
+          >
+            {exporting ? "Выгружаем..." : "Выгрузить в Excel"}
+          </Button>
         </div>
         {errorText && <Alert type="error" showIcon message={errorText} />}
 
