@@ -31,7 +31,7 @@ export async function fetchAuditEvents(params = {}, jwt = "") {
   const resp = await axios.get(`${SERVICES_URL}/services/audit/events`, {
     params: query,
     headers: authHeaders(jwt),
-    timeout: 10000,
+    timeout: 30000,
   });
   return resp.data;
 }

@@ -573,6 +573,7 @@ export default function LoggingPanel() {
             e?.message ||
             "Не удалось загрузить журнал";
         setErrorText(String(msg));
+        if (!silent) setRows([]);
       } finally {
         if (!silent) setLoading(false);
       }
