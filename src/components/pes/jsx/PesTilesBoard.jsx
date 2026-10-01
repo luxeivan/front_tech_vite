@@ -1,5 +1,5 @@
 // Отрисовка плиток ПЭС с группировкой по филиалам и ПО.
-import React, { useMemo } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { Tooltip } from "antd";
 import { formatPowerKw, STATUS_META } from "../js/pesModuleMeta";
 import { buildGroupedPes } from "../js/pesTilesBoard.utils";
@@ -95,6 +95,7 @@ export default function PesTilesBoard({
   branchGroups = null,
   showGroupTitles = true,
 }) {
+  const boardRef = useRef(null);
   const grouped = useMemo(() => buildGroupedPes(items), [items]);
   const groupedByBranch = useMemo(() => {
     const map = new Map();
@@ -103,6 +104,26 @@ export default function PesTilesBoard({
     });
     return map;
   }, [grouped]);
+
+  // Dense columns spread evenly, sparse (filtered) ones stay top-aligned.
+  useLayoutEffect(() => {
+    const board = boardRef.current;
+    if (!board) return undefined;
+
+    const sync = () => {
+      const groups = board.querySelectorAll(".pes-board-group");
+      groups.forEach((group) => {
+        const content = [...group.children].reduce((sum, el) => sum + el.getBoundingClientRect().height, 0);
+        const room = group.getBoundingClientRect().height;
+        group.classList.toggle("pes-board-group--spread", room > 0 && content >= room * 0.72);
+      });
+    };
+
+    sync();
+    const observer = new ResizeObserver(sync);
+    observer.observe(board);
+    return () => observer.disconnect();
+  }, [items]);
 
   if (Array.isArray(branchGroups) && branchGroups.length) {
     const used = new Set();
@@ -126,7 +147,10 @@ export default function PesTilesBoard({
     }
 
     return (
-      <div className={["pes-board", "pes-board--grouped", className].filter(Boolean).join(" ")}>
+      <div
+        ref={boardRef}
+        className={["pes-board", "pes-board--grouped", className].filter(Boolean).join(" ")}
+      >
         {groups.map((group) => (
           <section key={group.title} className="pes-board-group">
             {showGroupTitles && <div className="pes-board-group__title">{group.title}</div>}
@@ -146,7 +170,7 @@ export default function PesTilesBoard({
   }
 
   return (
-    <div className={["pes-board", className].filter(Boolean).join(" ")}>
+    <div ref={boardRef} className={["pes-board", className].filter(Boolean).join(" ")}>
       {grouped.map((b) => (
         <BranchCard
           key={b.branch}

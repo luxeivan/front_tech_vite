@@ -397,8 +397,13 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 8px;
+}
+
+/* Dense columns spread evenly; sparse (filtered) ones stay top-aligned. */
+.pes-board--dashboard-v2 .pes-board-group--spread {
+  justify-content: space-between;
 }
 
 .pes-board--dashboard-v2 .pes-board-group__title {
@@ -418,7 +423,7 @@
 }
 
 .pes-board--dashboard-v2 .pes-branch {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-height: 0;
   margin-bottom: 0;
   padding: 6px 5px 5px;
@@ -427,8 +432,12 @@
   background: var(--dashboard-v2-soft);
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 5px;
+}
+
+.pes-board--dashboard-v2 .pes-board-group--spread .pes-branch {
+  justify-content: space-between;
 }
 
 .pes-board--dashboard-v2 .pes-branch__title {
