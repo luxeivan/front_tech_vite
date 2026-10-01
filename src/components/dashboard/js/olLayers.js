@@ -23,18 +23,18 @@ export function createBaseLayers({ onProviderError } = {}) {
       source: new OSM(),
       visible: false,
     }),
-    cartoLight: new TileLayer({
-      source: new XYZ({
-        url: "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-      }),
-      visible: false,
-    }),
-    cartoDark: new TileLayer({
-      source: new XYZ({
-        url: "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
-      }),
-      visible: false,
-    }),
+    // cartoLight: new TileLayer({
+    //   source: new XYZ({
+    //     url: "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+    //   }),
+    //   visible: false,
+    // }),
+    // cartoDark: new TileLayer({
+    //   source: new XYZ({
+    //     url: "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+    //   }),
+    //   visible: false,
+    // }),
     openTopoMap: new TileLayer({
       source: new XYZ({
         url: "https://{a-c}.tile.opentopomap.org/{z}/{x}/{y}.png",

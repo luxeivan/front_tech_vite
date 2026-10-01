@@ -572,8 +572,8 @@ export default function MapPanel({
                 { label: "2GIS", value: "gis2" },
                 { label: "Rgis", value: "rgis" },
                 { label: "OSM", value: "osm" },
-                { label: "Carto Light", value: "cartoLight" },
-                { label: "Carto Dark", value: "cartoDark" },
+                // { label: "Carto Light", value: "cartoLight" },
+                // { label: "Carto Dark", value: "cartoDark" },
                 { label: "Topo", value: "openTopoMap" },
               ]}
             />
