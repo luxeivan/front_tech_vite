@@ -314,6 +314,7 @@ export async function fetchTnPoOkrugLinkRows(options = {}) {
           "fields[2]": "sort_order",
           "fields[3]": "ovb",
           "fields[4]": "osn_resours",
+          "fields[5]": "v_smene",
           "pagination[page]": page,
           "pagination[pageSize]": PAGE_SIZE,
           "populate[tn_filialy][fields][0]": "name",

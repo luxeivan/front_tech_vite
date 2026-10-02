@@ -136,7 +136,7 @@ const getPoOkrugLinkMainResource = (row) =>
   row?.osn_resours ?? row?.osn_resours_count ?? row?.osn_resource ?? row?.mainResource;
 
 const getPoOkrugLinkOvb = (row) => row?.ovb;
-const getPoOkrugLinkOvbVSmene = (row) => row?.ovb_v_smene ?? row?.ovbVSmene;
+const getPoOkrugLinkOvbVSmene = (row) => row?.v_smene ?? row?.ovb_v_smene ?? row?.ovbVSmene;
 
 const getPoOkrugLinkResourceFields = (linkRow, fallback = {}) => {
   const mainResource = getPoOkrugLinkMainResource(linkRow);
