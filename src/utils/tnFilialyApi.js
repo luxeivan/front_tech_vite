@@ -187,6 +187,7 @@ export async function fetchTnFilialyRows(options = {}) {
           "fields[3]": "sort_order",
           "fields[4]": "ovb",
           "fields[5]": "osn_resours",
+          "fields[6]": "v_smene",
           "pagination[page]": page,
           "pagination[pageSize]": PAGE_SIZE,
           "populate[tn_okruga][fields][0]": "name",

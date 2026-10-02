@@ -113,7 +113,7 @@ const getFilialMainResource = (row) =>
   row?.osn_resours ?? row?.osn_resours_count ?? row?.osn_resource ?? row?.mainResource;
 
 const getFilialOvb = (row) => row?.ovb;
-const getFilialOvbVSmene = (row) => row?.ovb_v_smene ?? row?.ovbVSmene;
+const getFilialOvbVSmene = (row) => row?.v_smene ?? row?.ovb_v_smene ?? row?.ovbVSmene;
 
 const hasValue = (value) => value !== null && value !== undefined && value !== "";
 const hasResourceValue = (value) => hasValue(value) && value !== OPERATIONAL_BRANCH_UNKNOWN_VALUE;
