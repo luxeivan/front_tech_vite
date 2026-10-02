@@ -79,6 +79,15 @@ const compactHeader = {
   }),
 };
 
+const tightHeader = {
+  onHeaderCell: () => ({
+    className: "operational-districts-panel__header-cell--tight",
+  }),
+  onCell: () => ({
+    className: "operational-districts-panel__cell--tight",
+  }),
+};
+
 const compactTitle = (title) =>
   createElement(
     "span",
@@ -127,6 +136,12 @@ export const OPERATIONAL_BRANCH_COLUMNS = [
   { title: compactTitle("Персонал"), dataIndex: "staff", width: 58, ...compactHeader },
   { title: compactTitle("Техника"), dataIndex: "vehicles", width: 54, ...compactHeader },
   { title: "ПЭС", dataIndex: "pes", width: 44, ...nowrapHeader },
-  { title: "Осн. ресурс", dataIndex: "mainResource", width: 62 },
+  {
+    title: twoLineTitle("Осн.", "ресурс"),
+    dataIndex: "mainResource",
+    width: 50,
+    ...tightHeader,
+  },
   { title: "ОВБ", dataIndex: "ovb", width: 44, ...nowrapHeader },
+  { title: "В смене", dataIndex: "ovbVSmene", width: 48, ...nowrapHeader },
 ];

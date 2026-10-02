@@ -113,6 +113,7 @@ const getFilialMainResource = (row) =>
   row?.osn_resours ?? row?.osn_resours_count ?? row?.osn_resource ?? row?.mainResource;
 
 const getFilialOvb = (row) => row?.ovb;
+const getFilialOvbVSmene = (row) => row?.ovb_v_smene ?? row?.ovbVSmene;
 
 const hasValue = (value) => value !== null && value !== undefined && value !== "";
 const hasResourceValue = (value) => hasValue(value) && value !== OPERATIONAL_BRANCH_UNKNOWN_VALUE;
@@ -120,12 +121,14 @@ const hasResourceValue = (value) => hasValue(value) && value !== OPERATIONAL_BRA
 const getResourceFields = (row, fallback = {}) => {
   const mainResource = getFilialMainResource(row);
   const ovb = getFilialOvb(row);
+  const ovbVSmene = getFilialOvbVSmene(row);
 
   return {
     mainResource: hasResourceValue(mainResource)
       ? mainResource
       : fallback.mainResource ?? OPERATIONAL_BRANCH_UNKNOWN_VALUE,
     ovb: hasResourceValue(ovb) ? ovb : fallback.ovb ?? OPERATIONAL_BRANCH_UNKNOWN_VALUE,
+    ovbVSmene: hasResourceValue(ovbVSmene) ? ovbVSmene : fallback.ovbVSmene ?? OPERATIONAL_BRANCH_UNKNOWN_VALUE,
   };
 };
 
@@ -133,16 +136,19 @@ const getPoOkrugLinkMainResource = (row) =>
   row?.osn_resours ?? row?.osn_resours_count ?? row?.osn_resource ?? row?.mainResource;
 
 const getPoOkrugLinkOvb = (row) => row?.ovb;
+const getPoOkrugLinkOvbVSmene = (row) => row?.ovb_v_smene ?? row?.ovbVSmene;
 
 const getPoOkrugLinkResourceFields = (linkRow, fallback = {}) => {
   const mainResource = getPoOkrugLinkMainResource(linkRow);
   const ovb = getPoOkrugLinkOvb(linkRow);
+  const ovbVSmene = getPoOkrugLinkOvbVSmene(linkRow);
 
   return {
     mainResource: hasResourceValue(mainResource)
       ? mainResource
       : fallback.mainResource ?? OPERATIONAL_BRANCH_UNKNOWN_VALUE,
     ovb: hasResourceValue(ovb) ? ovb : fallback.ovb ?? OPERATIONAL_BRANCH_UNKNOWN_VALUE,
+    ovbVSmene: hasResourceValue(ovbVSmene) ? ovbVSmene : fallback.ovbVSmene ?? OPERATIONAL_BRANCH_UNKNOWN_VALUE,
   };
 };
 
@@ -449,10 +455,12 @@ const buildBranchResourceMap = (filialRows) =>
 
     const mainResource = getFilialMainResource(row);
     const ovb = getFilialOvb(row);
+    const ovbVSmene = getFilialOvbVSmene(row);
 
     acc.set(branch, {
       mainResource: hasValue(mainResource) ? mainResource : OPERATIONAL_BRANCH_UNKNOWN_VALUE,
       ovb: hasValue(ovb) ? ovb : OPERATIONAL_BRANCH_UNKNOWN_VALUE,
+      ovbVSmene: hasValue(ovbVSmene) ? ovbVSmene : OPERATIONAL_BRANCH_UNKNOWN_VALUE,
     });
 
     return acc;
@@ -465,6 +473,7 @@ const createBranchRow = (branch, branchResources) => ({
   mainResource:
     branchResources?.get(branch)?.mainResource ?? OPERATIONAL_BRANCH_UNKNOWN_VALUE,
   ovb: branchResources?.get(branch)?.ovb ?? OPERATIONAL_BRANCH_UNKNOWN_VALUE,
+  ovbVSmene: branchResources?.get(branch)?.ovbVSmene ?? OPERATIONAL_BRANCH_UNKNOWN_VALUE,
 });
 
 const createPoRow = (poRow, resourceOverride = null) => {
@@ -473,6 +482,7 @@ const createPoRow = (poRow, resourceOverride = null) => {
     ? {
         mainResource: resourceOverride.mainResource,
         ovb: resourceOverride.ovb,
+        ovbVSmene: resourceOverride.ovbVSmene,
       }
     : getResourceFields(poRow);
 
@@ -581,6 +591,7 @@ export const buildOperationalPoRows = (
           ...EMPTY_NUMERIC_VALUES,
           mainResource: OPERATIONAL_BRANCH_UNKNOWN_VALUE,
           ovb: OPERATIONAL_BRANCH_UNKNOWN_VALUE,
+          ovbVSmene: OPERATIONAL_BRANCH_UNKNOWN_VALUE,
         });
       }
 
@@ -739,6 +750,7 @@ export const buildOperationalOkrugSummary = (rows) => {
       ...EMPTY_NUMERIC_VALUES,
       mainResource: OPERATIONAL_BRANCH_UNKNOWN_VALUE,
       ovb: OPERATIONAL_BRANCH_UNKNOWN_VALUE,
+      ovbVSmene: OPERATIONAL_BRANCH_UNKNOWN_VALUE,
     };
   }
 
@@ -755,9 +767,11 @@ export const buildOperationalBranchSummary = (rows) => {
     ...EMPTY_NUMERIC_VALUES,
     mainResource: 0,
     ovb: 0,
+    ovbVSmene: 0,
   };
   let hasMainResource = false;
   let hasOvb = false;
+  let hasOvbVSmene = false;
 
   rows.forEach((row) => {
     Object.keys(EMPTY_NUMERIC_VALUES).forEach((field) => {
@@ -772,10 +786,15 @@ export const buildOperationalBranchSummary = (rows) => {
       summary.ovb += toNumber(row.ovb);
       hasOvb = true;
     }
+    if (row.ovbVSmene !== OPERATIONAL_BRANCH_UNKNOWN_VALUE) {
+      summary.ovbVSmene += toNumber(row.ovbVSmene);
+      hasOvbVSmene = true;
+    }
   });
 
   if (!hasMainResource) summary.mainResource = OPERATIONAL_BRANCH_UNKNOWN_VALUE;
   if (!hasOvb) summary.ovb = OPERATIONAL_BRANCH_UNKNOWN_VALUE;
+  if (!hasOvbVSmene) summary.ovbVSmene = OPERATIONAL_BRANCH_UNKNOWN_VALUE;
 
   return summary;
 };

@@ -108,6 +108,15 @@
   overflow-wrap: normal;
 }
 
+/* Узкая колонка «Осн. / ресурс» — меньше горизонтальных отступов */
+.operational-districts-panel__table
+  .operational-districts-panel__header-cell--tight,
+.operational-districts-panel__table
+  .operational-districts-panel__cell--tight {
+  padding-left: 0;
+  padding-right: 0;
+}
+
 .operational-districts-panel__table .ant-table-thead > tr > th:first-child,
 .operational-districts-panel__table .ant-table-tbody > tr > td:first-child {
   word-break: normal;

@@ -18,7 +18,7 @@
 .operational-dashboard__grid {
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(920px, 1.2fr) minmax(680px, 1fr);
+  grid-template-columns: minmax(920px, 1.22fr) minmax(680px, 0.94fr);
   grid-template-rows: minmax(300px, 0.9fr) minmax(170px, 0.52fr) minmax(300px, 0.9fr);
   grid-template-areas:
     "donuts map"
@@ -34,7 +34,7 @@
 }
 
 .operational-dashboard:not(.operational-filial-page) .operational-dashboard__grid {
-  grid-template-columns: minmax(920px, 1.2fr) minmax(680px, 1fr);
+  grid-template-columns: minmax(920px, 1.22fr) minmax(680px, 0.94fr);
   grid-template-rows: minmax(285px, 0.86fr) minmax(150px, 0.46fr) minmax(275px, 0.82fr);
   gap: 14px 5px;
   min-height: calc(100vh - 204px);
@@ -205,7 +205,7 @@
 
   .operational-dashboard__grid,
   .operational-dashboard:not(.operational-filial-page) .operational-dashboard__grid {
-    grid-template-columns: minmax(1080px, 1.08fr) minmax(1060px, 1fr);
+    grid-template-columns: minmax(1080px, 1.1fr) minmax(1060px, 0.92fr);
     grid-template-rows: minmax(610px, 0.86fr) minmax(300px, 0.42fr) minmax(590px, 0.82fr);
     gap: 28px 10px;
     min-height: calc(100vh - 272px);
@@ -350,7 +350,7 @@
   }
 
   .operational-dashboard__grid {
-    grid-template-columns: minmax(920px, 1.08fr) minmax(580px, 1fr);
+    grid-template-columns: minmax(920px, 1.1fr) minmax(580px, 0.94fr);
     grid-template-rows: minmax(250px, 0.82fr) minmax(130px, 0.42fr) minmax(250px, 0.78fr);
     grid-template-areas:
       "donuts map"

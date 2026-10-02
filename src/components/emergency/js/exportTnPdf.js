@@ -515,8 +515,9 @@ const OO_COLUMN_TITLES = {
   staff: "Персонал",
   vehicles: "Техника",
   pes: "ПЭС",
-  mainResource: "Осн. ресурс",
+  mainResource: "Осн.\nресурс",
   ovb: "ОВБ",
+  ovbVSmene: "В смене",
 };
 
 const OO_FILIAL_COLUMN_WIDTHS = {
@@ -533,8 +534,9 @@ const OO_FILIAL_COLUMN_WIDTHS = {
   staff: 44,
   vehicles: 42,
   pes: 34,
-  mainResource: 48,
+  mainResource: 36,
   ovb: 34,
+  ovbVSmene: 40,
 };
 
 const OO_NUMBER_FORMAT = new Intl.NumberFormat("ru-RU");
