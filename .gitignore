@@ -29,3 +29,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# План обновления зависимостей (не в git)
+UPDATE_PLAN.md
