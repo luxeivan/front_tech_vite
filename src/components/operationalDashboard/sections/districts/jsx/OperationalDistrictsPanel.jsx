@@ -233,7 +233,7 @@ export default memo(function OperationalDistrictsPanel({
         poOkrugLinkRows,
         districtToPoMap
       );
-      return [...branchRows, buildOperationalOkrugSummary(branchRows)];
+      return [buildOperationalOkrugSummary(branchRows), ...branchRows];
     } else if (groupBy === "po") {
       branchRows = buildOperationalPoRows(
         rows,
@@ -246,7 +246,7 @@ export default memo(function OperationalDistrictsPanel({
     } else {
       branchRows = buildOperationalBranchRows(rows, filialRows, pesCountMaps);
     }
-    return [...branchRows, buildOperationalBranchSummary(branchRows)];
+    return [buildOperationalBranchSummary(branchRows), ...branchRows];
   }, [districtToPoMap, filialName, filialRows, groupBy, pesCountMaps, poName, poOkrugLinkRows, poSlug, rows]);
 
   const getHoverHandlers = (record) =>
