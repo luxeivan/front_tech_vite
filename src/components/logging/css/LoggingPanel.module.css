@@ -96,6 +96,18 @@
   width: 180px;
 }
 
+/* Попапы селектов фильтр-бара: шире контрола (названия читаются целиком),
+   но с потолком, чтобы не улетать за экран; длинное — многоточие. */
+.filtersRow :global(.ant-select-dropdown) {
+  max-width: 480px;
+}
+
+.filtersRow :global(.ant-select-item-option-content) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .actionsCol {
   display: flex;
   align-items: flex-end;

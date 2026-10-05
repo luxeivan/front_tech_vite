@@ -969,6 +969,7 @@ export default function LoggingPanel() {
               className={styles.statusSelect}
               value={filters.statusEvent}
               options={STATUS_OPTIONS}
+              popupMatchSelectWidth={false}
               onChange={(v) => updateFilters((s) => ({ ...s, statusEvent: v }))}
             />
 
@@ -977,6 +978,7 @@ export default function LoggingPanel() {
               allowClear
               className={styles.userSelect}
               placeholder="Пользователь"
+              popupMatchSelectWidth={false}
               value={filters.username || undefined}
               options={userOptions}
               filterOption={false}
@@ -1026,6 +1028,7 @@ export default function LoggingPanel() {
                   allowClear
                   showSearch
                   placeholder="Все филиалы"
+                  popupMatchSelectWidth={false}
                   value={filters.pesBranch || undefined}
                   options={pesBranchOptions}
                   onChange={handlePesBranchChange}
@@ -1035,6 +1038,7 @@ export default function LoggingPanel() {
                   allowClear
                   showSearch
                   placeholder="Все ПО"
+                  popupMatchSelectWidth={false}
                   value={filters.pesPo || undefined}
                   options={pesPoOptions}
                   onChange={(v) => updateFilters((s) => ({ ...s, pesPo: v || "" }))}
@@ -1046,6 +1050,7 @@ export default function LoggingPanel() {
               className={styles.sectionSelect}
               value={filters.page}
               options={PAGE_OPTIONS}
+              popupMatchSelectWidth={false}
               onChange={handlePageChange}
             />
 
