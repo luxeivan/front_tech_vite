@@ -286,6 +286,24 @@ function buildBody(filials) {
   const grand = emptyTotals();
 
   filials.forEach((filial) => {
+    mergeTotals(grand, {
+      ...filial.totals,
+      tnCount: filial.totals.tnCount,
+    });
+  });
+
+  body.push(
+    dataRow({
+      level: 0,
+      label: "ВСЕГО",
+      totals: grand,
+      id: "total",
+      parentId: null,
+      isTotal: true,
+    })
+  );
+
+  filials.forEach((filial) => {
     const fId = `f-${slug(filial.name)}`;
     body.push(
       dataRow({
@@ -296,10 +314,6 @@ function buildBody(filials) {
         parentId: null,
       })
     );
-    mergeTotals(grand, {
-      ...filial.totals,
-      tnCount: filial.totals.tnCount,
-    });
 
     const pos = [...filial.pos.values()].sort(byNewestFirst);
     pos.forEach((po) => {
@@ -328,17 +342,6 @@ function buildBody(filials) {
       });
     });
   });
-
-  body.push(
-    dataRow({
-      level: 0,
-      label: "ВСЕГО",
-      totals: grand,
-      id: "total",
-      parentId: null,
-      isTotal: true,
-    })
-  );
 
   return body;
 }
