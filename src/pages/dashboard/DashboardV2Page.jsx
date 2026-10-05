@@ -33,6 +33,15 @@ import {
 } from "../../components/dashboard/js/dashboardCommon";
 import { engineeringDayKey } from "../../components/dashboard/js/engineeringDay";
 import pesModuleLogic from "../../components/pes/js/pesModuleLogic";
+import { normalizeDistrictLookupName } from "../../components/operationalDashboard/sections/districts/js/operationalDistrictsPanel.utils";
+import {
+  fetchTnFilialyRows,
+  fetchTnPoOkrugLinkRows,
+  getTnFilialyAreaPoRows,
+  getTnFilialyOkrugaRows,
+  getTnFilialyPoOkrugaRows,
+  getTnPoOkrugLinkOkrugRow,
+} from "../../utils/tnFilialyApi";
 // formatDateTime, statusLabel — вернуть при раскомментировании выгрузки Excel
 import { formatPowerKw, STATUS_META } from "../../components/pes/js/pesModuleMeta";
 import PesCommandCard from "../../components/pes/jsx/PesCommandCard";
@@ -136,6 +145,51 @@ function getPesDestinationDistrict(item) {
     ""
   );
 }
+
+// ОВБ из справочника: "?" и пустые значения считаются отсутствующими.
+const parseOvb = (value) => {
+  if (value === null || value === undefined || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : null;
+};
+
+const okrugKeyOf = (okrugRow) =>
+  normalizeDistrictLookupName(okrugRow?.name || okrugRow?.source_name || "");
+
+// Цепочка как на /dashboard-oo: связка ПО–округ → сам округ → ПО, в которое входит округ.
+const buildOvbReferenceMap = (filialRows = [], linkRows = []) => {
+  const map = new Map();
+  const setIfAbsent = (key, ovb) => {
+    if (!key || map.has(key) || ovb === null) return;
+    map.set(key, ovb);
+  };
+
+  (Array.isArray(linkRows) ? linkRows : []).forEach((linkRow) => {
+    if (linkRow?.is_active === false) return;
+    setIfAbsent(okrugKeyOf(getTnPoOkrugLinkOkrugRow(linkRow)), parseOvb(linkRow?.ovb));
+  });
+
+  (Array.isArray(filialRows) ? filialRows : [])
+    .filter((filialRow) => filialRow?.is_active !== false)
+    .forEach((filialRow) => {
+      getTnFilialyOkrugaRows(filialRow).forEach((okrugRow) => {
+        if (okrugRow?.is_active === false) return;
+        setIfAbsent(okrugKeyOf(okrugRow), parseOvb(okrugRow?.ovb));
+      });
+
+      getTnFilialyAreaPoRows(filialRow).forEach((poRow) => {
+        if (poRow?.is_active === false) return;
+        const poOvb = parseOvb(poRow?.ovb);
+        getTnFilialyPoOkrugaRows(poRow).forEach((okrugRow) => {
+          if (okrugRow?.is_active === false) return;
+          setIfAbsent(okrugKeyOf(okrugRow), parseOvb(okrugRow?.ovb));
+          setIfAbsent(okrugKeyOf(okrugRow), poOvb);
+        });
+      });
+    });
+
+  return map;
+};
 
 function DashboardV2TodayDuration({ rows7d = [] }) {
   const [now, setNow] = useState(() => dayjs());
@@ -250,9 +304,23 @@ export default function DashboardV2Page() {
   const [error, setError] = useState(null);
   const [rows, setRows] = useState([]);
   const [rows7d, setRows7d] = useState([]);
+  const [ovbReferenceMap, setOvbReferenceMap] = useState(() => new Map());
   const esRef = useRef(null);
 
   const pes = pesModuleLogic();
+
+  useEffect(() => {
+    let disposed = false;
+    Promise.all([fetchTnFilialyRows(), fetchTnPoOkrugLinkRows()])
+      .then(([filialRows, linkRows]) => {
+        if (disposed) return;
+        setOvbReferenceMap(buildOvbReferenceMap(filialRows, linkRows));
+      })
+      .catch(() => {});
+    return () => {
+      disposed = true;
+    };
+  }, []);
 
   const fiasCodes = useMemo(
     () => Array.from(new Set(rows.flatMap((row) => extractFiasFromRow(row)).filter(Boolean))),
@@ -382,7 +450,11 @@ export default function DashboardV2Page() {
       {
         key: "ovb",
         title: "ОВБ",
-        getValue: (district) => ovbByDistrict.get(district) || 0,
+        getValue: (district) => {
+          const reference = ovbReferenceMap.get(normalizeDistrictLookupName(district));
+          if (reference !== undefined) return reference;
+          return ovbByDistrict.get(district) || 0;
+        },
       },
       {
         key: "pes",
@@ -390,7 +462,7 @@ export default function DashboardV2Page() {
         getValue: (district) => pesByDistrict.get(district) || 0,
       },
     ],
-    [ovbByDistrict, pesByDistrict]
+    [ovbByDistrict, ovbReferenceMap, pesByDistrict]
   );
 
   return (
