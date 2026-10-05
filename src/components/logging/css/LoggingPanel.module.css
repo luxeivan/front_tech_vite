@@ -60,6 +60,42 @@
   align-items: center;
 }
 
+/* Компактный фильтр-бар одной строкой (flex-wrap), как на странице Аварийных. */
+.filtersRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.periodPicker {
+  width: 330px;
+}
+
+.statusSelect {
+  width: 140px;
+}
+
+.userSelect {
+  width: 190px;
+}
+
+.tnInput {
+  width: 155px;
+}
+
+.pesInput {
+  width: 100px;
+}
+
+.orgSelect {
+  width: 170px;
+}
+
+.sectionSelect {
+  width: 180px;
+}
+
 .actionsCol {
   display: flex;
   align-items: flex-end;
@@ -126,5 +162,15 @@
   .actionsCol {
     align-items: flex-start;
     justify-content: flex-start;
+  }
+
+  .periodPicker,
+  .statusSelect,
+  .userSelect,
+  .tnInput,
+  .pesInput,
+  .orgSelect,
+  .sectionSelect {
+    width: 100%;
   }
 }

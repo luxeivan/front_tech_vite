@@ -2,14 +2,11 @@ import {
   Alert,
   Button,
   ConfigProvider,
-  Col,
   DatePicker,
   Input,
   message,
-  Row,
   Segmented,
   Select,
-  Space,
   Table,
   Tag,
   Typography,
@@ -183,6 +180,8 @@ function createDefaultFilters() {
     tnType: "guid",
     tnValue: "",
     pesNumber: "",
+    pesBranch: "",
+    pesPo: "",
   };
 }
 
@@ -206,6 +205,21 @@ function parseDetailsJson(row) {
     }
   }
   return null;
+}
+
+// Уникальные значения поля (branch/po) из details.pes — в строке может быть несколько ПЭС.
+function pesFieldValues(row, field) {
+  const pesList = parseDetailsJson(row)?.pes;
+  if (!Array.isArray(pesList)) return [];
+  const seen = new Set();
+  const values = [];
+  for (const p of pesList) {
+    const v = String(p?.[field] || "").trim();
+    if (!v || seen.has(v)) continue;
+    seen.add(v);
+    values.push(v);
+  }
+  return values;
 }
 
 function buildPesTimeline(allData) {
@@ -330,6 +344,40 @@ async function fetchPesUnitsLookup() {
   return map;
 }
 
+// Опции фильтров «Филиал»/«ПО» — из справочника ПЭС (те же значения, что в details.pes).
+async function fetchPesOrgOptions() {
+  const base = (
+    String(import.meta.env.VITE_URL_BACKEND_SERVICES || "").trim() ||
+    String(import.meta.env.VITE_URL_BACKEND || "").trim()
+  ).replace(/\/$/, "");
+  const jwt = localStorage.getItem("jwt") || "";
+  const resp = await axios.get(`${base}/services/pes/module/items`, {
+    headers: jwt ? { Authorization: `Bearer ${jwt}` } : undefined,
+  });
+  const rows = Array.isArray(resp?.data?.items) ? resp.data.items : [];
+  const branchSet = new Set();
+  const poSet = new Set();
+  const poByBranch = new Map();
+  rows.forEach((item) => {
+    const branch = String(item?.branch || "").trim();
+    // «-» в справочнике означает «ПО не указано» — в опции не берём.
+    const rawPo = String(item?.po || "").trim();
+    const po = rawPo === "-" ? "" : rawPo;
+    if (branch) branchSet.add(branch);
+    if (po) poSet.add(po);
+    if (branch && po) {
+      if (!poByBranch.has(branch)) poByBranch.set(branch, new Set());
+      poByBranch.get(branch).add(po);
+    }
+  });
+  const sortRu = (a, b) => a.localeCompare(b, "ru");
+  return {
+    branches: [...branchSet].sort(sortRu),
+    poAll: [...poSet].sort(sortRu),
+    poByBranch: new Map([...poByBranch.entries()].map(([b, s]) => [b, [...s].sort(sortRu)])),
+  };
+}
+
 function exportAuditToXlsx(data, exportColumns) {
   const header = exportColumns.map((c) => c.title);
   const rows = data.map((row) =>
@@ -434,6 +482,8 @@ function buildRequestFilters(filters, pagination) {
     tnType: shouldFilterTn ? String(filters.tnType || "").trim() : "",
     tnValue: shouldFilterTn ? String(filters.tnValue || "").trim() : "",
     search: shouldFilterPes ? String(filters.pesNumber || "").trim() : "",
+    branch: shouldFilterPes ? String(filters.pesBranch || "").trim() : "",
+    po: shouldFilterPes ? String(filters.pesPo || "").trim() : "",
   };
 }
 
@@ -490,6 +540,11 @@ export default function LoggingPanel() {
   });
   const [userOptions, setUserOptions] = useState([]);
   const [userLoading, setUserLoading] = useState(false);
+  const [pesOrgOptions, setPesOrgOptions] = useState({
+    branches: [],
+    poAll: [],
+    poByBranch: new Map(),
+  });
   const [tableScrollY, setTableScrollY] = useState(() => {
     if (typeof window === "undefined") return 420;
     return Math.max(320, window.innerHeight - 420);
@@ -584,6 +639,9 @@ export default function LoggingPanel() {
   useEffect(() => {
     load(filters, pagination);
     loadUsers("");
+    fetchPesOrgOptions()
+      .then(setPesOrgOptions)
+      .catch(() => {});
     return () => window.clearTimeout(userSearchTimerRef.current);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -609,6 +667,8 @@ export default function LoggingPanel() {
         status: 100,
         page: 170,
         entity: 200,
+        branch: 150,
+        po: 160,
         detailsLimit: 700,
       };
     }
@@ -620,6 +680,8 @@ export default function LoggingPanel() {
         status: 110,
         page: 230,
         entity: 260,
+        branch: 180,
+        po: 190,
         detailsLimit: 1200,
       };
     }
@@ -630,6 +692,8 @@ export default function LoggingPanel() {
       status: 105,
       page: 200,
       entity: 230,
+      branch: 165,
+      po: 175,
       detailsLimit: 900,
     };
   }, [isLaptop15, isWideDesktop]);
@@ -660,6 +724,8 @@ export default function LoggingPanel() {
         page: pageFromUrl,
         tnValue: isTnPage(pageFromUrl) ? s.tnValue : "",
         pesNumber: isPesPage(pageFromUrl) ? s.pesNumber : "",
+        pesBranch: isPesPage(pageFromUrl) ? s.pesBranch : "",
+        pesPo: isPesPage(pageFromUrl) ? s.pesPo : "",
       };
     });
     setPagination((prev) => (prev.page === 1 ? prev : { ...prev, page: 1 }));
@@ -741,6 +807,23 @@ export default function LoggingPanel() {
     navigate(pageToSectionPath(page));
   };
 
+  const pesBranchOptions = useMemo(
+    () => pesOrgOptions.branches.map((value) => ({ value, label: value })),
+    [pesOrgOptions]
+  );
+
+  // При выбранном филиале ПО ограничиваем его ПО; без филиала — все ПО.
+  const pesPoOptions = useMemo(() => {
+    const list = filters.pesBranch
+      ? pesOrgOptions.poByBranch.get(filters.pesBranch) || []
+      : pesOrgOptions.poAll;
+    return list.map((value) => ({ value, label: value }));
+  }, [filters.pesBranch, pesOrgOptions]);
+
+  const handlePesBranchChange = (value) => {
+    updateFilters((s) => ({ ...s, pesBranch: value || "", pesPo: "" }));
+  };
+
   const tableLoading = loading
     ? {
         indicator: (
@@ -751,8 +834,21 @@ export default function LoggingPanel() {
       }
     : false;
 
-  const columns = useMemo(
-    () => [
+  const columns = useMemo(() => {
+    const isPes = isPesPage(filters.page);
+
+    const pesValuesColumn = (title, key, field, width) => ({
+      title,
+      dataIndex: key,
+      key,
+      width,
+      render: (_, row) => {
+        const values = pesFieldValues(row, field);
+        return values.length ? values.join(", ") : "—";
+      },
+    });
+
+    return [
       {
         title: "Время",
         dataIndex: "created_at",
@@ -792,13 +888,21 @@ export default function LoggingPanel() {
         render: (v, row) =>
           isAutoSendRow(row) ? <Tag color="cyan">system</Tag> : <Tag>{v || "—"}</Tag>,
       },
-      {
-        title: "Статус",
-        dataIndex: "status_event",
-        key: "status_event",
-        width: columnSizes.status,
-        render: (v) => statusTag(v),
-      },
+      // В разделе «Модуль ПЭС» статус и ID/ТН заменяем на Филиал/ПО (в выгрузке без изменений).
+      ...(isPes
+        ? [
+            pesValuesColumn("Филиал", "pes_branch", "branch", columnSizes.branch),
+            pesValuesColumn("ПО", "pes_po", "po", columnSizes.po),
+          ]
+        : [
+            {
+              title: "Статус",
+              dataIndex: "status_event",
+              key: "status_event",
+              width: columnSizes.status,
+              render: (v) => statusTag(v),
+            },
+          ]),
       {
         title: "Раздел",
         dataIndex: "page",
@@ -806,13 +910,17 @@ export default function LoggingPanel() {
         width: columnSizes.page,
         render: (v) => prettyPage(v),
       },
-      {
-        title: "ID / ТН",
-        dataIndex: "entity_id",
-        key: "entity_id",
-        width: columnSizes.entity,
-        render: (v) => v || "—",
-      },
+      ...(isPes
+        ? []
+        : [
+            {
+              title: "ID / ТН",
+              dataIndex: "entity_id",
+              key: "entity_id",
+              width: columnSizes.entity,
+              render: (v) => v || "—",
+            },
+          ]),
       {
         title: "Детали",
         dataIndex: "details",
@@ -823,9 +931,8 @@ export default function LoggingPanel() {
           </Typography.Text>
         ),
       },
-    ],
-    [columnSizes]
-  );
+    ];
+  }, [columnSizes, filters.page]);
 
   return (
     <ConfigProvider locale={ruRU}>
@@ -847,36 +954,29 @@ export default function LoggingPanel() {
         <Alert type="info" showIcon message={formatPeriodText(filters.period)} />
 
         <div className={styles.filtersCard}>
-        <Row gutter={[8, 8]}>
-          <Col xs={24} md={12} lg={8}>
-            <div className={styles.fieldLabel}>Период (МСК)</div>
+          <div className={styles.filtersRow}>
             <RangePicker
-              className={styles.fullWidth}
+              className={styles.periodPicker}
               value={Array.isArray(filters.period) && filters.period.length ? filters.period : null}
               showTime
               allowEmpty={[true, true]}
               format="DD.MM.YYYY HH:mm"
+              placeholder={["с", "по"]}
               onChange={(value) => updateFilters((s) => ({ ...s, period: value || [] }))}
             />
-          </Col>
 
-          <Col xs={24} md={12} lg={4}>
-            <div className={styles.fieldLabel}>Статус</div>
             <Select
-              className={styles.fullWidth}
+              className={styles.statusSelect}
               value={filters.statusEvent}
               options={STATUS_OPTIONS}
               onChange={(v) => updateFilters((s) => ({ ...s, statusEvent: v }))}
             />
-          </Col>
 
-          <Col xs={24} md={12} lg={5}>
-            <div className={styles.fieldLabel}>Пользователь</div>
             <Select
               showSearch
               allowClear
-              className={styles.fullWidth}
-              placeholder="Выберите пользователя"
+              className={styles.userSelect}
+              placeholder="Пользователь"
               value={filters.username || undefined}
               options={userOptions}
               filterOption={false}
@@ -894,59 +994,65 @@ export default function LoggingPanel() {
                 )
               }
             />
-          </Col>
 
-          {isTnPage(filters.page) && (
-            <Col xs={24} md={12} lg={7}>
-              <div className={styles.fieldLabel}>Фильтр по ТН</div>
-              <div className={styles.tnFilterRow}>
+            {isTnPage(filters.page) && (
+              <>
                 <Segmented
                   value={filters.tnType}
                   options={TN_TYPE_OPTIONS}
                   onChange={(v) => updateFilters((s) => ({ ...s, tnType: String(v) }))}
                 />
                 <Input
-                  className={styles.fullWidth}
-                  placeholder={
-                    filters.tnType === "number" ? "Введите номер ТН" : "Введите GUID ТН"
-                  }
+                  className={styles.tnInput}
+                  allowClear
+                  placeholder={filters.tnType === "number" ? "№ ТН…" : "GUID ТН…"}
                   value={filters.tnValue}
                   onChange={(e) => updateFilters((s) => ({ ...s, tnValue: e.target.value }))}
                 />
-              </div>
-            </Col>
-          )}
+              </>
+            )}
 
-          {isPesPage(filters.page) && (
-            <Col xs={24} md={12} lg={7}>
-              <div className={styles.fieldLabel}>Номер ПЭС</div>
-              <Input
-                className={styles.fullWidth}
-                placeholder="Введите номер ПЭС"
-                value={filters.pesNumber}
-                onChange={(e) => updateFilters((s) => ({ ...s, pesNumber: e.target.value }))}
-              />
-            </Col>
-          )}
+            {isPesPage(filters.page) && (
+              <>
+                <Input
+                  className={styles.pesInput}
+                  allowClear
+                  placeholder="№ ПЭС…"
+                  value={filters.pesNumber}
+                  onChange={(e) => updateFilters((s) => ({ ...s, pesNumber: e.target.value }))}
+                />
+                <Select
+                  className={styles.orgSelect}
+                  allowClear
+                  showSearch
+                  placeholder="Все филиалы"
+                  value={filters.pesBranch || undefined}
+                  options={pesBranchOptions}
+                  onChange={handlePesBranchChange}
+                />
+                <Select
+                  className={styles.orgSelect}
+                  allowClear
+                  showSearch
+                  placeholder="Все ПО"
+                  value={filters.pesPo || undefined}
+                  options={pesPoOptions}
+                  onChange={(v) => updateFilters((s) => ({ ...s, pesPo: v || "" }))}
+                />
+              </>
+            )}
 
-          <Col xs={24} md={8}>
-            <div className={styles.fieldLabel}>Раздел</div>
             <Select
-              className={styles.fullWidth}
+              className={styles.sectionSelect}
               value={filters.page}
               options={PAGE_OPTIONS}
               onChange={handlePageChange}
             />
-          </Col>
 
-          <Col xs={24} md={8} className={styles.actionsCol}>
-            <Space>
-              <Button onClick={resetFilters} disabled={loading}>
-                Сбросить
-              </Button>
-            </Space>
-          </Col>
-        </Row>
+            <Button onClick={resetFilters} disabled={loading}>
+              Сбросить
+            </Button>
+          </div>
         </div>
 
         <div className={styles.tableWrap}>

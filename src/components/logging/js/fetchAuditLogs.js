@@ -27,6 +27,8 @@ export async function fetchAuditEvents(params = {}, jwt = "") {
   if (params.statusEvent) query.statusEvent = String(params.statusEvent).trim();
   if (params.tnType) query.tnType = String(params.tnType).trim();
   if (params.tnValue) query.tnValue = String(params.tnValue).trim();
+  if (params.branch) query.branch = String(params.branch).trim();
+  if (params.po) query.po = String(params.po).trim();
 
   const resp = await axios.get(`${SERVICES_URL}/services/audit/events`, {
     params: query,
