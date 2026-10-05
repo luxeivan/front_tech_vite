@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Column } from "@ant-design/plots";
 import { Alert } from "antd";
 
@@ -87,7 +87,7 @@ const getNextRefreshText = (value) => {
     : `через ${hours} ч`;
 };
 
-export default function OperationalChartsPanel({
+export default memo(function OperationalChartsPanel({
   className = "",
   filialName = "",
   filialRows = [],
@@ -179,68 +179,78 @@ export default function OperationalChartsPanel({
   const shouldShowLoader =
     hasLoaded && !isPoChart && (isStatsLoading || !hasStatsLoaded);
 
-  const config = {
-    data: chartData,
-    xField: "branch",
-    yField: "value",
-    colorField: "year",
-    group: true,
-    height: isWallDisplay ? 420 : isTabletLandscape ? 188 : 210,
-    padding: isWallDisplay
-      ? [42, 26, 72, 26]
-      : isTabletLandscape
-        ? TABLET_LANDSCAPE_CHART_PADDING
-        : CHART_PADDING,
-    legend: false,
-    tooltip: false,
-    scale: {
-      color: {
-        range: ["#b8cbe6", "#285a9c"],
+  // Мемоизируем конфиг: новая ссылка каждый re-render заставляла G2
+  // (@ant-design/plots) пересобирать спецификацию графика целиком.
+  const config = useMemo(
+    () => ({
+      data: chartData,
+      xField: "branch",
+      yField: "value",
+      colorField: "year",
+      group: true,
+      height: isWallDisplay ? 420 : isTabletLandscape ? 188 : 210,
+      padding: isWallDisplay
+        ? [42, 26, 72, 26]
+        : isTabletLandscape
+          ? TABLET_LANDSCAPE_CHART_PADDING
+          : CHART_PADDING,
+      legend: false,
+      tooltip: false,
+      scale: {
+        color: {
+          range: ["#b8cbe6", "#285a9c"],
+        },
       },
-    },
-    style: {
-      maxWidth: isWallDisplay ? 34 : isTabletLandscape ? 14 : undefined,
-    },
-    label: {
-      text: "value",
-      position: "top",
       style: {
-        fill: "#0072c6",
-        fillOpacity: 1,
-        textAlign: "center",
-        textBaseline: "bottom",
-        dx: 0,
-        dy: isWallDisplay ? -12 : -6,
-        fontSize: isWallDisplay ? 20 : isTabletLandscape ? 9 : 11,
-        fontWeight: 700,
+        maxWidth: isWallDisplay ? 34 : isTabletLandscape ? 14 : undefined,
       },
-    },
-    axis: {
-      x: {
-        title: false,
-        labelFontSize: isWallDisplay
-          ? 18
-          : isTabletLandscape
-            ? 2
-            : isCompactPoChart
-              ? 8
-              : 10,
-        labelFill: "#0072c6",
-        labelFillOpacity: 1,
-        labelOpacity: 1,
-        labelFontWeight: 700,
-        labelTransform: isTabletLandscape ? "rotate(-18)" : "rotate(0)",
+      label: {
+        text: "value",
+        position: "top",
+        style: {
+          fill: "#0072c6",
+          fillOpacity: 1,
+          textAlign: "center",
+          textBaseline: "bottom",
+          dx: 0,
+          dy: isWallDisplay ? -12 : -6,
+          fontSize: isWallDisplay ? 20 : isTabletLandscape ? 9 : 11,
+          fontWeight: 700,
+        },
       },
-      y: {
-        title: false,
-        label: false,
-        tickLength: 0,
-        gridStroke: "#c6d6e5",
-        gridStrokeOpacity: 0.85,
-        gridLineWidth: 1,
+      axis: {
+        x: {
+          title: false,
+          labelFontSize: isWallDisplay
+            ? 18
+            : isTabletLandscape
+              ? 2
+              : isCompactPoChart
+                ? 8
+                : 10,
+          labelFill: "#0072c6",
+          labelFillOpacity: 1,
+          labelOpacity: 1,
+          labelFontWeight: 700,
+          labelTransform: isTabletLandscape ? "rotate(-18)" : "rotate(0)",
+        },
+        y: {
+          title: false,
+          label: false,
+          tickLength: 0,
+          gridStroke: "#c6d6e5",
+          gridStrokeOpacity: 0.85,
+          gridLineWidth: 1,
+        },
       },
-    },
-  };
+    }),
+    [
+      chartData,
+      isCompactPoChart,
+      isTabletLandscape,
+      isWallDisplay,
+    ],
+  );
 
   return (
     <div
@@ -311,4 +321,4 @@ export default function OperationalChartsPanel({
       </div>
     </div>
   );
-}
+});

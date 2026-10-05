@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { memo, useEffect, useMemo, useState } from "react";
 import { Table } from "antd";
 import { Link } from "react-router-dom";
 import axios from "axios";
@@ -115,7 +115,9 @@ const fetchPesAssemblyDestinations = async () => {
   return Array.isArray(data?.assembly) ? data.assembly : [];
 };
 
-export default function OperationalDistrictsPanel({
+// memo: ховер по строкам вызывает onBranchHover, но пропсы таблицы при этом
+// не меняются — без memo таблица перерисовывалась на каждый ховер строки.
+export default memo(function OperationalDistrictsPanel({
   className = "",
   basePath = "/dashboard-oo",
   filialName = "",
@@ -383,4 +385,4 @@ export default function OperationalDistrictsPanel({
       </div>
     </div>
   );
-}
+});

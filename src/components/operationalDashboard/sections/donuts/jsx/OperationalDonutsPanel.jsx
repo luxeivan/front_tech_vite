@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { memo, useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
 import { Alert, Spin } from "antd";
 import { Pie } from "@ant-design/plots";
@@ -328,7 +328,9 @@ function PopulationDonut({ data, groupBy = "filial", compact = false, isWallDisp
   );
 }
 
-export default function OperationalDonutsPanel({
+// memo: ховер по строкам таблицы меняет состояние страницы, но пропсы панели
+// не меняются — без memo панель перерисовывалась на каждый ховер.
+export default memo(function OperationalDonutsPanel({
   filialName = "",
   groupBy = "filial",
   poName = "",
@@ -397,4 +399,4 @@ export default function OperationalDonutsPanel({
       </div>
     </div>
   );
-}
+});
