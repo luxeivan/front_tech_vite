@@ -19,6 +19,14 @@ function formatEtaMinutes(value) {
   return `${Math.max(0, Math.round(n))} мин`;
 }
 
+// Сколько минут с момента фактического выезда до сейчас.
+function formatEnRouteMinutes(departureAt) {
+  const ms = Date.parse(departureAt);
+  if (!Number.isFinite(ms)) return "—";
+  const minutes = (Date.now() - ms) / 60000;
+  return `${Math.max(0, Math.round(minutes))} мин`;
+}
+
 export default function PesTileTooltip({ item, meta }) {
   const showEta = isActiveEtaStatus(item?.effectiveStatus);
 
@@ -34,15 +42,18 @@ export default function PesTileTooltip({ item, meta }) {
       <div className="pes-tile-tooltip__status">Статус: {meta.label}</div>
       <div>Адрес: {getDestinationText(item)}</div>
       <div>Выезд: {formatDateTime(item.actualDepartureAt)}</div>
-      <div>Подключение: {formatDateTime(item.connectedAt)}</div>
-      <div>
-        <PhoneFilled /> Диспетчер: {item.dispatcherPhone || "—"}
-      </div>
       {showEta && (
         <div className="pes-tile-tooltip__eta">
           Время до пункта назначения: {formatEtaMinutes(item?.etaMinutes)}
         </div>
       )}
+      {item?.actualDepartureAt && (
+        <div>Время в пути: {formatEnRouteMinutes(item.actualDepartureAt)}</div>
+      )}
+      <div>Подключение: {formatDateTime(item.connectedAt)}</div>
+      <div>
+        <PhoneFilled /> Диспетчер: {item.dispatcherPhone || "—"}
+      </div>
     </div>
   );
 }
