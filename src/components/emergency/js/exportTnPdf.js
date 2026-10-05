@@ -586,7 +586,7 @@ async function loadOoBranchTableRows() {
     filialRows
   );
   const branchRows = buildOperationalBranchRows(rows, filialRows, pesCountMaps);
-  return [...branchRows, buildOperationalBranchSummary(branchRows)];
+  return [buildOperationalBranchSummary(branchRows), ...branchRows];
 }
 
 function ooHeaderRow() {
