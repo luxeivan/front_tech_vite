@@ -37,6 +37,15 @@ const STATUS_OPTIONS = [
   { label: "Предупреждение", value: "warning" },
 ];
 
+// Русские подписи статусов — из опций фильтра, чтобы везде были одинаковые.
+const STATUS_RU = Object.fromEntries(
+  STATUS_OPTIONS.filter((o) => o.value).map((o) => [o.value, o.label])
+);
+
+function statusRu(value) {
+  return STATUS_RU[String(value || "").toLowerCase()] || "—";
+}
+
 const TN_TYPE_OPTIONS = [
   { label: "GUID ТН", value: "guid" },
   { label: "Номер ТН", value: "number" },
@@ -241,6 +250,7 @@ function buildPesTimeline(allData) {
         timeStr: toReadableTime(row.created_at),
         action: details.action_ru || details.action || "",
         actionCode: String(details.action || "").trim().toLowerCase(),
+        status: row?.status_event || "",
         result: details.result === "success" ? "Успех" : details.result === "error" ? "Ошибка" : details.result || "",
         source: details.source === "max" ? "MAX" : details.source === "web" ? "Веб" : details.source || "",
         role: row?.role || "",
@@ -420,6 +430,7 @@ function exportPesTimelineToXlsx(timeline, unitsLookup) {
     { header: "Роль", width: 14 },
     { header: "Пользователь", width: 24 },
     { header: "Комментарий", width: 28 },
+    { header: "Статус", width: 14 },
   ];
 
   const wsData = [];
@@ -450,6 +461,7 @@ function exportPesTimelineToXlsx(timeline, unitsLookup) {
         ev.role,
         ev.username,
         ev.comment,
+        statusRu(ev.status),
       ]);
     });
 
@@ -474,11 +486,12 @@ function buildRequestFilters(filters, pagination) {
   return {
     page: pagination.page,
     pageSize: pagination.pageSize,
-    username: String(filters.username || "").trim(),
+    // На /logging/pes эти фильтры скрыты в UI — не отправляем и их значения.
+    username: shouldFilterPes ? "" : String(filters.username || "").trim(),
     pagePath: String(filters.page || "").trim(),
     from: from && dayjs.isDayjs(from) ? from.toISOString() : "",
     to: to && dayjs.isDayjs(to) ? to.toISOString() : "",
-    statusEvent: String(filters.statusEvent || "").trim(),
+    statusEvent: shouldFilterPes ? "" : String(filters.statusEvent || "").trim(),
     tnType: shouldFilterTn ? String(filters.tnType || "").trim() : "",
     tnValue: shouldFilterTn ? String(filters.tnValue || "").trim() : "",
     search: shouldFilterPes ? String(filters.pesNumber || "").trim() : "",
@@ -965,37 +978,42 @@ export default function LoggingPanel() {
               onChange={(value) => updateFilters((s) => ({ ...s, period: value || [] }))}
             />
 
-            <Select
-              className={styles.statusSelect}
-              value={filters.statusEvent}
-              options={STATUS_OPTIONS}
-              popupMatchSelectWidth={false}
-              onChange={(v) => updateFilters((s) => ({ ...s, statusEvent: v }))}
-            />
+            {/* /logging/pes: фильтры «Статус» и «Пользователь» убраны по задаче, остаются в других разделах. */}
+            {!isPesPage(filters.page) && (
+              <>
+                <Select
+                  className={styles.statusSelect}
+                  value={filters.statusEvent}
+                  options={STATUS_OPTIONS}
+                  popupMatchSelectWidth={false}
+                  onChange={(v) => updateFilters((s) => ({ ...s, statusEvent: v }))}
+                />
 
-            <Select
-              showSearch
-              allowClear
-              className={styles.userSelect}
-              placeholder="Пользователь"
-              popupMatchSelectWidth={false}
-              value={filters.username || undefined}
-              options={userOptions}
-              filterOption={false}
-              onFocus={() => loadUsers(filters.username)}
-              onSearch={scheduleLoadUsers}
-              onChange={(v) => updateFilters((s) => ({ ...s, username: v || "" }))}
-              suffixIcon={userLoading ? <BrandSunLoader size={18} /> : undefined}
-              notFoundContent={
-                userLoading ? (
-                  <div className={styles.selectLoader}>
-                    <BrandSunLoader size={28} text="Ищем" />
-                  </div>
-                ) : (
-                  "Нет данных"
-                )
-              }
-            />
+                <Select
+                  showSearch
+                  allowClear
+                  className={styles.userSelect}
+                  placeholder="Пользователь"
+                  popupMatchSelectWidth={false}
+                  value={filters.username || undefined}
+                  options={userOptions}
+                  filterOption={false}
+                  onFocus={() => loadUsers(filters.username)}
+                  onSearch={scheduleLoadUsers}
+                  onChange={(v) => updateFilters((s) => ({ ...s, username: v || "" }))}
+                  suffixIcon={userLoading ? <BrandSunLoader size={18} /> : undefined}
+                  notFoundContent={
+                    userLoading ? (
+                      <div className={styles.selectLoader}>
+                        <BrandSunLoader size={28} text="Ищем" />
+                      </div>
+                    ) : (
+                      "Нет данных"
+                    )
+                  }
+                />
+              </>
+            )}
 
             {isTnPage(filters.page) && (
               <>
