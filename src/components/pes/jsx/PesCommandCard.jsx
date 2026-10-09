@@ -43,12 +43,13 @@ export default function PesCommandCard({
         /> */}
 
         <Row gutter={[8, 8]}>
-          <Col xs={24} md={8}>
+          <Col xs={24} md={4}>
             <Select
               size="small"
               value={destinationType}
               onChange={setDestinationType}
               disabled={mode === "multi" || sending}
+              dropdownMatchSelectWidth={false}
               options={[
                 { value: "assembly", label: "Точка сбора ПЭС" },
                 { value: "tp", label: "ТП (только одиночный выбор)" },
@@ -93,7 +94,7 @@ export default function PesCommandCard({
                   style={{ width: "100%" }}
                 />
               </Col>
-              <Col xs={24} md={6}>
+              <Col xs={24} md={5}>
                 <Select
                   size="small"
                   showSearch
@@ -116,7 +117,7 @@ export default function PesCommandCard({
               </Col>
             </>
           ) : (
-            <Col xs={24} md={16}>
+            <Col xs={24} md={13}>
               <Select
                 size="small"
                 showSearch
@@ -132,15 +133,17 @@ export default function PesCommandCard({
               />
             </Col>
           )}
+          <Col xs={24} md={destinationType === "tp" ? 5 : 7}>
+            <Input.TextArea
+              autoSize={{ minRows: 1, maxRows: 2 }}
+              placeholder="Комментарий к операции (уйдет в уведомление MAX)"
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              disabled={sending}
+              className="pes-command-comment"
+            />
+          </Col>
         </Row>
-        <Input.TextArea
-          autoSize={{ minRows: 1, maxRows: 2 }}
-          placeholder="Комментарий к операции (уйдет в уведомление MAX)"
-          value={comment}
-          onChange={(e) => setComment(e.target.value)}
-          disabled={sending}
-          className="pes-command-comment"
-        />
 
         <Space wrap>
           <Button

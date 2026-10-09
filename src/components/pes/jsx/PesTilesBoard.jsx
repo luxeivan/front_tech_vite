@@ -60,26 +60,48 @@ function normalizeBranchName(value) {
     .replace(/[^а-яa-z0-9]/gi, "");
 }
 
+// Одиночные ПО (1 плитка) идут парами в одну строку — экономим высоту колонки.
+function buildPoRows(pos) {
+  const rows = [];
+  pos.forEach((p) => {
+    const solo = p.items.length === 1;
+    const last = rows[rows.length - 1];
+    if (solo && last?.solo && last.pois.length < 2) {
+      last.pois.push(p);
+      return;
+    }
+    rows.push({ solo, pois: [p] });
+  });
+  return rows;
+}
+
 function BranchCard({ branch, selected, onToggle, selectable }) {
   return (
     <div className="pes-branch">
       <div className="pes-branch__title">
         {branch.branch} <span className="pes-branch__count">({branch.count})</span>
       </div>
-      {branch.pos.map((p) => (
-        <div key={`${branch.branch}__${p.po}`} className="pes-po">
-          <div className="pes-po__title">{p.po}</div>
-          <div className="pes-tiles">
-            {p.items.map((it) => (
-              <PesTile
-                key={it.id}
-                item={it}
-                selected={selected.includes(it.id)}
-                onToggle={onToggle}
-                selectable={selectable}
-              />
-            ))}
-          </div>
+      {buildPoRows(branch.pos).map((row, rowIndex) => (
+        <div
+          key={`${branch.branch}__row__${rowIndex}`}
+          className={row.pois.length > 1 ? "pes-po-row pes-po-row--pair" : "pes-po-row"}
+        >
+          {row.pois.map((p) => (
+            <div key={`${branch.branch}__${p.po}`} className="pes-po">
+              <div className="pes-po__title">{p.po}</div>
+              <div className="pes-tiles">
+                {p.items.map((it) => (
+                  <PesTile
+                    key={it.id}
+                    item={it}
+                    selected={selected.includes(it.id)}
+                    onToggle={onToggle}
+                    selectable={selectable}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       ))}
     </div>

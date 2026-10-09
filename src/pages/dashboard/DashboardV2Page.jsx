@@ -498,9 +498,9 @@ export default function DashboardV2Page() {
           >
             MAX web
           </Button>
-          <Button size="small" onClick={() => pes.setHistoryOpen(true)}>
+          {/* <Button size="small" onClick={() => pes.setHistoryOpen(true)}>
             История операций
-          </Button>
+          </Button> */}
           <Button size="small" icon={<ReloadOutlined />} onClick={handleRefreshAll} loading={loading || pes.loading}>
             Обновить
           </Button>

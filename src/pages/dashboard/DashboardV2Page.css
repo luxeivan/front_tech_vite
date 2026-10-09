@@ -453,6 +453,23 @@
   line-height: 1.15;
 }
 
+.pes-board--dashboard-v2 .pes-po-row {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+}
+
+.pes-board--dashboard-v2 .pes-po-row > .pes-po {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* В паре ячейка вдвое уже карточки, поэтому ширина плитки считается как
+   стандартная треть строки: (200% ячейки + зазоры 2px) / 3 = 78px на 250px. */
+.pes-board--dashboard-v2 .pes-po-row--pair .pes-tiles {
+  grid-template-columns: calc((200% + 2px) / 3);
+}
+
 .pes-board--dashboard-v2 .pes-po {
   display: flex;
   flex-direction: column;
