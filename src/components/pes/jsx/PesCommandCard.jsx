@@ -49,7 +49,7 @@ export default function PesCommandCard({
               value={destinationType}
               onChange={setDestinationType}
               disabled={mode === "multi" || sending}
-              dropdownMatchSelectWidth={false}
+              popupMatchSelectWidth={false}
               options={[
                 { value: "assembly", label: "Точка сбора ПЭС" },
                 { value: "tp", label: "ТП (только одиночный выбор)" },

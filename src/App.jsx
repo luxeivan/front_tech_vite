@@ -11,7 +11,7 @@ import Header from "./components/Header";
 import Footer from "./components/Footer";
 import AuthForm from "./components/AuthForm";
 import BrandSunLoader from "./components/ui/BrandSunLoader";
-import DashboardPage from "./pages/dashboard/DashboardPage";
+// import DashboardPage from "./pages/dashboard/DashboardPage"; // Старый дашборд отключён (см. файл).
 import DashboardV2Page from "./pages/dashboard/DashboardV2Page";
 import OperationalDashboardPage from "./pages/operationalDashboard/OperationalDashboardPage";
 import OperationalDashboardTestMapPage from "./pages/operationalDashboard/OperationalDashboardTestMapPage";
@@ -32,7 +32,6 @@ const PAGE_TITLES = [
   { match: (path) => path === "/", title: "Аварийные отключения" },
   { match: (path) => path.startsWith("/planned"), title: "Плановые отключения" },
   { match: (path) => path.startsWith("/dashboard-oo"), title: "Дашборд ОО" },
-  { match: (path) => path.startsWith("/dashboard-v2"), title: "Дашборд v2" },
   { match: (path) => path.startsWith("/dashboard"), title: "Дашборд" },
   { match: (path) => path.startsWith("/pes"), title: "Модуль ПЭС" },
   { match: (path) => path.startsWith("/logging"), title: "Журнал действий" },
@@ -135,23 +134,23 @@ function App() {
               }
             />
 
-            {/* Дашборд: защищённая страница */}
+            {/* Дашборд: защищённая страница (v2 занимает /dashboard, старый закомментирован) */}
           <Route
             path="/dashboard"
-            element={
-              <Protected>
-                <DashboardPage />
-              </Protected>
-            }
-          />
-          <Route
-            path="/dashboard-v2"
             element={
               <Protected>
                 <DashboardV2Page />
               </Protected>
             }
           />
+          {/* <Route
+            path="/dashboard-v2"
+            element={
+              <Protected>
+                <DashboardV2Page />
+              </Protected>
+            }
+          /> */}
           <Route
             path="/dashboard-oo"
             element={
