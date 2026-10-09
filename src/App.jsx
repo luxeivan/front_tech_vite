@@ -18,7 +18,7 @@ import OperationalDashboardTestMapPage from "./pages/operationalDashboard/Operat
 import OperationalFilialPage from "./pages/operationalDashboard/OperationalFilialPage";
 import OperationalFilialTestMapPage from "./pages/operationalDashboard/OperationalFilialTestMapPage";
 import Portal404 from "./components/Portal404/Portal404";
-import PesPage from "./pages/pes/PesPage";
+// import PesPage from "./pages/pes/PesPage"; // Страница ПЭС отключена: /pes открывает дашборд.
 import PlannedPage from "./pages/planned/PlannedPage";
 import EmergencyPage from "./pages/emergency/EmergencyPage";
 import LoggingPage from "./pages/logging/LoggingPage";
@@ -32,7 +32,7 @@ const PAGE_TITLES = [
   { match: (path) => path === "/", title: "Аварийные отключения" },
   { match: (path) => path.startsWith("/planned"), title: "Плановые отключения" },
   { match: (path) => path.startsWith("/dashboard-oo"), title: "Дашборд ОО" },
-  { match: (path) => path.startsWith("/dashboard"), title: "Дашборд" },
+  // { match: (path) => path.startsWith("/dashboard"), title: "Дашборд" }, // /dashboard скрыт
   { match: (path) => path.startsWith("/pes"), title: "Модуль ПЭС" },
   { match: (path) => path.startsWith("/logging"), title: "Журнал действий" },
   { match: (path) => path.startsWith("/loader-demo"), title: "Демо лоадера" },
@@ -134,8 +134,9 @@ function App() {
               }
             />
 
-            {/* Дашборд: защищённая страница (v2 занимает /dashboard, старый закомментирован) */}
-          <Route
+            {/* Дашборд скрыт: /dashboard и /dashboard-v2 закомментированы,
+                дашборд открывается по адресу /pes. */}
+          {/* <Route
             path="/dashboard"
             element={
               <Protected>
@@ -143,7 +144,7 @@ function App() {
               </Protected>
             }
           />
-          {/* <Route
+          <Route
             path="/dashboard-v2"
             element={
               <Protected>
@@ -204,7 +205,7 @@ function App() {
               path="/pes"
               element={
                 <Protected>
-                  <PesPage />
+                  <DashboardV2Page />
                 </Protected>
               }
             />

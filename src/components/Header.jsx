@@ -36,11 +36,11 @@ export default function Header() {
       action: "click_planned_tn",
       label: "Плановые отключения",
     },
-    {
-      path: "/dashboard",
-      action: "click_dashboard",
-      label: "Дашборд",
-    },
+    // {
+    //   path: "/dashboard",
+    //   action: "click_dashboard",
+    //   label: "Дашборд",
+    // },
     ...(canSeeOperationalDashboard
       ? [
           {
