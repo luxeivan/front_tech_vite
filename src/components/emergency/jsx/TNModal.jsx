@@ -1,5 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Descriptions, Divider, Flex, Modal, Spin, message } from "antd";
+import {
+  Descriptions,
+  Divider,
+  Flex,
+  Modal,
+  Spin,
+  Tabs,
+  message,
+} from "antd";
 import axios from "axios";
 
 import useData from "../../../stores/useData";
@@ -24,6 +32,13 @@ import {
 
 const URL = import.meta.env.VITE_URL_BACKEND;
 
+const MAX_TEMPLATE_PLACEHOLDER = "Скоро здесь будет шаблон Max";
+
+const TEMPLATE_OPTIONS = [
+  { label: "Шаблон ЕДДС", value: "edds" },
+  { label: "Шаблон Max", value: "max" },
+];
+
 const UNPLANNED_EXTRA_SEND_CHANNELS = [];
 
 export default function TNModal({ open, documentId, onClose, mode = "unplanned" }) {
@@ -34,6 +49,8 @@ export default function TNModal({ open, documentId, onClose, mode = "unplanned" 
   const canEdit = hasFeatureAccess(user?.view_role, "tnEdit");
   const canSeeSendBlock = hasFeatureAccess(user?.view_role, "tnSendBlock");
   const isPlannedMode = mode === "planned";
+  const isStasUser =
+    String(user?.email || "").trim().toLowerCase() === "yanutst@yandex.ru";
 
   useEffect(() => {
     if (open && documentId) getTn(documentId);
@@ -47,9 +64,14 @@ export default function TNModal({ open, documentId, onClose, mode = "unplanned" 
 
   const [overrideDescription, setOverrideDescription] = useState(null);
   const [showOriginal, setShowOriginal] = useState(false);
+  // Переключатель шаблонов описания (только для yanutst@yandex.ru)
+  const [descTemplate, setDescTemplate] = useState("edds");
+  const [maxTemplateText, setMaxTemplateText] = useState(null);
   useEffect(() => {
     setOverrideDescription(null);
     setShowOriginal(false);
+    setDescTemplate("edds");
+    setMaxTemplateText(null);
   }, [documentId]);
 
   const [overridePesCount, setOverridePesCount] = useState(null);
@@ -72,7 +94,9 @@ export default function TNModal({ open, documentId, onClose, mode = "unplanned" 
     return { ...base, ...(overrideData || {}) };
   }, [tn?.data?.data, overrideData]);
 
+  const isMaxTemplate = descTemplate === "max";
   const descriptionEffective = useMemo(() => {
+    if (isMaxTemplate) return maxTemplateText ?? MAX_TEMPLATE_PLACEHOLDER;
     if (overrideDescription != null) return overrideDescription;
     if (showOriginal) {
       const fromApi = tn?.data?.description ?? null;
@@ -84,7 +108,7 @@ export default function TNModal({ open, documentId, onClose, mode = "unplanned" 
     // Если description отличается от шаблона — пользователь редактировал, показываем его
     if (typeof fromApi === "string" && fromApi && fromApi !== generated) return fromApi;
     return generated || (typeof fromApi === "string" ? fromApi : "");
-  }, [overrideDescription, showOriginal, tn]);
+  }, [isMaxTemplate, maxTemplateText, overrideDescription, showOriginal, tn]);
 
   const pesCountEffective = useMemo(() => {
     if (overridePesCount != null) return String(overridePesCount);
@@ -593,24 +617,52 @@ export default function TNModal({ open, documentId, onClose, mode = "unplanned" 
                             whiteSpace: "pre-wrap",
                           },
                           children: (
-                            <EditableField
-                              editable
-                              canEdit={canEdit}
-                              name="description"
-                              value={descriptionEffective}
-                              handlerUpdateTn={(_, v) => handlerUpdateDescription(v)}
-                              originalBuilder={() => {
-                                const raw = tn?.data?.raw_description ?? tn?.data?.data?.raw_description ?? null;
-                                if (raw && typeof raw === "string") return raw;
-                                const fromApi = tn?.data?.description ?? null;
-                                return typeof fromApi === "string" ? fromApi : "";
-                              }}
-                              textAreaProps={{
-                                autoSize: { minRows: 18, maxRows: 60 },
-                                style: { width: "100%", minHeight: 320, lineHeight: 1.5 },
-                              }}
-                              displayFormatter={showOriginal ? null : renderWithBold}
-                            />
+                            <>
+                              {isStasUser && (
+                                <Flex
+                                  justify="flex-end"
+                                  style={{ marginBottom: 8 }}
+                                >
+                                  <Tabs
+                                    activeKey={descTemplate}
+                                    onChange={setDescTemplate}
+                                    items={TEMPLATE_OPTIONS.map((o) => ({
+                                      key: o.value,
+                                      label: o.label,
+                                    }))}
+                                    style={{ width: 320 }}
+                                  />
+                                </Flex>
+                              )}
+                              <EditableField
+                                editable
+                                canEdit={canEdit}
+                                name="description"
+                                value={descriptionEffective}
+                                handlerUpdateTn={(_, v) => {
+                                  if (isMaxTemplate) {
+                                    // Max-шаблон живёт в локальном состоянии и не пишется в description
+                                    setMaxTemplateText(v);
+                                    return Promise.resolve();
+                                  }
+                                  return handlerUpdateDescription(v);
+                                }}
+                                originalBuilder={() => {
+                                  if (isMaxTemplate) return MAX_TEMPLATE_PLACEHOLDER;
+                                  const raw = tn?.data?.raw_description ?? tn?.data?.data?.raw_description ?? null;
+                                  if (raw && typeof raw === "string") return raw;
+                                  const fromApi = tn?.data?.description ?? null;
+                                  return typeof fromApi === "string" ? fromApi : "";
+                                }}
+                                textAreaProps={{
+                                  autoSize: { minRows: 18, maxRows: 60 },
+                                  style: { width: "100%", minHeight: 320, lineHeight: 1.5 },
+                                }}
+                                displayFormatter={
+                                  showOriginal || isMaxTemplate ? null : renderWithBold
+                                }
+                              />
+                            </>
                           ),
                         },
                       ]}
