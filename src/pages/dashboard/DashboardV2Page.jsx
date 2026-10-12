@@ -384,27 +384,30 @@ export default function DashboardV2Page() {
     }
   }, []);
 
-  const readyFilteredItems = useMemo(
-    () => pes.filteredItems.filter((item) => item.effectiveStatus === "ready"),
+  const dutyPriorityItems = useMemo(
+    () =>
+      pes.filteredItems.filter(
+        (item) => item.effectiveStatus === "ready" && Boolean(item.prioritet)
+      ),
     [pes.filteredItems]
   );
   const selectedSet = useMemo(() => new Set(pes.selected), [pes.selected]);
   const selectedDutyCount = useMemo(
-    () => readyFilteredItems.filter((item) => selectedSet.has(item.id)).length,
-    [readyFilteredItems, selectedSet]
+    () => dutyPriorityItems.filter((item) => selectedSet.has(item.id)).length,
+    [dutyPriorityItems, selectedSet]
   );
-  const allDutySelected = readyFilteredItems.length > 0 && selectedDutyCount === readyFilteredItems.length;
+  const allDutySelected = dutyPriorityItems.length > 0 && selectedDutyCount === dutyPriorityItems.length;
 
   const handleSelectAllDuty = () => {
     if (!pes.canManage) return;
     const itemsToToggle = allDutySelected
-      ? readyFilteredItems
-      : readyFilteredItems.filter((item) => !selectedSet.has(item.id));
+      ? dutyPriorityItems
+      : dutyPriorityItems.filter((item) => !selectedSet.has(item.id));
     itemsToToggle.forEach((item) => pes.toggleSelected(item.id));
     message.success(
       allDutySelected
-        ? `Снят выбор дежурных ПЭС: ${readyFilteredItems.length}`
-        : `Выбрано дежурных ПЭС: ${readyFilteredItems.length}`
+        ? `Снят выбор дежурных ПЭС: ${dutyPriorityItems.length}`
+        : `Выбрано дежурных ПЭС: ${dutyPriorityItems.length}`
     );
   };
 
@@ -539,7 +542,7 @@ export default function DashboardV2Page() {
             ghost
             icon={<CheckSquareOutlined />}
             onClick={handleSelectAllDuty}
-            disabled={!pes.canManage || !readyFilteredItems.length}
+            disabled={!pes.canManage || !dutyPriorityItems.length}
           >
             {allDutySelected ? "Снять выбор дежурных ПЭС" : "Выбрать все дежурные ПЭС"}
           </Button>

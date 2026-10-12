@@ -62,7 +62,7 @@ export default function PesTileTooltip({ item, meta }) {
           Время до пункта назначения: {formatEtaMinutes(item?.etaMinutes)}
         </div>
       )}
-      {item?.actualDepartureAt && (
+      {showEta && item?.actualDepartureAt && (
         <div>Время в пути: {formatEnRouteMinutes(item.actualDepartureAt)}</div>
       )}
       <div>Подключение: {formatDateTime(item.connectedAt)}</div>
