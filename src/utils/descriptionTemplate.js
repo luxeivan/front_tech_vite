@@ -183,6 +183,49 @@ function tpRpSectionTotal(raw) {
   return tpS + rpsnS;
 }
 
+// Заголовки секций СЗО внутри ADDRESS_LIST — всё после них выносится отдельными блоками
+const SZO_SECTION_TITLES = [
+  "Поликлиники",
+  "Больницы",
+  "Школы",
+  "Детские сады",
+  "Котельные",
+  "ЦТП",
+  "КНС",
+  "ВЗУ",
+  "ВНС",
+  "СНТ",
+];
+const SZO_SECTION_ALT = SZO_SECTION_TITLES.join("|");
+const SZO_BOUNDARY_RE = new RegExp(`(?:^|[;\\n])\\s*(${SZO_SECTION_ALT})\\s*:`, "m");
+const SZO_HEADER_LINE_RE = new RegExp(`^(${SZO_SECTION_ALT})\\s*:\\s*(.*)$`, "i");
+
+// Делит ADDRESS_LIST на адреса (жилые дома) и секции СЗО («Котельные:», «Детские сады:» …)
+function splitAddressesAndSzoSections(addressList) {
+  const text = s(addressList).replace(/\r\n/g, "\n");
+  const boundary = SZO_BOUNDARY_RE.exec(text);
+  if (!boundary) return { addresses: text, sections: [] };
+
+  const addresses = text.slice(0, boundary.index);
+  const sectionsText = text.slice(boundary.index).replace(/^[;\s]+/, "");
+  const sections = [];
+  let current = null;
+  sectionsText.split("\n").forEach((line) => {
+    const t = line.trim();
+    if (!t) return;
+    const m = t.match(SZO_HEADER_LINE_RE);
+    if (m) {
+      current = { title: `${m[1].trim()}:`, items: [] };
+      sections.push(current);
+      const rest = m[2].trim();
+      if (rest) current.items.push(rest);
+      return;
+    }
+    if (current) current.items.push(t);
+  });
+  return { addresses, sections: sections.filter((x) => x.items.length > 0) };
+}
+
 // Обрезает дома из адресов и убирает строки-СЗО (названия организаций без улиц)
 function stripHousesAndSzo(addressList) {
   return addressList
@@ -244,6 +287,7 @@ export function buildDescriptionTemplate(raw = {}) {
   const abonents = num(raw.POINTALL || raw.ENOBJ_COUNT);
 
   const { fullStr, sectStr } = buildSzoSummary(raw, raw);
+  const district = s(raw.DISTRICT);
 
   const outageLines = [
     "Без напряжения:",
@@ -254,14 +298,23 @@ export function buildDescriptionTemplate(raw = {}) {
     `Абонентов: ${abonents}`,
     `СЗО полностью: ${fullStr}`,
     sectStr !== "0" ? `СЗО по одной секции: ${sectStr}` : null,
+    district ? `Городской округ: ${district}` : null,
   ].filter(Boolean);
 
-  // --- Адреса отключённых объектов (только улицы, без домов и СЗО) ---
+  // --- Адреса отключённых домов + секции СЗО отдельными блоками ---
   const addressList = s(raw.ADDRESS_LIST);
   if (addressList) {
-    const streetsOnly = stripHousesAndSzo(addressList);
+    const { addresses, sections } = splitAddressesAndSzoSections(addressList);
+    const blocks = [];
+    const streetsOnly = stripHousesAndSzo(addresses);
     if (streetsOnly) {
-      outageLines.push(`Адреса отключенных объектов: ${streetsOnly}`);
+      blocks.push(`Адреса отключенных объектов: ${streetsOnly}`);
+    }
+    sections.forEach((sec) => {
+      blocks.push(`${sec.title}\n${sec.items.join("\n")}`);
+    });
+    if (blocks.length) {
+      outageLines.push(blocks.join("\n\n"));
     }
   }
 
@@ -280,7 +333,7 @@ export function buildDescriptionTemplate(raw = {}) {
       ? `Задействовано: ${brigadeCount} ${dec(brigadeCount, ["бригада", "бригады", "бригад"])}, ${employeeCount} ${dec(employeeCount, ["человек", "человека", "человек"])}.`
       : "Задействовано: —";
 
-  const tail = [pesLine, brigadeLine].join("\n");
+  const tail = [pesLine, brigadeLine, "Прогнозируемое время включения 2 часа"].join("\n");
 
   // --- Сборка ---
   return [header, outageLines.join("\n"), tail].filter(Boolean).join("\n\n");
