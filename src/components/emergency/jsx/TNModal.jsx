@@ -32,12 +32,17 @@ import {
 
 const URL = import.meta.env.VITE_URL_BACKEND;
 
-const MAX_TEMPLATE_PLACEHOLDER = "Скоро здесь будет шаблон Max";
-
 const TEMPLATE_OPTIONS = [
   { label: "Шаблон ЕДДС", value: "edds" },
-  { label: "Шаблон Max", value: "max" },
+  { label: "Шаблон Макс ОО", value: "max_oo" },
+  { label: "Шаблон Макс И", value: "max_i" },
 ];
+
+// Поля Strapi в teh-narusheniyas для шаблонов Max
+const MAX_TEMPLATE_FIELDS = {
+  max_oo: "description_MAX_operativnayObstanovka",
+  max_i: "description_MAX_incident",
+};
 
 const UNPLANNED_EXTRA_SEND_CHANNELS = [];
 
@@ -66,12 +71,13 @@ export default function TNModal({ open, documentId, onClose, mode = "unplanned" 
   const [showOriginal, setShowOriginal] = useState(false);
   // Переключатель шаблонов описания (только для yanutst@yandex.ru)
   const [descTemplate, setDescTemplate] = useState("edds");
-  const [maxTemplateText, setMaxTemplateText] = useState(null);
+  // Мгновенное отражение правки Max-поля до перезагрузки из API: { field, value }
+  const [overrideMax, setOverrideMax] = useState(null);
   useEffect(() => {
     setOverrideDescription(null);
     setShowOriginal(false);
     setDescTemplate("edds");
-    setMaxTemplateText(null);
+    setOverrideMax(null);
   }, [documentId]);
 
   const [overridePesCount, setOverridePesCount] = useState(null);
@@ -94,9 +100,14 @@ export default function TNModal({ open, documentId, onClose, mode = "unplanned" 
     return { ...base, ...(overrideData || {}) };
   }, [tn?.data?.data, overrideData]);
 
-  const isMaxTemplate = descTemplate === "max";
+  const maxField = MAX_TEMPLATE_FIELDS[descTemplate] || null;
+  const isMaxTemplate = maxField != null;
   const descriptionEffective = useMemo(() => {
-    if (isMaxTemplate) return maxTemplateText ?? MAX_TEMPLATE_PLACEHOLDER;
+    if (maxField) {
+      if (overrideMax && overrideMax.field === maxField) return overrideMax.value;
+      const fromApi = tn?.data?.[maxField];
+      return typeof fromApi === "string" ? fromApi : "";
+    }
     if (overrideDescription != null) return overrideDescription;
     if (showOriginal) {
       const fromApi = tn?.data?.description ?? null;
@@ -108,7 +119,7 @@ export default function TNModal({ open, documentId, onClose, mode = "unplanned" 
     // Если description отличается от шаблона — пользователь редактировал, показываем его
     if (typeof fromApi === "string" && fromApi && fromApi !== generated) return fromApi;
     return generated || (typeof fromApi === "string" ? fromApi : "");
-  }, [isMaxTemplate, maxTemplateText, overrideDescription, showOriginal, tn]);
+  }, [maxField, overrideMax, overrideDescription, showOriginal, tn]);
 
   const pesCountEffective = useMemo(() => {
     if (overridePesCount != null) return String(overridePesCount);
@@ -311,46 +322,52 @@ export default function TNModal({ open, documentId, onClose, mode = "unplanned" 
     }
   };
 
-  const handlerUpdateDescription = async (value) => {
+  const handlerUpdateDescription = async (field, value) => {
     const jwt = localStorage.getItem("jwt");
     if (!jwt) {
       message.error("Нет JWT");
       return;
     }
+    const isMax = field !== "description";
 
     try {
       setSaving(true);
       // мгновенно отражаем новое значение
-      setOverrideDescription(value);
+      if (isMax) setOverrideMax({ field, value });
+      else setOverrideDescription(value);
 
       const res = await axios.put(
         `${URL}/api/teh-narusheniyas/${documentId}`,
-        { data: { description: value } },
+        { data: { [field]: value } },
         { headers: { Authorization: `Bearer ${jwt}` } }
       );
 
       const saved =
-        res?.data?.data?.attributes?.description ??
-        res?.data?.data?.description;
+        res?.data?.data?.attributes?.[field] ??
+        res?.data?.data?.[field];
       if (typeof saved === "string") {
-        setOverrideDescription(saved);
+        if (isMax) setOverrideMax({ field, value: saved });
+        else setOverrideDescription(saved);
       }
 
       await getTn(documentId);
-      setOverrideDescription(null);
+      if (isMax) setOverrideMax(null);
+      else setOverrideDescription(null);
       message.success("Описание сохранено");
       logAuditEvent(
         {
           action: "tn_description_edit",
           entity: "tn",
           entity_id: String(documentId || ""),
+          ...(isMax ? { details: { field } } : {}),
         },
         user
       );
     } catch (e) {
       console.error("Ошибка сохранения описания:", e);
       message.error("Не удалось сохранить описание");
-      setOverrideDescription(null);
+      if (isMax) setOverrideMax(null);
+      else setOverrideDescription(null);
       await getTn(documentId);
     } finally {
       setSaving(false);
@@ -630,7 +647,7 @@ export default function TNModal({ open, documentId, onClose, mode = "unplanned" 
                                       key: o.value,
                                       label: o.label,
                                     }))}
-                                    style={{ width: 320 }}
+                                    style={{ width: 440 }}
                                   />
                                 </Flex>
                               )}
@@ -639,16 +656,17 @@ export default function TNModal({ open, documentId, onClose, mode = "unplanned" 
                                 canEdit={canEdit}
                                 name="description"
                                 value={descriptionEffective}
-                                handlerUpdateTn={(_, v) => {
-                                  if (isMaxTemplate) {
-                                    // Max-шаблон живёт в локальном состоянии и не пишется в description
-                                    setMaxTemplateText(v);
-                                    return Promise.resolve();
-                                  }
-                                  return handlerUpdateDescription(v);
-                                }}
+                                handlerUpdateTn={(_, v) =>
+                                  handlerUpdateDescription(
+                                    isMaxTemplate ? maxField : "description",
+                                    v
+                                  )
+                                }
                                 originalBuilder={() => {
-                                  if (isMaxTemplate) return MAX_TEMPLATE_PLACEHOLDER;
+                                  if (maxField) {
+                                    const fromApi = tn?.data?.[maxField] ?? null;
+                                    return typeof fromApi === "string" ? fromApi : "";
+                                  }
                                   const raw = tn?.data?.raw_description ?? tn?.data?.data?.raw_description ?? null;
                                   if (raw && typeof raw === "string") return raw;
                                   const fromApi = tn?.data?.description ?? null;
