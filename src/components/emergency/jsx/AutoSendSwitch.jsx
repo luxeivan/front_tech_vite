@@ -17,7 +17,11 @@ export default function AutoSendSwitch() {
   const [checked, setChecked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const canManage = hasFeatureAccess(user?.view_role, "autoSendSwitch");
+  // Переключатель показываем только конкретному пользователю (пока в тестовом режиме)
+  const isStasUser =
+    String(user?.email || "").trim().toLowerCase() === "yanutst@yandex.ru";
+  const canManage =
+    isStasUser && hasFeatureAccess(user?.view_role, "autoSendSwitch");
 
   useEffect(() => {
     if (!canManage) return;

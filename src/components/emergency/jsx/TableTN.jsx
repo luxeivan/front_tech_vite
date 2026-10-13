@@ -626,7 +626,8 @@ export default function TableTN() {
   useEffect(() => {
     getTns({ date, baseType: EMERGENCY_BASE_TYPE });
     loadOpenedCount({ date, baseType: EMERGENCY_BASE_TYPE });
-  }, [date, selectedStatuses, getTns, loadOpenedCount]);
+    loadSendStatus();
+  }, [date, selectedStatuses, getTns, loadOpenedCount, loadSendStatus]);
 
   useEffect(() => {
     if (isLoadingTns) return;
@@ -822,7 +823,9 @@ export default function TableTN() {
       : null;
     const sendByNumber = numKey ? sendStatus.byNumber[numKey] : null;
     const send = {
-      ...(sendByGuid || sendByNumber || {}),
+      // По номеру ищем только если у строки нет GUID: номера ТН не уникальны,
+      // и иначе чужая отправка (тот же №) покрасит кружок в ложный цвет.
+      ...(sendByGuid || (resolvedGuid ? null : sendByNumber) || {}),
       minenergo: true,
       site: true,
     };
