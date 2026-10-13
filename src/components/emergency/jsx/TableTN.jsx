@@ -20,6 +20,7 @@ import dayjs from "dayjs";
 import { DownloadOutlined, ReloadOutlined } from "@ant-design/icons";
 import useAuth from "../../../stores/useAuth";
 import TableTNActionsBar from "./TableTNActionsBar";
+import AutoSendSwitch from "./AutoSendSwitch";
 import TNModal from "./TNModal";
 import JournalOpenModal from "../../journalOpen/JournalOpenModal";
 import DistrictModeModal from "./DistrictModeModal";
@@ -1087,7 +1088,8 @@ export default function TableTN() {
           setPagination((p) => ({ ...p, page: 1 }));
         }}
         rightExtra={
-          <Flex gap={8} wrap justify="flex-end">
+          <Flex gap={8} wrap justify="flex-end" align="center">
+            <AutoSendSwitch />
             <Button
               icon={<DownloadOutlined />}
               className="tn-export-button"
