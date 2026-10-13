@@ -60,6 +60,7 @@ function humanAction(action) {
     pes_connect: "ПЭС переведена в статус Подключена",
     pes_ready: "ПЭС возвращена в резерв",
     pes_repair: "ПЭС переведена в ремонт",
+    autosend_toggle: "Переключил автоотправку аварийных ТН",
   };
   return map[action] || action;
 }

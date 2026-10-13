@@ -13,6 +13,7 @@ const FEATURE_ROLES = {
   auditLogging: ["preview", "standart"],
   journal: ["standart", "preview"],
   pesManage: ["standart", "preview"],
+  autoSendSwitch: ["preview", "standart"],
 };
 
 export function hasFeatureAccess(viewRole, featureKey) {

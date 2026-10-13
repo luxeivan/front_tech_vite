@@ -173,6 +173,7 @@ function isAutoSendRow(row) {
   const page = String(row?.page || "").trim().toLowerCase();
   const action = String(row?.action || "").trim().toLowerCase();
 
+  if (action === "send_edds_auto_ok" || action === "send_edds_auto_error") return true;
   return (
     username === "unknown" &&
     role === "system" &&
