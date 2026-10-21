@@ -157,7 +157,10 @@
   color: #0a5f9d;
   font-weight: 500;
   line-height: 1;
-  word-break: break-word;
+  /* Числа (в т.ч. 3-значные 595/261) не должны рваться на «59»+«5» */
+  word-break: normal;
+  overflow-wrap: normal;
+  white-space: nowrap;
   font-size: var(--operational-branches-table-font-size) !important;
 }
 

@@ -139,9 +139,9 @@ export const OPERATIONAL_BRANCH_COLUMNS = [
   {
     title: twoLineTitle("Осн.", "ресурс"),
     dataIndex: "mainResource",
-    width: 50,
+    width: 54,
     ...tightHeader,
   },
-  { title: "ОВБ", dataIndex: "ovb", width: 44, ...nowrapHeader },
-  { title: "В смене", dataIndex: "ovbVSmene", width: 48, ...nowrapHeader },
+  { title: "ОВБ", dataIndex: "ovb", width: 48, ...nowrapHeader },
+  { title: "В смене", dataIndex: "ovbVSmene", width: 52, ...nowrapHeader },
 ];

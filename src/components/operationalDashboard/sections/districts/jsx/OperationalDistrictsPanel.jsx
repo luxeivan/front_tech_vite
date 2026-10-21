@@ -74,9 +74,9 @@ const OPERATIONAL_FILIAL_COLUMN_WIDTHS = {
   staff: 44,
   vehicles: 42,
   pes: 34,
-  mainResource: 44,
-  ovb: 34,
-  ovbVSmene: 46,
+  mainResource: 48,
+  ovb: 42,
+  ovbVSmene: 50,
 };
 
 const OPERATIONAL_PO_COLUMN_WIDTHS = {
@@ -94,9 +94,9 @@ const OPERATIONAL_PO_COLUMN_WIDTHS = {
   staff: 46,
   vehicles: 46,
   pes: 36,
-  mainResource: 46,
-  ovb: 36,
-  ovbVSmene: 48,
+  mainResource: 50,
+  ovb: 44,
+  ovbVSmene: 52,
 };
 
 const PES_DASHBOARD_POLL_MS = 10000;
