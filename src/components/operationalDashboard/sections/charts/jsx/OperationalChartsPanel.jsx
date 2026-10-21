@@ -81,6 +81,14 @@ const getNextRefreshText = (value) => {
   if (minutes < 60) return `через ${minutes} мин`;
 
   const hours = Math.floor(minutes / 60);
+  if (hours >= 24) {
+    const days = Math.floor(hours / 24);
+    const restHours = hours % 24;
+    return restHours
+      ? `через ${days} д ${restHours} ч`
+      : `через ${days} д`;
+  }
+
   const restMinutes = minutes % 60;
   return restMinutes
     ? `через ${hours} ч ${restMinutes} мин`
