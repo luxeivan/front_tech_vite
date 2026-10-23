@@ -1,12 +1,15 @@
 import React, { memo, useEffect, useMemo, useState } from "react";
 import { Table } from "antd";
 import { Link } from "react-router-dom";
-import axios from "axios";
+// [ПЭС-столбец отключён] axios больше не нужен — подтягивание модуля ПЭС закомментировано.
+// import axios from "axios";
 
 import BrandSunLoader from "../../../../ui/BrandSunLoader";
-import useAuth from "../../../../../stores/useAuth";
+// [ПЭС-столбец отключён] useAuth нужен был только для поллинга ПЭС.
+// import useAuth from "../../../../../stores/useAuth";
 import useOperationalDashboardStore from "../../../../../stores/operationalDashboard/useOperationalDashboardStore";
-import usePesModuleDataStore from "../../../../../stores/pes/usePesModuleDataStore";
+// [ПЭС-столбец отключён] store модуля ПЭС не подключаем.
+// import usePesModuleDataStore from "../../../../../stores/pes/usePesModuleDataStore";
 import { fetchTnFilialyRows, fetchTnPoOkrugLinkRows, buildDistrictToPoMap } from "../../../../../utils/tnFilialyApi";
 import {
   getOperationalFilialPathForBase,
@@ -14,7 +17,8 @@ import {
 } from "../../../../../utils/operationalFilialRoutes";
 import { OPERATIONAL_BRANCH_COLUMNS } from "../js/operationalDistrictsPanel.config";
 import {
-  buildPesDashboardCountMaps,
+  // [ПЭС-столбец отключён] сбор счётчиков ПЭС закомментирован.
+  // buildPesDashboardCountMaps,
   buildOperationalBranchRows,
   buildOperationalBranchSummary,
   buildOperationalOkrugSummary,
@@ -99,21 +103,23 @@ const OPERATIONAL_PO_COLUMN_WIDTHS = {
   ovbVSmene: 52,
 };
 
-const PES_DASHBOARD_POLL_MS = 10000;
+// [ПЭС-столбец отключён] поллинг модуля ПЭС и загрузка сборных точек закомментированы.
+// Если захотим вернуть столбец ПЭС из модуля — раскомментировать блоки ниже.
+// const PES_DASHBOARD_POLL_MS = 10000;
 
-function getBackendBase() {
-  const a = String(import.meta.env.VITE_URL_BACKEND_SERVICES || "").trim();
-  const b = String(import.meta.env.VITE_URL_BACKEND || "").trim();
-  return (a || b).replace(/\/$/, "");
-}
+// function getBackendBase() {
+//   const a = String(import.meta.env.VITE_URL_BACKEND_SERVICES || "").trim();
+//   const b = String(import.meta.env.VITE_URL_BACKEND || "").trim();
+//   return (a || b).replace(/\/$/, "");
+// }
 
-const fetchPesAssemblyDestinations = async () => {
-  const base = getBackendBase();
-  const { data } = await axios.get(`${base}/services/pes/module/destinations`, {
-    params: { destinationType: "assembly" },
-  });
-  return Array.isArray(data?.assembly) ? data.assembly : [];
-};
+// const fetchPesAssemblyDestinations = async () => {
+//   const base = getBackendBase();
+//   const { data } = await axios.get(`${base}/services/pes/module/destinations`, {
+//     params: { destinationType: "assembly" },
+//   });
+//   return Array.isArray(data?.assembly) ? data.assembly : [];
+// };
 
 // memo: ховер по строкам вызывает onBranchHover, но пропсы таблицы при этом
 // не меняются — без memo таблица перерисовывалась на каждый ховер строки.
@@ -126,15 +132,17 @@ export default memo(function OperationalDistrictsPanel({
   poSlug = "",
   onBranchHover,
 }) {
-  const user = useAuth((store) => store.user);
+  // [ПЭС-столбец отключён] user нужен был только для поллинга ПЭС.
+  // const user = useAuth((store) => store.user);
   const rows = useOperationalDashboardStore((store) => store.rows);
   const isLoading = useOperationalDashboardStore((store) => store.isLoading);
   const hasLoaded = useOperationalDashboardStore((store) => store.hasLoaded);
-  const pesItems = usePesModuleDataStore((store) => store.items);
-  const loadPesItems = usePesModuleDataStore((store) => store.loadItems);
+  // [ПЭС-столбец отключён] селекторы модуля ПЭС закомментированы.
+  // const pesItems = usePesModuleDataStore((store) => store.items);
+  // const loadPesItems = usePesModuleDataStore((store) => store.loadItems);
   const [filialRows, setFilialRows] = useState([]);
   const [poOkrugLinkRows, setPoOkrugLinkRows] = useState([]);
-  const [pesAssemblyDestinations, setPesAssemblyDestinations] = useState([]);
+  // const [pesAssemblyDestinations, setPesAssemblyDestinations] = useState([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -179,44 +187,48 @@ export default memo(function OperationalDistrictsPanel({
     };
   }, [groupBy]);
 
-  useEffect(() => {
-    let cancelled = false;
+  // [ПЭС-столбец отключён] загрузка сборных точек ПЭС закомментирована.
+  // useEffect(() => {
+  //   let cancelled = false;
+  //
+  //   fetchPesAssemblyDestinations()
+  //     .then((nextRows) => {
+  //       if (!cancelled) setPesAssemblyDestinations(nextRows);
+  //     })
+  //     .catch(() => {
+  //       if (!cancelled) setPesAssemblyDestinations([]);
+  //     });
+  //
+  //   return () => {
+  //     cancelled = true;
+  //   };
+  // }, []);
 
-    fetchPesAssemblyDestinations()
-      .then((nextRows) => {
-        if (!cancelled) setPesAssemblyDestinations(nextRows);
-      })
-      .catch(() => {
-        if (!cancelled) setPesAssemblyDestinations([]);
-      });
+  // [ПЭС-столбец отключён] поллинг items модуля ПЭС закомментирован.
+  // useEffect(() => {
+  //   let cancelled = false;
+  //   let timerId = null;
+  //
+  //   const load = async () => {
+  //     if (cancelled) return;
+  //     await loadPesItems(user, { silent: true });
+  //   };
+  //
+  //   load();
+  //   timerId = window.setInterval(load, PES_DASHBOARD_POLL_MS);
+  //
+  //   return () => {
+  //     cancelled = true;
+  //     if (timerId) window.clearInterval(timerId);
+  //   };
+  // }, [loadPesItems, user]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    let timerId = null;
-
-    const load = async () => {
-      if (cancelled) return;
-      await loadPesItems(user, { silent: true });
-    };
-
-    load();
-    timerId = window.setInterval(load, PES_DASHBOARD_POLL_MS);
-
-    return () => {
-      cancelled = true;
-      if (timerId) window.clearInterval(timerId);
-    };
-  }, [loadPesItems, user]);
-
-  const pesCountMaps = useMemo(
-    () => buildPesDashboardCountMaps(pesItems, pesAssemblyDestinations, filialRows),
-    [filialRows, pesAssemblyDestinations, pesItems]
-  );
+  // [ПЭС-столбец отключён] счётчики ПЭС больше не строятся — все значения столбца «ПЭС» = 0.
+  // const pesCountMaps = useMemo(
+  //   () => buildPesDashboardCountMaps(pesItems, pesAssemblyDestinations, filialRows),
+  //   [filialRows, pesAssemblyDestinations, pesItems]
+  // );
+  const pesCountMaps = null;
 
   const districtToPoMap = useMemo(() => buildDistrictToPoMap(filialRows), [filialRows]);
 
