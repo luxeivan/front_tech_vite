@@ -107,6 +107,9 @@ const addRowToTotals = (totals, row) => {
   totals.brigades += toNumber(pick(row, "BRIGADECOUNT"));
   totals.staff += toNumber(pick(row, "EMPLOYEECOUNT"));
   totals.vehicles += toNumber(pick(row, "SPECIALTECHNIQUECOUNT"));
+  // Столбец «ПЭС»: источник — PES_COUNT из ТН (как и остальные числовые поля).
+  // При переданном pesCountMaps (старый формат — модуль ПЭС) значение перезаписывается ниже.
+  totals.pes += toNumber(pick(row, "PES_COUNT"));
 };
 
 const getFilialMainResource = (row) =>
@@ -547,9 +550,13 @@ export const buildOperationalBranchRows = (rows, filialRows = [], pesCountMaps =
     });
 
   const ordered = sourceBranches.map((branch) => branchMap.get(branch)).filter(Boolean);
-  ordered.forEach((row) => {
-    row.pes = toNumber(pesCountMaps?.byBranchKey?.get(normalizePesBranchKey(row.branch)));
-  });
+  // Старый формат (модуль ПЭС): перезаписываем pes из pesCountMaps, если он передан.
+  // Иначе остаётся значение, накопленное из PES_COUNT ТН в addRowToTotals.
+  if (pesCountMaps) {
+    ordered.forEach((row) => {
+      row.pes = toNumber(pesCountMaps?.byBranchKey?.get(normalizePesBranchKey(row.branch)));
+    });
+  }
   return ordered;
 };
 
@@ -600,7 +607,10 @@ export const buildOperationalPoRows = (
 
   const resultRows = Array.from(poMap.values()).map((row) => ({
     ...row,
-    pes: toNumber(pesCountMaps?.byPoKey?.get(buildPesPoCountKey(filialName, row.branch))),
+    // Старый формат (модуль ПЭС): перезапись pes только если pesCountMaps передан.
+    ...(pesCountMaps
+      ? { pes: toNumber(pesCountMaps?.byPoKey?.get(buildPesPoCountKey(filialName, row.branch))) }
+      : {}),
   }));
 
   // if (filialName && poOkrugLinkRows?.length) {
@@ -711,11 +721,16 @@ export const buildOperationalOkrugRows = (
       return {
         ...row,
         ...resourceOverride,
-        pes: toNumber(
-          pesCountMaps?.byOkrugPoKey?.get(
-            buildPesOkrugPoCountKey(filialName, selectedPoName, row.branch)
-          )
-        ),
+        // Старый формат (модуль ПЭС): перезапись pes только если pesCountMaps передан.
+        ...(pesCountMaps
+          ? {
+              pes: toNumber(
+                pesCountMaps?.byOkrugPoKey?.get(
+                  buildPesOkrugPoCountKey(filialName, selectedPoName, row.branch)
+                )
+              ),
+            }
+          : {}),
         __okrugResourceKey: undefined,
         __tnCount: undefined,
       };
