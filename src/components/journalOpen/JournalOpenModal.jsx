@@ -1,5 +1,5 @@
 import React from "react";
-import { Modal, Alert, List, Space, Typography, Skeleton, message } from "antd";
+import { Modal, Alert, List, Space, Tag, Typography, Skeleton, message } from "antd";
 import axios from "axios";
 
 const { Text } = Typography;
@@ -17,6 +17,28 @@ function parseDateFromLine(line) {
   // Локальное время (МСК у нас уже в строке). Создаём дату без смещения.
   const d = new Date(yyyy, mm - 1, dd, hh, min, ss);
   return d.getTime();
+}
+
+// "№423 - guid - 27.10.2026 15:30:00 - канал - сообщение" → части строки
+function parseJournalLine(line) {
+  if (!line || typeof line !== "string") return null;
+  const m = line.match(/^(.*?)\s-\s(\d{2}\.\d{2}\.\d{4}\s\d{2}:\d{2}:\d{2})\s-\s(.*)$/);
+  if (!m) return null;
+  const rest = m[3];
+  const sep = rest.indexOf(" - ");
+  return {
+    head: m[1].trim(),
+    date: m[2],
+    channel: (sep >= 0 ? rest.slice(0, sep) : rest).trim(),
+    message: sep >= 0 ? rest.slice(sep + 3).trim() : "",
+  };
+}
+
+function channelColor(channel) {
+  if (channel === "Автоотправка") return "purple";
+  if (channel.includes("авто, создание")) return "orange";
+  if (channel.includes("авто, обновление")) return "blue";
+  return "default";
 }
 
 export default function JournalOpenModal({ open, onClose, journalIndex = 0 }) {
@@ -89,7 +111,7 @@ export default function JournalOpenModal({ open, onClose, journalIndex = 0 }) {
           type="info"
           showIcon
           message="Журнал отправки"
-          description="Последние операции отправки в ЕДДС/МЭС. Свежие записи выше."
+          description="Свежие записи выше. Оранжевый — автоотправка при создании ТН, синий — при обновлении (PUT), фиолетовый — переключение автоотправки, серый — ручная отправка."
         />
 
         <div style={{ maxHeight: "60vh", overflow: "auto" }}>
@@ -105,11 +127,36 @@ export default function JournalOpenModal({ open, onClose, journalIndex = 0 }) {
               size="small"
               bordered
               dataSource={lines}
-              renderItem={(item) => (
-                <List.Item>
-                  <Text style={{ whiteSpace: "pre-wrap" }}>{item}</Text>
-                </List.Item>
-              )}
+              renderItem={(item) => {
+                const p = parseJournalLine(item);
+                if (!p) {
+                  return (
+                    <List.Item>
+                      <Text style={{ whiteSpace: "pre-wrap" }}>{item}</Text>
+                    </List.Item>
+                  );
+                }
+                return (
+                  <List.Item>
+                    <Space
+                      direction="vertical"
+                      size={2}
+                      style={{ width: "100%", whiteSpace: "pre-wrap" }}
+                    >
+                      <Space size={8} wrap>
+                        <Tag color={channelColor(p.channel)} style={{ marginInlineEnd: 0 }}>
+                          {p.channel}
+                        </Tag>
+                        <Text type="secondary">{p.date}</Text>
+                        {/\d|[0-9a-f]{8}-[0-9a-f]{4}/i.test(p.head) ? (
+                          <Text type="secondary">{p.head}</Text>
+                        ) : null}
+                      </Space>
+                      {p.message ? <Text>{p.message}</Text> : null}
+                    </Space>
+                  </List.Item>
+                );
+              }}
             />
           )}
         </div>
