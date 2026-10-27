@@ -17,16 +17,7 @@ export default function AutoSendSwitch() {
   const [checked, setChecked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  // Переключатель показываем только разрешённым пользователям (пока в тестовом режиме)
-  const AUTSEND_ALLOWED_EMAILS = [
-    "yanutst@yandex.ru",
-    "ianutmv@mosoblenergo.ru",
-  ];
-  const isAutoSendUser = AUTSEND_ALLOWED_EMAILS.includes(
-    String(user?.email || "").trim().toLowerCase()
-  );
-  const canManage =
-    isAutoSendUser && hasFeatureAccess(user?.view_role, "autoSendSwitch");
+  const canManage = hasFeatureAccess(user?.view_role, "autoSendSwitch");
 
   useEffect(() => {
     if (!canManage) return;
