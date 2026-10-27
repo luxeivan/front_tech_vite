@@ -25,7 +25,7 @@ import TNModal from "./TNModal";
 import JournalOpenModal from "../../journalOpen/JournalOpenModal";
 import DistrictModeModal from "./DistrictModeModal";
 import { hasFeatureAccess } from "../../../config/viewRoleAccess";
-import { exportBothTnPdf } from "../js/exportTnPdf";
+// import { exportBothTnPdf } from "../js/exportTnPdf";
 import ruRU from "antd/locale/ru_RU";
 import "dayjs/locale/ru";
 dayjs.locale("ru");
@@ -206,10 +206,12 @@ function FiltersBar({
     <Flex
       justify="space-between"
       align="center"
+      className="tn-filters-bar"
       style={{ marginBottom: 10, flexWrap: "wrap", gap: 8 }}
     >
-      <Flex gap={8} wrap style={{ rowGap: 8 }}>
+      <Flex gap={8} wrap className="tn-filters-left" style={{ rowGap: 8 }}>
         <DatePicker
+          className="tn-filters-date"
           value={dateValue}
           format={"DD.MM.YYYY"}
           onChange={onDateChange}
@@ -222,6 +224,7 @@ function FiltersBar({
         <Select
           mode="multiple"
           allowClear
+          className="tn-filters-status"
           style={{ minWidth: 300 }}
           placeholder="Выберите статус(ы)"
           value={selectedStatuses}
@@ -233,6 +236,7 @@ function FiltersBar({
         <Input
           allowClear
           placeholder="№ ТН…"
+          className="tn-filters-num"
           value={searchNumber}
           onChange={(e) => onSearchNumberChange(e.target.value)}
           style={{ width: 70 }}
@@ -240,6 +244,7 @@ function FiltersBar({
         <Input
           allowClear
           placeholder="GUID…"
+          className="tn-filters-guid"
           value={searchGuid}
           onChange={(e) => onSearchGuidChange(e.target.value)}
           style={{ width: 134 }}
@@ -247,6 +252,7 @@ function FiltersBar({
         <Input
           allowClear
           placeholder="№ ТП…"
+          className="tn-filters-tp"
           value={searchTp}
           onChange={(e) => onSearchTpChange(e.target.value)}
           style={{ width: 85 }}
@@ -254,6 +260,7 @@ function FiltersBar({
         <Input
           allowClear
           placeholder="FIAS…"
+          className="tn-filters-fias"
           value={searchFias}
           onChange={(e) => onSearchFiasChange(e.target.value)}
           style={{ width: 160 }}
@@ -557,7 +564,7 @@ export default function TableTN() {
   const canManageDistrictMode = hasFeatureAccess(user?.view_role, "districtModeManage");
   const [isDistrictModeModalOpen, setIsDistrictModeModalOpen] = useState(false);
   const [sendStatus, setSendStatus] = useState({ byGuid: {}, byNumber: {} });
-  const [exporting, setExporting] = useState(false);
+  // const [exporting, setExporting] = useState(false);
   const loadSendStatus = React.useCallback(async () => {
     try {
       // обновим сессию/пользователя; интерцептор сам подмешает JWT
@@ -1042,6 +1049,25 @@ export default function TableTN() {
               rgba(255, 77, 79, 0) 360deg
             ) border-box;
         }
+        /* Компактная панель для ноутбука; широкие экраны сохраняют исходные размеры. */
+        @media (min-width: 1440px) and (max-width: 1799px) {
+          .tn-filters-left { align-items: center; }
+          .tn-filters-status { min-width: 220px !important; }
+          .tn-filters-guid { width: 110px !important; }
+          .tn-filters-fias { width: 130px !important; }
+        }
+        @media (min-width: 1440px) and (max-width: 1649px) {
+          .tn-filters-bar,
+          .tn-filters-left,
+          .tn-filters-actions { gap: 6px !important; }
+          .tn-filters-date { width: 128px; }
+          .tn-filters-status { min-width: 170px !important; }
+          .tn-filters-num { width: 60px !important; }
+          .tn-filters-guid { width: 88px !important; }
+          .tn-filters-tp { width: 70px !important; }
+          .tn-filters-fias { width: 96px !important; }
+          .tn-filters-actions > .ant-btn { padding-inline: 10px; }
+        }
       `}</style>
       <audio
         ref={audioRef}
@@ -1091,9 +1117,9 @@ export default function TableTN() {
           setPagination((p) => ({ ...p, page: 1 }));
         }}
         rightExtra={
-          <Flex gap={8} wrap justify="flex-end" align="center">
+          <Flex gap={8} wrap justify="flex-end" align="center" className="tn-filters-actions">
             <AutoSendSwitch />
-            <Button
+            {/* <Button
               icon={<DownloadOutlined />}
               className="tn-export-button"
               loading={exporting}
@@ -1109,7 +1135,7 @@ export default function TableTN() {
               }}
             >
               {exporting ? "Выгружаем..." : "Выгрузка в PDF"}
-            </Button>
+            </Button> */}
             <Button
               onClick={() => {
                 setDate(null);

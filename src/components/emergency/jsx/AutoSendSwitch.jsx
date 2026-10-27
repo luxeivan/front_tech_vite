@@ -89,7 +89,7 @@ export default function AutoSendSwitch() {
   return (
     <Tooltip title={checked ? "Автоотправка включена" : "Автоотправка выключена"}>
       <Flex align="center" gap={8} style={{ whiteSpace: "nowrap" }}>
-        <Typography.Text strong type={checked ? "success" : "secondary"}>
+        <Typography.Text strong className="tn-autosend-label" type={checked ? "success" : "secondary"}>
           Автоотправка
         </Typography.Text>
         <Switch
