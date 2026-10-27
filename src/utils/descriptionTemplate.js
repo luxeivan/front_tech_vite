@@ -286,7 +286,7 @@ export function buildDescriptionTemplate(raw = {}) {
   const population = num(raw.POPULATION_COUNT);
   const abonents = num(raw.POINTALL || raw.ENOBJ_COUNT);
 
-  const { fullStr, sectStr } = buildSzoSummary(raw, raw);
+  const { fullStr } = buildSzoSummary(raw, raw);
   const district = s(raw.DISTRICT);
 
   const outageLines = [
@@ -297,7 +297,6 @@ export function buildDescriptionTemplate(raw = {}) {
     `Чел: ${population}`,
     `Абонентов: ${abonents}`,
     `СЗО полностью: ${fullStr}`,
-    sectStr !== "0" ? `СЗО по одной секции: ${sectStr}` : null,
     district ? `Городской округ: ${district}` : null,
   ].filter(Boolean);
 

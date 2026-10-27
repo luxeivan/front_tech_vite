@@ -34,8 +34,6 @@ const URL = import.meta.env.VITE_URL_BACKEND;
 
 const TEMPLATE_OPTIONS = [
   { label: "Шаблон ЕДДС", value: "edds" },
-  { label: "Шаблон Макс ОО", value: "max_oo" },
-  { label: "Шаблон Макс И", value: "max_i" },
 ];
 
 // Поля Strapi в teh-narusheniyas для шаблонов Max
