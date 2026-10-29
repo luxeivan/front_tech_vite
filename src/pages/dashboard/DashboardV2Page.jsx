@@ -6,10 +6,9 @@ import {
   LinkOutlined,
   ReloadOutlined,
 } from "@ant-design/icons";
-import * as XLSX from "xlsx";
+// XLSX — вернуть при раскомментировании старого экспорта (см. «Шаг 1» ниже)
 import dayjs from "dayjs";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
 
 import MapPanel from "../../components/dashboard/jsx/MapPanel";
 import Dinamica7Days from "../../components/dashboard/jsx/Dinamica";
@@ -33,6 +32,7 @@ import {
 } from "../../components/dashboard/js/dashboardCommon";
 import { engineeringDayKey } from "../../components/dashboard/js/engineeringDay";
 import pesModuleLogic from "../../components/pes/js/pesModuleLogic";
+import { exportPesSnapshotToXlsx } from "../../components/pes/js/pesSnapshotExport";
 import { normalizeDistrictLookupName } from "../../components/operationalDashboard/sections/districts/js/operationalDistrictsPanel.utils";
 import {
   fetchTnFilialyRows,
@@ -299,7 +299,6 @@ function DashboardV2TodayDuration({ rows7d = [] }) {
 }
 
 export default function DashboardV2Page() {
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [rows, setRows] = useState([]);
@@ -418,6 +417,29 @@ export default function DashboardV2Page() {
 
   const handleRefreshAll = async () => {
     await Promise.all([loadDashboardData(), pes.loadItems()]);
+  };
+
+  const [exportingPes, setExportingPes] = useState(false);
+
+  // Слепок модуля ПЭС (все ПЭС, порядок как на странице) — без перехода в журнал.
+  const handleExportPesSnapshot = async () => {
+    if (exportingPes) return;
+    setExportingPes(true);
+    try {
+      const { exported } = await exportPesSnapshotToXlsx({
+        items: pes.items,
+        branchGroups: DASHBOARD_V2_BRANCH_GROUPS,
+      });
+      if (!exported) {
+        message.warning("Нет ПЭС для выгрузки.");
+      } else {
+        message.success(`Выгружено ПЭС: ${exported}`);
+      }
+    } catch (e) {
+      message.error(e?.response?.data?.message || e?.message || "Ошибка выгрузки Excel");
+    } finally {
+      setExportingPes(false);
+    }
   };
 
   const powerByStatuses = useMemo(() => {
@@ -550,7 +572,8 @@ export default function DashboardV2Page() {
             size="small"
             icon={<DownloadOutlined />}
             className="dashboard-v2-excel-button"
-            onClick={() => navigate("/logging/pes")}
+            loading={exportingPes}
+            onClick={handleExportPesSnapshot}
           >
             Выгрузка Excel
           </Button>

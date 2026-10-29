@@ -2,7 +2,7 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { Tooltip } from "antd";
 import { formatPowerKw, STATUS_META } from "../js/pesModuleMeta";
-import { buildGroupedPes } from "../js/pesTilesBoard.utils";
+import { buildGroupedPes, normalizeBranchName } from "../js/pesTilesBoard.utils";
 import PesTileTooltip from "./PesTileTooltip";
 
 function PesTile({ item, selected, onToggle, selectable }) {
@@ -50,14 +50,6 @@ function PesTile({ item, selected, onToggle, selectable }) {
       </div>
     </Tooltip>
   );
-}
-
-function normalizeBranchName(value) {
-  return String(value || "")
-    .toLowerCase()
-    .replace(/ё/g, "е")
-    .replace(/\s+филиал$/i, "")
-    .replace(/[^а-яa-z0-9]/gi, "");
 }
 
 // Одиночные ПО (1 плитка) идут парами в одну строку — экономим высоту колонки.

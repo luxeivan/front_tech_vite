@@ -1,3 +1,12 @@
+// Нормализация названия филиала для сопоставления с группами на дашборде.
+export function normalizeBranchName(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .replace(/\s+филиал$/i, "")
+    .replace(/[^а-яa-z0-9]/gi, "");
+}
+
 function isPriority(item) {
   return Boolean(item?.prioritet);
 }
