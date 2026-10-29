@@ -1,5 +1,22 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Input, Radio, message } from "antd";
+import VectorSource from "ol/source/Vector";
+import VectorLayer from "ol/layer/Vector";
+import Feature from "ol/Feature";
+import LineString from "ol/geom/LineString";
+import Point from "ol/geom/Point";
+import { fromLonLat, toLonLat } from "ol/proj";
+import { Circle as CircleStyle, Style } from "ol/style";
+import Text from "ol/style/Text";
+import Fill from "ol/style/Fill";
+import Stroke from "ol/style/Stroke";
+
+import usePesMapFocusStore from "../../../stores/pes/usePesMapFocusStore";
+import {
+  fetchRouteGeometry,
+  getDestinationPoint,
+  normalizePesNumber,
+} from "../../pes/js/pesEta";
 
 import {
   attachMapClickPopup,
@@ -42,6 +59,8 @@ export default function MapPanel({
   fiasCollection = "adress",
   fiasOwners = {},
 }) {
+  const focusedItem = usePesMapFocusStore((s) => s.focusedItem);
+  const clearFocus = usePesMapFocusStore((s) => s.clearFocus);
   const [zoom, setZoom] = useState(initialState?.zoom ?? 8);
   const cacheRef = useRef(new Map());
   const abortRef = useRef(null);
@@ -58,6 +77,10 @@ export default function MapPanel({
   const accSourceRef = useRef(null);
   const accLayerRef = useRef(null);
   const pesSourceRef = useRef(null);
+  const routeSourceRef = useRef(null);
+  const reloadPesRef = useRef(null);
+  const focusNumRef = useRef("");
+  const prevFocusRef = useRef("");
   const tpIndexRef = useRef([]);
   const tpUpdaterRef = useRef(null);
   const clickDetachRef = useRef(null);
@@ -113,6 +136,47 @@ export default function MapPanel({
     });
     pesSourceRef.current = pesSource;
 
+    // Слой маршрута выбранной ПЭС до точки назначения.
+    const routeSource = new VectorSource();
+    const routeLayer = new VectorLayer({
+      source: routeSource,
+      zIndex: 9998,
+      style: (feature) => {
+        const kind = feature.get("kind");
+        if (kind === "line") {
+          return [
+            new Style({
+              stroke: new Stroke({ color: "#ffffff", width: 7, lineCap: "round" }),
+            }),
+            new Style({
+              stroke: new Stroke({
+                color: "#ffbf00",
+                width: 4,
+                lineCap: "round",
+                lineDash: [14, 9],
+              }),
+            }),
+          ];
+        }
+        // Точка назначения.
+        return new Style({
+          image: new CircleStyle({
+            radius: 9,
+            fill: new Fill({ color: "rgba(255, 77, 79, 0.9)" }),
+            stroke: new Stroke({ color: "#ffffff", width: 3 }),
+          }),
+          text: new Text({
+            text: feature.get("label") || "Назначение",
+            font: "600 12px system-ui, sans-serif",
+            fill: new Fill({ color: "#001529" }),
+            stroke: new Stroke({ color: "#ffffff", width: 3 }),
+            offsetY: -18,
+          }),
+        });
+      },
+    });
+    routeSourceRef.current = routeSource;
+
     const view = createView({ initialState });
     viewRef.current = view;
 
@@ -121,7 +185,7 @@ export default function MapPanel({
       baseLayers,
       view,
       overlays: [overlay],
-      layers: [tpLayer, accLayer, pesLayer],
+      layers: [tpLayer, accLayer, routeLayer, pesLayer],
     });
     olMapRef.current = map;
 
@@ -437,15 +501,117 @@ export default function MapPanel({
     const endpoint = getPesEndpointFromEnv();
     if (!endpoint) return;
 
-    const { stop } = startPesPolling({
+    const { stop, reload } = startPesPolling({
       source: pesSourceRef.current,
       endpoint,
       pollMs: PES_POLL_MS_DEFAULT,
       onError: (e) => console.error("[MapOL] PES vehicles error:", e),
+      getFocusPesNumber: () => focusNumRef.current,
     });
+    reloadPesRef.current = reload;
 
-    return () => stop();
+    return () => {
+      stop();
+      reloadPesRef.current = null;
+    };
   }, []);
+
+  // --- Фокус на одной ПЭС: фильтр слоя + маршрут до точки назначения ---
+  useEffect(() => {
+    const num = focusedItem
+      ? normalizePesNumber(focusedItem.number) || normalizePesNumber(focusedItem.name)
+      : "";
+    const prevNum = prevFocusRef.current;
+    prevFocusRef.current = num;
+    focusNumRef.current = num;
+    routeSourceRef.current?.clear(true);
+
+    if (prevNum === num) return; // Нет изменений (в т.ч. первый рендер без фокуса).
+
+    // Перечитать слой ПЭС с актуальным фильтром.
+    const reloadPromise = reloadPesRef.current?.() || Promise.resolve();
+
+    if (!focusedItem || !num) return;
+
+    let cancelled = false;
+
+    (async () => {
+      const dest = getDestinationPoint(focusedItem);
+
+      // Дождаться перезагрузки слоя с фильтром, затем найти ПЭС.
+      await reloadPromise;
+      if (cancelled) return;
+
+      const feature = (pesSourceRef.current?.getFeatures?.() || []).find(
+        (f) => String(f.get("pesNumber") || "") === num
+      );
+      const center = feature?.getGeometry?.()?.getCoordinates?.();
+
+      if (!center) {
+        message.info(`ПЭС №${focusedItem.number} не найдена на карте`);
+        return;
+      }
+
+      // Центрируем карту на ПЭС.
+      const view = viewRef.current;
+      if (view) {
+        const currentZoom = Number(view.getZoom?.() ?? 8);
+        view.animate(
+          { center, duration: 450 },
+          { zoom: Math.max(currentZoom, 11), duration: 450 }
+        );
+      }
+
+      if (!dest) {
+        // Нет точки назначения — просто показываем одну ПЭС.
+        return;
+      }
+
+      const [fromLon, fromLat] = toLonLat(center);
+      const route = await fetchRouteGeometry(
+        { lat: fromLat, lon: fromLon },
+        dest
+      );
+      if (cancelled) return;
+
+      const coords = (route.coordinates || []).map(([lon, lat]) =>
+        fromLonLat([lon, lat])
+      );
+      if (coords.length < 2) return;
+
+      const line = new Feature({ geometry: new LineString(coords) });
+      line.set("kind", "line");
+      line.set("_popupHtml", `<div><b>Маршрут до места назначения</b><br/>Оценка: ~${route.minutes ?? "—"} мин</div>`);
+
+      const destPoint = new Feature({
+        geometry: new Point(fromLonLat([dest.lon, dest.lat])),
+      });
+      destPoint.set("kind", "dest");
+      destPoint.set(
+        "label",
+        focusedItem?.destination?.title || focusedItem?.destination?.address || "Назначение"
+      );
+      destPoint.set(
+        "_popupHtml",
+        `<div><b>Точка назначения</b><br/>${focusedItem?.destination?.address || focusedItem?.destination?.title || "—"}<br/>Время в пути: ~${route.minutes ?? "—"} мин</div>`
+      );
+
+      routeSourceRef.current?.clear(true);
+      routeSourceRef.current?.addFeatures([line, destPoint]);
+
+      // Вписать маршрут в видимую область.
+      const extent = line.getGeometry().getExtent();
+      viewRef.current?.fit(extent, {
+        padding: [70, 70, 70, 70],
+        duration: 550,
+        maxZoom: 13,
+      });
+    })().catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [focusedItem]);
 
   const findPesFeature = (rawQuery) => {
     const query = String(rawQuery || "").trim();
@@ -601,6 +767,11 @@ export default function MapPanel({
             <Button type="primary" onClick={focusPes}>
               Найти
             </Button>
+            {focusedItem && (
+              <Button danger size="small" onClick={clearFocus}>
+                Показать все ПЭС (№{focusedItem.number})
+              </Button>
+            )}
           </div>
         </div>
         <div className="mo-map-legend" aria-label="Легенда статусов ПЭС">

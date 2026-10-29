@@ -123,6 +123,38 @@ export async function fetchRouteEtaMinutes(from, to) {
   }
 }
 
+// Полная геометрия маршрута (для отрисовки линии на карте) + длительность.
+export async function fetchRouteGeometry(from, to) {
+  try {
+    const url = `${OSRM_ROUTE_URL}/${from.lon},${from.lat};${to.lon},${to.lat}?overview=full&geometries=geojson&alternatives=false&steps=false`;
+    const resp = await fetch(url, { headers: { Accept: "application/json" } });
+    if (!resp.ok) throw new Error(`OSRM ${resp.status}`);
+    const data = await resp.json();
+    const route = data?.routes?.[0];
+    const durationSec = Number(route?.duration);
+    const coords = route?.geometry?.coordinates;
+    if (!Number.isFinite(durationSec) || !Array.isArray(coords) || coords.length < 2) {
+      throw new Error("OSRM: empty route");
+    }
+    return {
+      minutes: Math.max(0, Math.round(durationSec / 60)),
+      coordinates: coords, // [[lon, lat], ...]
+      source: "osrm",
+    };
+  } catch {
+    // Фолбэк: прямая линия по прямой (как в оценке ETA).
+    const minutes = estimateEtaMinutes(from, to);
+    return {
+      minutes: minutes == null ? null : Math.max(0, Math.round(minutes)),
+      coordinates: [
+        [from.lon, from.lat],
+        [to.lon, to.lat],
+      ],
+      source: "estimate",
+    };
+  }
+}
+
 export async function fetchPesVehicles(signal) {
   const base = getBackendBase();
   if (!base) return [];

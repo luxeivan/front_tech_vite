@@ -474,6 +474,8 @@ export const startPesPolling = ({
   pollMs = PES_POLL_MS_DEFAULT,
   loadModuleInfo = true,
   onError,
+  // Номер ПЭС в фокусе: при непустом значении на карте остаётся только она.
+  getFocusPesNumber,
 }) => {
   if (!source || !endpoint) {
     return { stop: () => {} };
@@ -504,8 +506,16 @@ export const startPesPolling = ({
         return Number.isFinite(idNum) && allowedIds.has(idNum);
       });
 
+      // Фокус на одной ПЭС: прячем всех остальных.
+      const focusNum = String(
+        (typeof getFocusPesNumber === "function" ? getFocusPesNumber() : "") || ""
+      ).trim();
+      const visibleVehicles = focusNum
+        ? vehicles.filter((v) => extractVehiclePesNumber(v) === focusNum)
+        : vehicles;
+
       const feats = [];
-      for (const v of vehicles) {
+      for (const v of visibleVehicles) {
         const lat = typeof v?.lat === "number" ? v.lat : parseFloat(v?.lat);
         const lon = typeof v?.lon === "number" ? v.lon : parseFloat(v?.lon);
         if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;

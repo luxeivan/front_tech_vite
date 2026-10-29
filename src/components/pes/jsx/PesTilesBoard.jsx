@@ -3,22 +3,31 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { Tooltip } from "antd";
 import { formatPowerKw, STATUS_META } from "../js/pesModuleMeta";
 import { buildGroupedPes, normalizeBranchName } from "../js/pesTilesBoard.utils";
+import usePesMapFocusStore from "../../../stores/pes/usePesMapFocusStore";
 import PesTileTooltip from "./PesTileTooltip";
 
 function PesTile({ item, selected, onToggle, selectable }) {
   const status = item?.effectiveStatus || "ready";
   const meta = STATUS_META[status] || STATUS_META.ready;
   const isPriority = Boolean(item?.prioritet);
+  const focusedItem = usePesMapFocusStore((s) => s.focusedItem);
+  const toggleFocus = usePesMapFocusStore((s) => s.toggleFocus);
+  const isMapFocused =
+    Boolean(focusedItem) && String(focusedItem?.id) === String(item?.id);
 
   const className = [
     "pes-tile",
     `pes-tile--${status}`,
     isPriority ? "pes-tile--priority" : "",
     selected ? "pes-tile--selected" : "",
+    isMapFocused ? "pes-tile--map-focus" : "",
     selectable ? "" : "pes-tile--disabled",
   ]
     .filter(Boolean)
     .join(" ");
+
+  // Клик по плитке фокусирует её на карте; повторный клик снимает фокус.
+  const activate = () => toggleFocus(item);
 
   return (
     <Tooltip
@@ -32,14 +41,15 @@ function PesTile({ item, selected, onToggle, selectable }) {
         role={selectable ? "button" : "group"}
         tabIndex={selectable ? 0 : -1}
         onClick={() => {
+          activate();
           if (!selectable) return;
           onToggle(item.id);
         }}
         onKeyDown={(e) => {
-          if (!selectable) return;
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            onToggle(item.id);
+            activate();
+            if (selectable) onToggle(item.id);
           }
         }}
       >
