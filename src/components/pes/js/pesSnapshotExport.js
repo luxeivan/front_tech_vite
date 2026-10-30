@@ -1,6 +1,7 @@
 // Выгрузка «слепка» текущего состояния модуля ПЭС в Excel.
 // Одна строка на ПЭС, порядок как на дашборде: группы филиалов → ПО → номер.
 import * as XLSX from "xlsx";
+import JSZip from "jszip";
 import dayjs from "dayjs";
 import axios from "axios";
 import { STATUS_META, formatDateTime } from "./pesModuleMeta";
@@ -193,6 +194,36 @@ function liveDurations(item, status, repairStartByNumber, nowMs) {
   return { trip, work, repair };
 }
 
+// SheetJS CE не умеет записывать freeze panes — дописываем <pane> в XML листа.
+async function freezeFirstRow(bytes) {
+  const zip = await JSZip.loadAsync(bytes);
+  const entry = Object.keys(zip.files).find((name) => /^xl\/worksheets\/sheet\d+\.xml$/.test(name));
+  if (!entry) return bytes;
+
+  const xml = await zip.files[entry].async("string");
+  const pane =
+    '<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>' +
+    '<selection pane="bottomLeft" activeCell="A2" sqref="A2"/>';
+  const patched = xml.includes("<pane")
+    ? xml
+    : xml.replace(/<sheetView([^>]*?)\/>/, `<sheetView$1>${pane}</sheetView>`);
+  if (patched === xml) return bytes;
+
+  zip.file(entry, patched);
+  return zip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
 export async function exportPesSnapshotToXlsx({ items, branchGroups = [] }) {
   const list = Array.isArray(items) ? items : [];
   if (!list.length) return { exported: 0 };
@@ -240,10 +271,18 @@ export async function exportPesSnapshotToXlsx({ items, branchGroups = [] }) {
 
   const ws = XLSX.utils.aoa_to_sheet([COLS.map((c) => c.header), ...wsData]);
   ws["!cols"] = COLS.map((c) => ({ wch: c.width }));
+  // Автофильтр на шапку — чтобы не проставлять руками после выгрузки.
+  if (ws["!ref"]) ws["!autofilter"] = { ref: ws["!ref"] };
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "ПЭС");
-  XLSX.writeFile(wb, `pes-snapshot-${dayjs().format("YYYY-MM-DD-HH-mm")}.xlsx`);
+
+  const bytes = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+  const frozen = await freezeFirstRow(bytes);
+  const blob = new Blob([frozen], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  downloadBlob(blob, `pes-snapshot-${dayjs().format("YYYY-MM-DD-HH-mm")}.xlsx`);
 
   return { exported: wsData.length };
 }
